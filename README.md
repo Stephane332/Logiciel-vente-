@@ -58,3 +58,5 @@ En construction. La feuille de route détaillée se trouve dans
 | [`docs/04-paiement-mobile-money.md`](docs/04-paiement-mobile-money.md) | Conception de l'encaissement |
 | [`docs/05-modele-donnees.md`](docs/05-modele-donnees.md) | Modèle de données |
 | [`docs/06-feuille-de-route.md`](docs/06-feuille-de-route.md) | Phases et jalons |
+| [`docs/07-protocole-mcf.md`](docs/07-protocole-mcf.md) | Protocole de dialogue avec le module de contrôle |
+| [`docs/08-idees-produit.md`](docs/08-idees-produit.md) | Idées à évaluer sur le terrain |

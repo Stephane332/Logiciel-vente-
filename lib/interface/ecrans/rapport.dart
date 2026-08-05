@@ -22,11 +22,16 @@ class EcranRapport extends StatefulWidget {
   final Documents documents;
   final Analyses analyses;
 
+  /// Ouvre les réglages. C'est l'écran du patron : c'est ici qu'on règle sa
+  /// boutique, pas au milieu d'une vente.
+  final VoidCallback? surReglages;
+
   const EcranRapport({
     super.key,
     required this.depot,
     required this.documents,
     required this.analyses,
+    this.surReglages,
   });
 
   @override
@@ -98,7 +103,20 @@ class EcranRapportState extends State<EcranRapport> {
         child: ListView(
           padding: const EdgeInsets.all(Espace.l),
           children: [
-            Text("Aujourd'hui", style: textes.labelSmall),
+            Row(
+              children: [
+                Text("Aujourd'hui", style: textes.labelSmall),
+                const Spacer(),
+                if (widget.surReglages != null)
+                  IconButton(
+                    onPressed: widget.surReglages,
+                    icon: const Icon(Icons.tune_rounded, size: 22),
+                    color: Couleurs.encreDouce,
+                    tooltip: 'Réglages',
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
             const SizedBox(height: Espace.xs),
             MontantAnime(rapport.encaisse, style: textes.displayLarge),
             Text('encaissés', style: textes.bodyMedium),

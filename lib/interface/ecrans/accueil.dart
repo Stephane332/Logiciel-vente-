@@ -9,21 +9,29 @@ import 'package:flutter/material.dart';
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
 import '../../donnees/documents.dart';
+import '../../donnees/parametres.dart';
 import '../theme/palette.dart';
 import 'dettes.dart';
 import 'rapport.dart';
+import 'reglages.dart';
 import 'vente.dart';
 
 class Accueil extends StatefulWidget {
   final Depot depot;
   final Documents documents;
   final Analyses analyses;
+  final Parametres parametres;
+
+  /// L'état des réglages au démarrage, lu une fois avant l'affichage.
+  final Reglage reglage;
 
   const Accueil({
     super.key,
     required this.depot,
     required this.documents,
     required this.analyses,
+    required this.parametres,
+    required this.reglage,
   });
 
   @override
@@ -42,6 +50,27 @@ class _AccueilState extends State<Accueil> {
 
   final _cleDettes = GlobalKey<EcranDettesState>();
   final _cleRapport = GlobalKey<EcranRapportState>();
+
+  late Reglage _reglage = widget.reglage;
+
+  /// Le nom du commerce s'imprime sur tous les documents : quand il change,
+  /// la fabrique doit changer avec lui.
+  late Documents _documents = widget.documents;
+
+  Future<void> _ouvrirReglages() async {
+    final maj = await EcranReglages.ouvrir(
+      context,
+      parametres: widget.parametres,
+      reglage: _reglage,
+    );
+    if (maj == null || !mounted) return;
+
+    setState(() {
+      _reglage = maj;
+      _documents =
+          Documents(widget.documents.base, nomCommerce: maj.nomCommerce);
+    });
+  }
 
   /// Change d'écran et rafraîchit celui qu'on ouvre.
   ///
@@ -76,13 +105,18 @@ class _AccueilState extends State<Accueil> {
       body: IndexedStack(
         index: _destination,
         children: [
-          EcranVente(depot: widget.depot, documents: widget.documents),
+          EcranVente(
+            depot: widget.depot,
+            documents: _documents,
+            comptes: _reglage.comptes,
+            surConfiguration: _ouvrirReglages,
+          ),
           _onglet(
             1,
             () => EcranDettes(
               key: _cleDettes,
               depot: widget.depot,
-              documents: widget.documents,
+              documents: _documents,
             ),
           ),
           _onglet(
@@ -90,8 +124,9 @@ class _AccueilState extends State<Accueil> {
             () => EcranRapport(
               key: _cleRapport,
               depot: widget.depot,
-              documents: widget.documents,
+              documents: _documents,
               analyses: widget.analyses,
+              surReglages: _ouvrirReglages,
             ),
           ),
         ],

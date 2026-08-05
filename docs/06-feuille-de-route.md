@@ -50,7 +50,8 @@ après l'installation. En dessous, je corrige le produit avant d'en installer d'
 Huit à douze semaines.
 
 - [ ] Stock progressif et alertes de rupture
-- [ ] Encaissement mobile money par code QR et USSD
+- [x] Comptes marchands configurables, un numéro par opérateur
+- [x] Encaissement mobile money par code QR et USSD, sans aucune API payante
 - [ ] Capture des SMS de confirmation sur Android
 - [ ] Relais vers iOS
 - [ ] Synchronisation cloud

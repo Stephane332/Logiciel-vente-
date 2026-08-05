@@ -12,59 +12,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../domaine/mobile_money.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/references.dart';
 import '../composants/montant_anime.dart';
 import '../theme/palette.dart';
 
-/// Un opérateur de mobile money et la syntaxe de son code marchand.
-class OperateurMobile {
-  final String nom;
-  final Color teinte;
-
-  /// Modèle du code marchand. `{numero}` et `{montant}` sont substitués.
-  final String modeleUssd;
-
-  const OperateurMobile(this.nom, this.teinte, this.modeleUssd);
-
-  String code({required String numero, required Montant montant}) {
-    final francs = (montant.centimes / 100).round().toString();
-    return modeleUssd
-        .replaceAll('{numero}', numero)
-        .replaceAll('{montant}', francs);
-  }
-
-  /// URL composable. Le `#` doit être encodé, sans quoi le composeur
-  /// tronque le code.
-  String urlComposeur({required String numero, required Montant montant}) =>
-      'tel:${Uri.encodeComponent(code(numero: numero, montant: montant))}';
-
-  static const orange =
-      OperateurMobile('Orange Money', Color(0xFFFF6600), '*144*10*{numero}*{montant}#');
-  static const moov =
-      OperateurMobile('Moov Money', Color(0xFF0066B3), '*555*{numero}*{montant}#');
-  static const telecel =
-      OperateurMobile('Telecel Money', Color(0xFFE30613), '*800*{numero}*{montant}#');
-
-  static const tous = [orange, moov, telecel];
-}
+/// Couleur d'accompagnement d'un opérateur, à sa charte.
+Color teinteDe(OperateurMobile operateur) => switch (operateur) {
+      OperateurMobile.orange => const Color(0xFFFF6600),
+      OperateurMobile.moov => const Color(0xFF0066B3),
+      OperateurMobile.telecel => const Color(0xFFE30613),
+    };
 
 class FeuillePaiement extends StatefulWidget {
   final Montant total;
 
+  /// Les comptes sur lesquels le commerçant se fait payer.
+  final ComptesMarchands comptes;
+
   /// Appelé avec le mode retenu, une fois la vente validée.
   final Future<void> Function(ModePaiement mode) surPaiementChoisi;
+
+  /// Ouvre les réglages. Nul quand il n'y a nulle part où aller — en test,
+  /// par exemple.
+  final VoidCallback? surConfiguration;
 
   const FeuillePaiement({
     super.key,
     required this.total,
     required this.surPaiementChoisi,
+    this.comptes = const ComptesMarchands.aucun(),
+    this.surConfiguration,
   });
 
   static Future<void> presenter(
     BuildContext context, {
     required Montant total,
     required Future<void> Function(ModePaiement mode) surPaiementChoisi,
+    ComptesMarchands comptes = const ComptesMarchands.aucun(),
+    VoidCallback? surConfiguration,
   }) =>
       showModalBottomSheet(
         context: context,
@@ -72,7 +59,9 @@ class FeuillePaiement extends StatefulWidget {
         showDragHandle: true,
         builder: (_) => FeuillePaiement(
           total: total,
+          comptes: comptes,
           surPaiementChoisi: surPaiementChoisi,
+          surConfiguration: surConfiguration,
         ),
       );
 
@@ -81,15 +70,19 @@ class FeuillePaiement extends StatefulWidget {
 }
 
 class _FeuillePaiementState extends State<FeuillePaiement> {
-  /// Numéro marchand, renseigné à la configuration de la boutique.
-  static const _numeroMarchand = '70123456';
-
   ModePaiement? _mode;
-  OperateurMobile _operateur = OperateurMobile.orange;
+  OperateurMobile? _operateur;
+
+  @override
+  void initState() {
+    super.initState();
+    _operateur = widget.comptes.disponibles.firstOrNull;
+  }
 
   @override
   Widget build(BuildContext context) {
     final textes = Theme.of(context).textTheme;
+    final disponibles = widget.comptes.disponibles;
 
     // La feuille défile : le volet mobile money l'agrandit, et sur un écran
     // court ou clavier ouvert elle déborderait sinon.
@@ -132,7 +125,7 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
                 child: _BoutonMode(
                   icone: Icons.smartphone_rounded,
                   libelle: 'Mobile money',
-                  teinte: OperateurMobile.orange.teinte,
+                  teinte: teinteDe(OperateurMobile.orange),
                   actif: _mode == ModePaiement.mobileMoney,
                   onPressed: () =>
                       setState(() => _mode = ModePaiement.mobileMoney),
@@ -155,15 +148,22 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
             duration: Duree.moyenne,
             curve: Courbe.sortie,
             alignment: Alignment.topCenter,
-            child: _mode == ModePaiement.mobileMoney
-                ? _VoletMobileMoney(
-                    total: widget.total,
-                    numeroMarchand: _numeroMarchand,
-                    operateur: _operateur,
-                    surChangementOperateur: (o) =>
-                        setState(() => _operateur = o),
-                  )
-                : const SizedBox(width: double.infinity),
+            child: switch ((_mode, _operateur)) {
+              // Rien n'est configuré : plutôt qu'un code QR qui ne paierait
+              // personne, on dit ce qu'il manque et on y emmène.
+              (ModePaiement.mobileMoney, null) => _AConfigurer(
+                  surConfiguration: widget.surConfiguration,
+                ),
+              (ModePaiement.mobileMoney, final operateur?) => _VoletMobileMoney(
+                  total: widget.total,
+                  numeroMarchand: widget.comptes.numeroDe(operateur)!,
+                  operateur: operateur,
+                  disponibles: disponibles,
+                  surChangementOperateur: (o) =>
+                      setState(() => _operateur = o),
+                ),
+              _ => const SizedBox(width: double.infinity),
+            },
           ),
 
           const SizedBox(height: Espace.xl),
@@ -194,16 +194,66 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
   }
 }
 
+/// Ce qui s'affiche quand aucun compte marchand n'est encore renseigné.
+class _AConfigurer extends StatelessWidget {
+  final VoidCallback? surConfiguration;
+
+  const _AConfigurer({required this.surConfiguration});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: Espace.l),
+      padding: const EdgeInsets.all(Espace.l),
+      decoration: BoxDecoration(
+        color: Couleurs.fond,
+        borderRadius: BorderRadius.circular(Rayon.m),
+        border: Border.all(color: Couleurs.bordure),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.smartphone_rounded,
+              size: 32, color: Couleurs.encreLegere),
+          const SizedBox(height: Espace.m),
+          Text(
+            "Dis-moi sur quel numéro tu veux être payé, et je génère le code "
+            "que ton client n'aura plus qu'à scanner.",
+            textAlign: TextAlign.center,
+            style: textes.bodyMedium,
+          ),
+          if (surConfiguration != null) ...[
+            const SizedBox(height: Espace.m),
+            OutlinedButton.icon(
+              onPressed: surConfiguration,
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Renseigner mon numéro'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _VoletMobileMoney extends StatelessWidget {
   final Montant total;
   final String numeroMarchand;
   final OperateurMobile operateur;
+
+  /// Les opérateurs chez qui le commerçant a un compte. Proposer les autres
+  /// afficherait un code qui ne le paierait pas.
+  final List<OperateurMobile> disponibles;
+
   final ValueChanged<OperateurMobile> surChangementOperateur;
 
   const _VoletMobileMoney({
     required this.total,
     required this.numeroMarchand,
     required this.operateur,
+    required this.disponibles,
     required this.surChangementOperateur,
   });
 
@@ -211,7 +261,7 @@ class _VoletMobileMoney extends StatelessWidget {
   Widget build(BuildContext context) {
     final textes = Theme.of(context).textTheme;
     final code = operateur.code(numero: numeroMarchand, montant: total);
-    final url = operateur.urlComposeur(numero: numeroMarchand, montant: total);
+    final url = operateur.lienComposeur(numero: numeroMarchand, montant: total);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -219,15 +269,15 @@ class _VoletMobileMoney extends StatelessWidget {
         const SizedBox(height: Espace.l),
         Row(
           children: [
-            for (final o in OperateurMobile.tous) ...[
+            for (final o in disponibles) ...[
               Expanded(
                 child: _PastilleOperateur(
                   operateur: o,
-                  actif: o.nom == operateur.nom,
+                  actif: o == operateur,
                   onPressed: () => surChangementOperateur(o),
                 ),
               ),
-              if (o != OperateurMobile.tous.last)
+              if (o != disponibles.last)
                 const SizedBox(width: Espace.s),
             ],
           ],
@@ -273,7 +323,7 @@ class _VoletMobileMoney extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     eyeStyle: QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: operateur.teinte,
+                      color: teinteDe(operateur),
                     ),
                     dataModuleStyle: const QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
@@ -295,14 +345,14 @@ class _VoletMobileMoney extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: Espace.l, vertical: Espace.m),
                   decoration: BoxDecoration(
-                    color: operateur.teinte.withValues(alpha: 0.10),
+                    color: teinteDe(operateur).withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(Rayon.s),
                   ),
                   child: Text(
                     code,
                     textAlign: TextAlign.center,
                     style: textes.titleLarge?.copyWith(
-                      color: operateur.teinte,
+                      color: teinteDe(operateur),
                       letterSpacing: 0.5,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
@@ -314,53 +364,28 @@ class _VoletMobileMoney extends StatelessWidget {
         ),
 
         const SizedBox(height: Espace.m),
+        // Pas de « en attente de confirmation » : rien n'écoute encore les
+        // SMS de l'opérateur. Tant que la capture automatique n'est pas là,
+        // c'est le commerçant qui confirme, et l'écran le dit franchement
+        // plutôt que d'afficher une attente qui n'existe pas.
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const _PointPulsant(),
+            const Icon(Icons.info_outline_rounded,
+                size: 15, color: Couleurs.encreLegere),
             const SizedBox(width: Espace.s),
-            Text('En attente du SMS de confirmation',
-                style: textes.bodyMedium),
+            Flexible(
+              child: Text(
+                'Valide la vente quand tu as reçu le SMS '
+                '${operateur.abrege}.',
+                style: textes.bodyMedium,
+              ),
+            ),
           ],
         ),
       ],
     );
   }
-}
-
-/// Point qui pulse doucement, pendant l'attente de la confirmation.
-class _PointPulsant extends StatefulWidget {
-  const _PointPulsant();
-
-  @override
-  State<_PointPulsant> createState() => _PointPulsantState();
-}
-
-class _PointPulsantState extends State<_PointPulsant>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controleur = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controleur.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-        opacity: Tween<double>(begin: 0.25, end: 1).animate(_controleur),
-        child: Container(
-          width: 9,
-          height: 9,
-          decoration: const BoxDecoration(
-            color: Couleurs.primaireVif,
-            shape: BoxShape.circle,
-          ),
-        ),
-      );
 }
 
 class _BoutonMode extends StatelessWidget {
@@ -439,19 +464,19 @@ class _PastilleOperateur extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: Espace.s + 2),
         decoration: BoxDecoration(
           color: actif
-              ? operateur.teinte.withValues(alpha: 0.12)
+              ? teinteDe(operateur).withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(Rayon.s),
           border: Border.all(
-            color: actif ? operateur.teinte : Couleurs.bordure,
+            color: actif ? teinteDe(operateur) : Couleurs.bordure,
             width: actif ? 2 : 1,
           ),
         ),
         child: Text(
-          operateur.nom.split(' ').first,
+          operateur.abrege,
           textAlign: TextAlign.center,
           style: textes.labelSmall?.copyWith(
-            color: actif ? operateur.teinte : Couleurs.encreDouce,
+            color: actif ? teinteDe(operateur) : Couleurs.encreDouce,
             fontWeight: actif ? FontWeight.w800 : FontWeight.w600,
           ),
         ),

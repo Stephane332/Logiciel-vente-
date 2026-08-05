@@ -228,6 +228,23 @@ class MouvementsCaisse extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+
+/// Les réglages de la boutique.
+///
+/// Une simple table clé-valeur : ces paramètres sont peu nombreux, lus
+/// rarement, et je préfère pouvoir en ajouter un sans migration de schéma.
+/// Ils ne passent pas par le journal d'événements — ce n'est pas de
+/// l'activité commerciale, et la DGI n'a rien à y vérifier.
+@DataClassName('LigneReglage')
+class Reglages extends Table {
+  TextColumn get cle => text()();
+  TextColumn get valeur => text()();
+  DateTimeColumn get modifieLe => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {cle};
+}
+
 @DriftDatabase(tables: [
   Evenements,
   Articles,
@@ -236,12 +253,13 @@ class MouvementsCaisse extends Table {
   Paiements,
   Clients,
   MouvementsCaisse,
+  Reglages,
 ])
 class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -277,6 +295,9 @@ class BaseLocale extends _$BaseLocale {
           if (depuis < 4) {
             await m.addColumn(clients, clients.telephoneNormalise);
             await m.addColumn(clients, clients.consentementLe);
+          }
+          if (depuis < 5) {
+            await m.createTable(reglages);
           }
         },
         beforeOpen: (details) async {

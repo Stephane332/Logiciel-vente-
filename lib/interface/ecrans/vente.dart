@@ -15,6 +15,7 @@ import '../../domaine/references.dart';
 import '../../donnees/base.dart';
 import '../../donnees/depot.dart';
 import '../../donnees/documents.dart';
+import '../../domaine/mobile_money.dart';
 import '../composants/montant_anime.dart';
 import '../composants/pave_numerique.dart';
 import '../composants/partage.dart';
@@ -27,10 +28,19 @@ class EcranVente extends StatefulWidget {
   final Depot depot;
   final Documents documents;
 
+  /// Les comptes sur lesquels le commerçant encaisse par téléphone.
+  final ComptesMarchands comptes;
+
+  /// Emmène aux réglages depuis la feuille d'encaissement, quand rien n'y
+  /// est encore renseigné.
+  final VoidCallback? surConfiguration;
+
   const EcranVente({
     super.key,
     required this.depot,
     required this.documents,
+    this.comptes = const ComptesMarchands.aucun(),
+    this.surConfiguration,
   });
 
   @override
@@ -131,6 +141,8 @@ class _EcranVenteState extends State<EcranVente> {
     await FeuillePaiement.presenter(
       context,
       total: _total,
+      comptes: widget.comptes,
+      surConfiguration: widget.surConfiguration,
       surPaiementChoisi: (mode) => _enregistrer(mode),
     );
   }

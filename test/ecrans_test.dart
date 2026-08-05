@@ -8,6 +8,7 @@ library;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:carnet/domaine/montant.dart';
 import 'package:carnet/domaine/references.dart';
@@ -16,11 +17,14 @@ import 'package:carnet/donnees/analyses.dart';
 import 'package:carnet/donnees/base.dart';
 import 'package:carnet/donnees/depot.dart';
 import 'package:carnet/donnees/documents.dart';
+import 'package:carnet/domaine/mobile_money.dart';
 import 'package:carnet/donnees/journal.dart';
+import 'package:carnet/donnees/parametres.dart';
 import 'package:carnet/interface/composants/montant_anime.dart';
 import 'package:carnet/interface/ecrans/accueil.dart';
 import 'package:carnet/interface/ecrans/dettes.dart';
 import 'package:carnet/interface/ecrans/rapport.dart';
+import 'package:carnet/interface/ecrans/vente.dart';
 import 'package:carnet/interface/theme/theme.dart';
 
 void main() {
@@ -313,6 +317,11 @@ void main() {
             depot: depot,
             documents: documents,
             analyses: analyses,
+            parametres: Parametres(base),
+            reglage: const Reglage(
+              nomCommerce: 'Alimentation Nabonswendé',
+              comptes: ComptesMarchands.aucun(),
+            ),
           ),
         );
 
@@ -457,6 +466,90 @@ void main() {
             maintenant.subtract(const Duration(days: 1))),
         isFalse,
       );
+    });
+  });
+
+  group('Encaissement par téléphone', () {
+    Widget caisse({ComptesMarchands comptes = const ComptesMarchands.aucun()}) =>
+        MaterialApp(
+          theme: themeClair(),
+          home: EcranVente(
+            depot: depot,
+            documents: documents,
+            comptes: comptes,
+          ),
+        );
+
+    Future<void> ouvrirMobileMoney(WidgetTester tester) async {
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mobile money'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("sans compte marchand, on explique au lieu d'afficher un code",
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 2500);
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await ouvrirMobileMoney(tester);
+
+      // Un code QR sans numéro configuré ne paierait personne.
+      expect(find.textContaining('sur quel numéro tu veux être payé'),
+          findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
+    });
+
+    testWidgets('avec un compte, le code du client est affiché en entier',
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 2500);
+      await tester.pumpWidget(caisse(
+        comptes: const ComptesMarchands({OperateurMobile.orange: '66798031'}),
+      ));
+      await tester.pumpAndSettle();
+
+      await ouvrirMobileMoney(tester);
+
+      expect(find.text('*144*10*66798031*2500#'), findsOneWidget);
+      expect(find.byType(QrImageView), findsOneWidget);
+    });
+
+    testWidgets("seuls les opérateurs configurés sont proposés",
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 2500);
+      await tester.pumpWidget(caisse(
+        comptes: const ComptesMarchands({
+          OperateurMobile.orange: '66798031',
+          OperateurMobile.moov: '60112233',
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      await ouvrirMobileMoney(tester);
+
+      expect(find.text('Orange'), findsOneWidget);
+      expect(find.text('Moov'), findsOneWidget);
+      expect(find.text('Telecel'), findsNothing);
+    });
+
+    testWidgets("changer d'opérateur change le code affiché", (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 2500);
+      await tester.pumpWidget(caisse(
+        comptes: const ComptesMarchands({
+          OperateurMobile.orange: '66798031',
+          OperateurMobile.moov: '60112233',
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      await ouvrirMobileMoney(tester);
+      await tester.tap(find.text('Moov'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('*555*60112233*2500#'), findsOneWidget);
     });
   });
 }

@@ -48,6 +48,17 @@ un relais qui les rend disponibles côté Apple.
 En construction. La feuille de route détaillée se trouve dans
 [`docs/06-feuille-de-route.md`](docs/06-feuille-de-route.md).
 
+## Démarrer
+
+```sh
+flutter pub get
+dart run build_runner build    # génère le code de la base locale
+flutter test
+```
+
+Le code généré par Drift (`*.g.dart`) n'est pas versionné : il se régénère à partir du
+schéma. Il faut donc lancer `build_runner` après un clone ou une modification des tables.
+
 ## Documentation
 
 | Document | Contenu |

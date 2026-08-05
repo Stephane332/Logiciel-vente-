@@ -18,20 +18,37 @@ là.
 
 ### Le journal — ce qui s'est passé
 
-Table `evenements`, append-only. Rien n'y est jamais modifié ni supprimé.
+Table `evenements`, append-only. Rien n'y est jamais modifié ni supprimé. Implémentée dans
+[`lib/donnees/journal.dart`](../lib/donnees/journal.dart).
 
 | Colonne | Rôle |
 |---|---|
-| `id` | Identifiant unique, généré sur l'appareil |
-| `appareil_id` | Quel appareil a produit l'événement |
-| `horodatage` | Date et heure locales de l'événement |
+| `id` | Identifiant unique, trié par ordre chronologique |
+| `appareil` | Quel appareil a produit l'événement |
 | `sequence` | Compteur monotone par appareil |
+| `horodatage` | Date et heure de l'événement |
 | `type` | Nature de l'événement |
 | `charge` | Contenu, en JSON |
-| `synchronise` | Envoyé au serveur ou non |
+| `empreinte_precedente` | Empreinte de l'événement qui précède |
+| `empreinte` | Empreinte de celui-ci, calculée sur son contenu **et** sur la précédente |
+| `synchronise` | Remonté au serveur ou non |
 
-C'est cette table qui satisfait l'exigence de journal électronique inaltérable (§2.23) et
-qui rend la synchronisation fiable.
+**Le chaînage d'empreintes est ce qui rend le journal réellement inaltérable.** L'empreinte
+de chaque événement — SHA-256 d'une représentation canonique — inclut celle de l'événement
+précédent. Modifier ou supprimer un événement ancien invalide toute la suite de la chaîne.
+`Journal.verifier()` contrôle les trois choses : continuité des séquences, chaînage, et
+recalcul de chaque empreinte. C'est ce qui satisfait le §2.23.
+
+`synchronise` est la seule colonne qui évolue après écriture, et elle **ne participe pas** au
+calcul de l'empreinte — sans quoi remonter les données au serveur invaliderait le journal.
+
+Une correction ne réécrit jamais le passé : elle ajoute un événement qui l'annule. C'est
+aussi ce qu'impose la DGI, qui traite annulations et remises par facture d'avoir.
+
+**Les horodatages sont ramenés à la seconde entière.** L'empreinte est calculée dessus et
+doit rester identique après un aller-retour en base ; or la base ne conserve pas les
+millisecondes. Sans cette normalisation, tout journal relu paraîtrait falsifié. La seconde
+est de toute façon la précision retenue par la DGI dans son code QR.
 
 ### Les projections — l'état courant
 
@@ -52,6 +69,18 @@ cadastrales** au format `SSSS LLL PPPP` sur 11 caractères numériques (§3.c).
 L'ISF, attribué par l'Administration, s'y ajoute au moment de la certification.
 
 ### `article`
+
+Le catalogue **n'est jamais saisi à l'avance**. Un article naît de la première vente.
+
+Quand le commerçant encaisse un montant libre, l'article est identifié **par son prix** :
+celui qui tape trois fois « 500 F » vend très probablement trois fois la même chose. Le code
+généré est de la forme `AUTO-50000`, et l'article reste marqué non nommé. Au bout de trois
+ventes, `Depot.articlesANommer()` le fait remonter et l'application propose au commerçant de
+lui donner un nom.
+
+Le stock, lui, n'est **pas** suivi tant que le commerçant ne l'a pas déclaré. Tant qu'il ne
+l'a pas fait, l'application ne prétend pas le connaître : mieux vaut ne rien afficher qu'un
+chiffre faux.
 
 | Champ | Contrainte |
 |---|---|
@@ -156,6 +185,13 @@ Points délicats, tous issus du §6 :
 
 Le jeu de tests couvre les 16 groupes de taxation, les deux modes de prix, la taxe
 spécifique et le PSVB, avec vérification systématique de l'égalité comptable.
+
+## Reconstruction
+
+`Depot.reconstruireProjections()` vide toutes les projections et rejoue le journal depuis le
+début. C'est à la fois la preuve que le journal est bien la source de vérité, et le recours
+si une projection est corrompue. Un test vérifie qu'après reconstruction, le rapport du jour,
+le catalogue et les encours clients sont rigoureusement identiques.
 
 ## Ce qui reste à définir
 

@@ -63,22 +63,35 @@ pouvoir corriger sans publier une mise à jour.
 
 ## Le cas de l'iPhone
 
-**iOS n'offre aucune API de lecture de SMS ni d'exécution d'USSD.** Ce n'est pas une
-permission qu'on pourrait demander à l'utilisateur : la capacité n'existe pas dans la
-plateforme.
+Il faut distinguer trois choses que l'on confond facilement.
 
-- Aucun *entitlement* n'est proposé par Apple pour ces deux fonctions. On ne peut pas
-  réclamer ce qui n'est pas au catalogue.
-- Les URL `tel:` contenant `*` ou `#` sont bloquées depuis iOS 11 ; `UIApplication.open`
-  échoue silencieusement. L'utilisateur peut composer le code à la main, aucune application
-  ne peut le faire à sa place.
-- La seule extension touchant aux SMS, `ILMessageFilterExtension`, tourne dans un bac à
-  sable **sans accès réseau**, et l'application ne peut ni lire ni conserver le contenu des
-  messages. Apple l'a conçue précisément pour cela.
-- Le programme Enterprise ne débloque rien de tout cela.
+### Ce qui marche — vérifié par test sur iPhone
 
-Cette limite s'applique à tous les éditeurs sans exception. L'application Orange Money
-elle-même ne lit pas les SMS sur iPhone : elle interroge les serveurs d'Orange.
+**Ouvrir le composeur avec le code USSD déjà rempli.** Une URL `tel:` contenant le code
+ouvre l'application Téléphone, le code s'affiche, et l'utilisateur n'a plus qu'à envoyer
+puis saisir son code secret.
+
+C'est exactement le geste dont j'ai besoin côté client : le paiement se déclenche depuis un
+iPhone comme depuis un Android. Le bouton de paiement et le code QR fonctionnent donc sur
+les deux plateformes.
+
+### Ce qui ne marche pas
+
+**Exécuter le code sans action de l'utilisateur.** iOS impose que la personne appuie
+elle-même sur appeler. Ce n'est pas gênant : le client doit de toute façon saisir son code
+secret.
+
+**Capter la réponse USSD de l'opérateur.** iOS n'offre aucun équivalent de
+`TelephonyManager.sendUssdRequest()`. La consultation automatique du solde marchand et de
+l'historique reste donc propre à Android.
+
+**Lire les SMS.** Aucune API, et ce n'est pas une permission qu'on pourrait demander : la
+capacité n'existe pas dans la plateforme. La seule extension touchant aux SMS,
+`ILMessageFilterExtension`, tourne dans un bac à sable **sans accès réseau** et ne peut ni
+lire ni conserver le contenu des messages — Apple l'a conçue précisément pour cela. Le
+programme Enterprise ne change rien.
+
+C'est cette dernière limite, et elle seule, qui impose le relais décrit ci-dessous.
 
 ### La solution : le relais Android
 
@@ -102,8 +115,9 @@ implémentations :
 | Manuelle | Partout, en repli | Le commerçant confirme d'un geste après avoir vu son SMS |
 | API | Plus tard, partout | Agrégateur ou contrat Orange direct, sans Android requis |
 
-La **génération du code QR fonctionne partout** : c'est le client qui paie, avec son propre
-téléphone.
+Le **déclenchement du paiement fonctionne partout** — code QR et ouverture du composeur
+pré-rempli marchent sur Android comme sur iPhone. Seule la confirmation automatique demande
+un Android dans la boucle.
 
 ## Points de vigilance
 

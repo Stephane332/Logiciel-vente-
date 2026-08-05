@@ -77,6 +77,29 @@ core          ventes, stock, crédit, caisse, rapports
 Le socle représente l'essentiel du code et sert tous les secteurs. Un module métier n'est
 qu'une surcouche.
 
+## Interface
+
+Deux contraintes dictent le design, et elles tirent dans le même sens : l'application se lit
+**en plein soleil**, sur un marché, et tourne sur des **téléphones d'entrée de gamme**. D'où
+un contraste élevé, des aplats plutôt que des dégradés, des ombres rares, et des cibles
+tactiles de 56 points plutôt que les 48 habituels — on s'en sert debout, vite, parfois les
+mains encombrées.
+
+Les jetons de design sont centralisés dans `lib/interface/theme/palette.dart` : couleurs,
+espacements sur une trame de 4, rayons, durées et courbes d'animation.
+
+**Les animations ne portent que sur `transform` et `opacity`**, les deux seules propriétés
+qui restent fluides sur du matériel lent. Les durées sont volontairement courtes — 120 à
+480 ms : sur un téléphone d'entrée de gamme, une animation longue est perçue comme une
+lenteur de l'application, pas comme une élégance.
+
+Chaque article reçoit une **couleur stable dérivée de son nom**. Le même produit garde
+toujours la même teinte, ce qui permet de le reconnaître d'un coup d'œil sans savoir lire.
+
+**La police est embarquée** (Outfit, licence SIL OFL, 110 Ko pour deux graisses), jamais
+chargée depuis le réseau. Le rendu doit être identique sur Android et sur iPhone, et
+fonctionner hors ligne comme le reste de l'application.
+
 ## Synchronisation
 
 Le principe est simple et volontairement peu bavard, parce que la bande passante est chère
@@ -94,10 +117,13 @@ Un appareil doit pouvoir rester des semaines hors ligne sans rien perdre.
 
 ## Le cas de l'iPhone
 
-iOS n'offre aucune API de lecture de SMS ni d'exécution d'USSD, et ce n'est pas une
-permission qu'on pourrait demander : la capacité n'existe pas dans la plateforme. Le détail
-et la solution retenue — un relais par un appareil Android porteur de la puce marchande —
-sont documentés dans [`04-paiement-mobile-money.md`](04-paiement-mobile-money.md).
+Le déclenchement du paiement fonctionne sur iPhone : une URL `tel:` ouvre le composeur avec
+le code USSD pré-rempli, l'utilisateur n'a plus qu'à envoyer. Vérifié par test.
+
+Ce qu'iOS ne permet pas, c'est de **lire les SMS** ni de **capter la réponse USSD** de
+l'opérateur. Seule la confirmation automatique de l'encaissement est donc concernée, et elle
+passe par un relais depuis un appareil Android porteur de la puce marchande. Le détail est
+dans [`04-paiement-mobile-money.md`](04-paiement-mobile-money.md).
 
 En pratique, la caisse tourne sur Android et l'iPhone sert de console pour le propriétaire :
 consultation, rapports, multi-boutique.

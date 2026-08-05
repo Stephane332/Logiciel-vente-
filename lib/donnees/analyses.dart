@@ -12,6 +12,7 @@ library;
 import 'package:drift/drift.dart';
 
 import '../domaine/montant.dart';
+import '../domaine/references.dart';
 import 'base.dart';
 
 /// Ce qu'un article a rapporté sur une période.
@@ -105,6 +106,43 @@ class HabitudesClient {
   int? get joursDAbsence => dernierePresence == null
       ? null
       : DateTime.now().difference(dernierePresence!).inDays;
+}
+
+/// Alerte de réapprovisionnement.
+///
+/// Le seuil n'est pas un nombre fixe. « Alerte à 5 unités » est faux partout :
+/// cinq sacs de riz, c'est beaucoup ; cinq sachets d'eau, c'est rien. Le
+/// seuil se déduit de la **vitesse de vente**, ce qui le règle tout seul et
+/// tient compte du fait que se réapprovisionner prend du temps.
+class AlerteStock {
+  final String code;
+  final String designation;
+  final Quantite stockRestant;
+
+  /// Quantité vendue par jour sur la période observée.
+  final double parJour;
+
+  /// Jours de stock restants au rythme actuel. Nul si l'article ne se vend
+  /// plus du tout — dans ce cas ce n'est pas un problème de stock.
+  final int? joursRestants;
+
+  const AlerteStock({
+    required this.code,
+    required this.designation,
+    required this.stockRestant,
+    required this.parJour,
+    this.joursRestants,
+  });
+
+  bool get enRupture => stockRestant.milliemes <= 0;
+
+  String get message {
+    if (enRupture) return '$designation — rupture';
+    if (joursRestants == null) return '$designation — stock dormant';
+    if (joursRestants == 0) return '$designation — il ne reste presque rien';
+    return '$designation — il te reste $joursRestants jour'
+        '${joursRestants! > 1 ? 's' : ''}';
+  }
 }
 
 class Analyses {
@@ -222,6 +260,74 @@ class Analyses {
       ..sort((a, b) => a.ecart.centimes.compareTo(b.ecart.centimes));
 
     return evolutions.take(limite).toList();
+  }
+
+  /// Ce qu'il faut réapprovisionner, et dans quel ordre d'urgence.
+  ///
+  /// Ne concerne que les articles en suivi direct : un plat de restaurant
+  /// consomme des ingrédients et non lui-même, un service ne consomme rien.
+  Future<List<AlerteStock>> aReapprovisionner({
+    int joursDAvance = 5,
+    int fenetreObservation = 14,
+    DateTime? maintenant,
+  }) async {
+    final reference = maintenant ?? DateTime.now();
+    final debut = reference.subtract(Duration(days: fenetreObservation));
+
+    final articles = await (base.select(base.articles)
+          ..where((a) => a.suiviStock.equals(SuiviStock.direct.cle)))
+        .get();
+    if (articles.isEmpty) return [];
+
+    final vitesses = await base.customSelect(
+      '''
+      SELECT l.code_article            AS code,
+             SUM(l.quantite_milliemes) AS quantite
+      FROM lignes_vente l
+      JOIN ventes v ON v.id = l.vente_id
+      WHERE v.annulee = 0 AND v.horodatage >= ? AND v.horodatage < ?
+      GROUP BY l.code_article
+      ''',
+      variables: [
+        Variable<DateTime>(debut),
+        Variable<DateTime>(reference),
+      ],
+      readsFrom: {base.lignesVente, base.ventes},
+    ).get();
+
+    final vendu = {
+      for (final ligne in vitesses)
+        ligne.read<String>('code'): ligne.read<int>('quantite')
+    };
+
+    final alertes = <AlerteStock>[];
+    for (final article in articles) {
+      final stock = article.stockMilliemes;
+      if (stock == null) continue;
+
+      final parJour = (vendu[article.code] ?? 0) / 1000 / fenetreObservation;
+      final restants =
+          parJour <= 0 ? null : (stock / 1000 / parJour).floor();
+
+      // On alerte si c'est en rupture, ou s'il reste moins de jours que le
+      // délai de réapprovisionnement.
+      final urgent = stock <= 0 || (restants != null && restants <= joursDAvance);
+      if (!urgent) continue;
+
+      alertes.add(AlerteStock(
+        code: article.code,
+        designation: article.designation,
+        stockRestant: Quantite(stock),
+        parJour: parJour,
+        joursRestants: restants,
+      ));
+    }
+
+    alertes.sort((a, b) {
+      if (a.enRupture != b.enRupture) return a.enRupture ? -1 : 1;
+      return (a.joursRestants ?? 9999).compareTo(b.joursRestants ?? 9999);
+    });
+    return alertes;
   }
 
   /// Ce qu'un client achète d'habitude, et depuis quand il n'est pas venu.

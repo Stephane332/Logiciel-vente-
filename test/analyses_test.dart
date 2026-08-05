@@ -208,6 +208,144 @@ void main() {
     });
   });
 
+  group('Réapprovisionnement', () {
+    test('alerte quand il reste moins de jours que le délai', () async {
+      // Deux unités par jour sur deux semaines, il reste huit unités :
+      // quatre jours de stock, sous le seuil de cinq.
+      for (var j = 14; j > 0; j--) {
+        await vendre('RIZ', 'Riz', 650, quantite: 2, quand: ilYA(j));
+      }
+      await depot.ajusterStock('RIZ', const Quantite.unites(8));
+
+      final alertes = await analyses.aReapprovisionner(maintenant: maintenant);
+
+      expect(alertes, hasLength(1));
+      expect(alertes.single.code, 'RIZ');
+      expect(alertes.single.joursRestants, 4);
+      expect(alertes.single.message, contains('4 jours'));
+    });
+
+    test("n'alerte pas quand le stock tient largement", () async {
+      for (var j = 14; j > 0; j--) {
+        await vendre('RIZ', 'Riz', 650, quand: ilYA(j));
+      }
+      await depot.ajusterStock('RIZ', const Quantite.unites(200));
+
+      expect(await analyses.aReapprovisionner(maintenant: maintenant), isEmpty);
+    });
+
+    test('le même seuil vaut pour un article lent et un article rapide',
+        () async {
+      // Un sac de riz par semaine, il en reste deux : quatorze jours.
+      await vendre('RIZ', 'Sac de riz', 20000, quantite: 2, quand: ilYA(7));
+      await depot.ajusterStock('RIZ', const Quantite.unites(2));
+      // Cinquante sachets d'eau par jour, il en reste cent : deux jours.
+      for (var j = 14; j > 0; j--) {
+        await vendre('EAU', 'Sachet', 100, quantite: 50, quand: ilYA(j));
+      }
+      await depot.ajusterStock('EAU', const Quantite.unites(100));
+
+      final alertes = await analyses.aReapprovisionner(maintenant: maintenant);
+
+      // Seule l'eau est urgente, alors qu'il en reste cinquante fois plus.
+      expect(alertes.map((a) => a.code), ['EAU']);
+    });
+
+    test('la rupture passe devant tout le reste', () async {
+      for (var j = 14; j > 0; j--) {
+        await vendre('RIZ', 'Riz', 650, quantite: 2, quand: ilYA(j));
+        await vendre('EAU', 'Eau', 100, quantite: 5, quand: ilYA(j));
+      }
+      await depot.ajusterStock('RIZ', const Quantite.unites(8));
+      await depot.ajusterStock('EAU', const Quantite.unites(0));
+
+      final alertes = await analyses.aReapprovisionner(maintenant: maintenant);
+
+      expect(alertes.first.code, 'EAU');
+      expect(alertes.first.enRupture, isTrue);
+      expect(alertes.first.message, contains('rupture'));
+    });
+
+    test('ignore les articles sans suivi de stock', () async {
+      // Un service : vendu souvent, mais rien à réapprovisionner.
+      for (var j = 14; j > 0; j--) {
+        await vendre('COUPE', 'Coupe de cheveux', 1000, quand: ilYA(j));
+      }
+
+      expect(await analyses.aReapprovisionner(maintenant: maintenant), isEmpty);
+    });
+
+    test('ignore un plat suivi par recette', () async {
+      for (var j = 14; j > 0; j--) {
+        await vendre('RIZGRAS', 'Riz gras', 1000, quand: ilYA(j));
+      }
+      await depot.ajusterStock('RIZGRAS', const Quantite.unites(1));
+      await depot.definirSuiviStock('RIZGRAS', SuiviStock.recette);
+
+      expect(await analyses.aReapprovisionner(maintenant: maintenant), isEmpty);
+    });
+  });
+
+  group('Modes de suivi du stock', () {
+    test("par défaut, un article n'est pas suivi", () async {
+      await vendre('COUPE', 'Coupe', 1000, quand: ilYA(1));
+      final article = (await depot.catalogue()).single;
+      expect(article.suiviStock, SuiviStock.aucun.cle);
+      expect(article.stockMilliemes, isNull);
+    });
+
+    test('déclarer un stock met en suivi direct', () async {
+      await vendre('RIZ', 'Riz', 650, quand: ilYA(2));
+      await depot.ajusterStock('RIZ', const Quantite.unites(10));
+
+      final article = (await depot.catalogue()).single;
+      expect(article.suiviStock, SuiviStock.direct.cle);
+
+      await vendre('RIZ', 'Riz', 650, quantite: 3, quand: ilYA(1));
+      expect((await depot.catalogue()).single.stockMilliemes, 7000);
+    });
+
+    test('un plat en recette ne décrémente pas son propre stock', () async {
+      await vendre('RIZGRAS', 'Riz gras', 1000, quand: ilYA(3));
+      await depot.ajusterStock('RIZGRAS', const Quantite.unites(10));
+      await depot.definirSuiviStock('RIZGRAS', SuiviStock.recette);
+
+      await vendre('RIZGRAS', 'Riz gras', 1000, quantite: 4, quand: ilYA(1));
+
+      // Le stock reste ce qu'il était : ce sont les ingrédients qui se
+      // consomment, pas le plat.
+      expect((await depot.catalogue()).single.stockMilliemes, 10000);
+    });
+
+    test('repasser en aucun oublie le stock', () async {
+      await vendre('RIZ', 'Riz', 650, quand: ilYA(2));
+      await depot.ajusterStock('RIZ', const Quantite.unites(10));
+      await depot.definirSuiviStock('RIZ', SuiviStock.aucun);
+
+      expect((await depot.catalogue()).single.stockMilliemes, isNull);
+    });
+
+    test('le rejeu du journal restitue les modes de suivi', () async {
+      await vendre('RIZ', 'Riz', 650, quand: ilYA(3));
+      await depot.ajusterStock('RIZ', const Quantite.unites(10));
+      await vendre('RIZGRAS', 'Riz gras', 1000, quand: ilYA(3));
+      await depot.definirSuiviStock('RIZGRAS', SuiviStock.recette);
+
+      final avant = {
+        for (final a in await depot.catalogue())
+          a.code: (a.suiviStock, a.stockMilliemes)
+      };
+
+      await depot.reconstruireProjections();
+
+      final apres = {
+        for (final a in await depot.catalogue())
+          a.code: (a.suiviStock, a.stockMilliemes)
+      };
+      expect(apres, avant);
+    });
+  });
+
   group('Habitudes client', () {
     test('dit ce que le client achète et depuis quand il manque', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');

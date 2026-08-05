@@ -162,6 +162,32 @@ enum ModePrix {
   const ModePrix(this.etiquette);
 }
 
+/// Comment le stock d'un article est suivi.
+///
+/// Tous les commerces n'ont pas le même rapport au stock. Une boutique vend
+/// ce qu'elle achète, tel quel. Un restaurant vend des plats mais achète des
+/// ingrédients : compter un stock de plats n'a aucun sens. Un prestataire de
+/// services n'a pas de stock du tout.
+enum SuiviStock {
+  /// Aucun suivi. C'est le défaut, et le cas des services.
+  aucun('aucun'),
+
+  /// L'article est vendu tel qu'il est acheté : chaque vente le décrémente.
+  direct('direct'),
+
+  /// L'article est composé d'ingrédients. Le vendre consomme autre chose que
+  /// lui-même. Traité par le module métier restaurant.
+  recette('recette');
+
+  final String cle;
+  const SuiviStock(this.cle);
+
+  static SuiviStock parCle(String cle) => values.firstWhere(
+        (s) => s.cle == cle,
+        orElse: () => aucun,
+      );
+}
+
 /// Étiquettes des lignes de commentaire (§2.27). Huit lignes au minimum.
 enum LigneCommentaire {
   referenceExoneration('A', 'Réf. exo.', "Référence du certificat d'exonération"),

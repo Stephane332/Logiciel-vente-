@@ -78,9 +78,39 @@ généré est de la forme `AUTO-50000`, et l'article reste marqué non nommé. A
 ventes, `Depot.articlesANommer()` le fait remonter et l'application propose au commerçant de
 lui donner un nom.
 
-Le stock, lui, n'est **pas** suivi tant que le commerçant ne l'a pas déclaré. Tant qu'il ne
-l'a pas fait, l'application ne prétend pas le connaître : mieux vaut ne rien afficher qu'un
-chiffre faux.
+#### Trois façons de suivre un stock
+
+Tous les commerces n'ont pas le même rapport au stock, et un modèle unique ne peut pas
+convenir aux trois. D'où un **mode de suivi par article** :
+
+| Mode | Pour qui | Comportement |
+|---|---|---|
+| `aucun` | Prestataires de services, et par défaut | Rien n'est compté. L'application ne prétend pas connaître un stock qu'on ne lui a pas déclaré. |
+| `direct` | Boutiques, commerce de détail | L'article est vendu tel qu'il est acheté. Chaque vente le décrémente. |
+| `recette` | Restaurants, fast-foods | L'article est composé d'ingrédients. Le vendre consomme autre chose que lui-même — jamais son propre stock. |
+
+Un restaurant vend des **plats** mais achète des **ingrédients** : décrémenter un « stock de
+riz gras » n'a aucun sens. Le lien entre le plat et ce qu'il consomme est la fiche technique,
+traitée par le module métier. En attendant ce module, un plat en mode `recette` ne touche
+simplement à aucun stock.
+
+Déclarer un stock fait basculer l'article en suivi direct : déclarer, c'est demander à ce que
+ce soit suivi. Repasser en `aucun` oublie le stock connu — mieux vaut ne rien afficher qu'un
+chiffre qu'on a cessé de tenir à jour.
+
+#### L'alerte de réapprovisionnement
+
+Elle ne repose pas sur un seuil fixe. « Alerte à 5 unités » est faux partout : cinq sacs de
+riz, c'est beaucoup ; cinq sachets d'eau, c'est rien.
+
+Le seuil se déduit de la **vitesse de vente** observée sur les deux dernières semaines :
+
+> *Riz — il te reste 3 jours*
+
+Le seuil se règle donc tout seul, article par article, et tient compte du fait que se
+réapprovisionner prend du temps. Les ruptures passent devant tout le reste. Un article qui ne
+se vend plus du tout n'est pas une alerte de stock mais un article qui dort — il relève de
+l'autre analyse.
 
 | Champ | Contrainte |
 |---|---|

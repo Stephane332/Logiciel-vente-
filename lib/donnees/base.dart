@@ -58,6 +58,17 @@ class Articles extends Table {
   /// Faux tant que le commerçant n'a pas donné de nom à l'article.
   BoolColumn get nomme => boolean().withDefault(const Constant(false))();
 
+  /// Comment le stock de cet article est suivi.
+  ///
+  /// `aucun`   — pas de suivi. C'est le défaut, et le cas d'un prestataire
+  ///             de services ou d'un commerçant qui ne veut pas s'en occuper.
+  /// `direct`  — l'article est vendu tel qu'il est acheté. Chaque vente
+  ///             décrémente le stock. C'est le cas d'une boutique.
+  /// `recette` — l'article est composé d'ingrédients. Le vendre consomme
+  ///             autre chose que lui-même. C'est le cas d'un plat au
+  ///             restaurant, traité par le module métier.
+  TextColumn get suiviStock => text().withDefault(const Constant('aucun'))();
+
   /// Stock en millièmes d'unité. Nul tant que le commerçant ne l'a pas déclaré.
   IntColumn get stockMilliemes => integer().nullable()();
 
@@ -200,7 +211,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -219,6 +230,11 @@ class BaseLocale extends _$BaseLocale {
             'CREATE INDEX IF NOT EXISTS idx_ventes_horodatage '
             'ON ventes (horodatage)',
           );
+        },
+        onUpgrade: (m, depuis, vers) async {
+          if (depuis < 2) {
+            await m.addColumn(articles, articles.suiviStock);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

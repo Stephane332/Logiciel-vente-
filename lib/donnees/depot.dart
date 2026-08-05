@@ -264,14 +264,19 @@ class Depot {
     }
 
     final stock = existant.stockMilliemes;
+    // Le stock ne se décrémente qu'en suivi direct — quand l'article est
+    // vendu tel qu'il est acheté. Un plat de restaurant consomme des
+    // ingrédients, pas lui-même : son suivi passe par une recette, traitée
+    // par le module métier. Un service ne consomme rien du tout.
+    final suitLeStock =
+        existant.suiviStock == SuiviStock.direct.cle && stock != null;
+
     await (base.update(base.articles)..where((a) => a.code.equals(code))).write(
       ArticlesCompanion(
         nombreVentes: Value(existant.nombreVentes + 1),
         derniereVente: Value(quand),
-        // Le stock ne se décrémente que si le commerçant l'a déclaré. Tant
-        // qu'il ne l'a pas fait, on ne prétend pas le connaître.
         stockMilliemes:
-            stock == null ? const Value.absent() : Value(stock - quantiteMilliemes),
+            suitLeStock ? Value(stock - quantiteMilliemes) : const Value.absent(),
       ),
     );
   }
@@ -329,6 +334,9 @@ class Depot {
   }
 
   /// Déclare le stock restant d'un article.
+  ///
+  /// Déclarer un stock, c'est demander à ce qu'il soit suivi : l'article
+  /// passe automatiquement en suivi direct.
   Future<void> ajusterStock(String code, Quantite quantite) async {
     await base.transaction(() async {
       final evenement = await journal.ajouter(TypeEvenement.stockAjuste, {
@@ -344,6 +352,33 @@ class Depot {
           ..where((a) => a.code.equals(evenement.charge['code']! as String)))
         .write(ArticlesCompanion(
       stockMilliemes: Value(evenement.charge['quantite']! as int),
+      suiviStock: Value(SuiviStock.direct.cle),
+    ));
+  }
+
+  /// Change le mode de suivi du stock d'un article.
+  ///
+  /// Repasser en `aucun` oublie le stock connu : mieux vaut ne rien afficher
+  /// qu'un chiffre qu'on a cessé de tenir à jour.
+  Future<void> definirSuiviStock(String code, SuiviStock suivi) async {
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.stockAjuste, {
+        'code': code,
+        'suivi': suivi.cle,
+      });
+      await _appliquerModeSuivi(evenement);
+    });
+  }
+
+  Future<void> _appliquerModeSuivi(Evenement evenement) async {
+    final suivi = evenement.charge['suivi']! as String;
+    await (base.update(base.articles)
+          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+        .write(ArticlesCompanion(
+      suiviStock: Value(suivi),
+      stockMilliemes: suivi == SuiviStock.aucun.cle
+          ? const Value(null)
+          : const Value.absent(),
     ));
   }
 
@@ -493,7 +528,9 @@ class Depot {
     }
 
     final ruptures = await (base.select(base.articles)
-          ..where((a) => a.stockMilliemes.isSmallerOrEqualValue(0)))
+          ..where((a) =>
+              a.suiviStock.equals(SuiviStock.direct.cle) &
+              a.stockMilliemes.isSmallerOrEqualValue(0)))
         .get();
 
     return RapportDuJour(
@@ -530,7 +567,11 @@ class Depot {
           case TypeEvenement.articleNomme:
             await _appliquerNommage(evenement);
           case TypeEvenement.stockAjuste:
-            await _appliquerAjustementStock(evenement);
+            if (evenement.charge.containsKey('suivi')) {
+              await _appliquerModeSuivi(evenement);
+            } else {
+              await _appliquerAjustementStock(evenement);
+            }
           case TypeEvenement.creditRembourse:
             await _appliquerRemboursement(evenement);
           case TypeEvenement.caisseMouvement:

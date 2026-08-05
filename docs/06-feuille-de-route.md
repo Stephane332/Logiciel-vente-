@@ -7,8 +7,12 @@ Sans coder. Deux semaines.
 - [ ] Visiter 15 à 20 commerçants : boutiques, un fast-food, un prestataire. Photographier
       leurs cahiers, observer comment ils comptent et comment ils notent les dettes. C'est
       ça qui définit le produit, pas la recherche documentaire.
-- [ ] Obtenir de la DGI le **protocole de communication SFE ↔ MCF**, la liste des MCF
-      homologués et les modalités d'obtention d'un MCF de test.
+- [ ] Faire confirmer par la DGI le **protocole de dialogue avec le module de contrôle**, et
+      surtout : le Burkina prévoit-il un module **dématérialisé** accessible en API, comme
+      l'e-MCF béninois, ou le boîtier physique est-il la seule voie ?
+- [ ] Faire préciser le **délai toléré entre la vente et sa certification**, et le
+      **périmètre exact du SFE homologué** — le logiciel entier ou la seule production de
+      facture ?
 - [ ] Lancer la création de la société : RCCM, CNSS, immatriculation fiscale. Ce n'est pas
       optionnel — seule une personne de droit burkinabè peut commercialiser un SFE.
 - [ ] Ouvrir un compte marchand Orange Money et tester les codes USSD et les SMS en
@@ -50,11 +54,14 @@ Huit à douze semaines.
 
 ## Phase 3 — Certification et métiers
 
-- [ ] Module de certification et dialogue MCF
+- [ ] Module de certification et dialogue avec le module de contrôle
+- [ ] Certification différée : la vente s'enregistre hors ligne, se certifie au retour du
+      réseau, dans la fenêtre courte imposée par le module
 - [ ] Mentions obligatoires complètes sur la facture
 - [ ] Rapports X, Z et A
-- [ ] Jeu de tests fiscaux couvrant les 16 groupes de taxation
-- [ ] Dépôt du dossier d'homologation
+- [ ] Manuel d'utilisation, manuel de contrôle et brochure — ce sont des pièces du dossier
+- [ ] Dépôt du dossier d'homologation, sur un **périmètre restreint** : factures de vente et
+      d'avoir, groupes de taxation courants
 - [ ] Démonstration devant le comité
 - [ ] Module restaurant : tables, envoi cuisine, fiches techniques
 - [ ] Module services : devis, abonnements

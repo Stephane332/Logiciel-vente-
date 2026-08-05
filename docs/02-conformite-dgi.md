@@ -245,31 +245,23 @@ la quantité retournée et la quantité en stock.
 - Le PSVB se calcule et s'affiche sur la base du **montant total toutes taxes comprises**
   (§6.10).
 
-## Ce qui me manque encore
+## Le protocole et le code QR
 
 La spécification renvoie à un **protocole de communication SFE ↔ MCF** (§2.30) qui définit
-les échanges, ainsi que le **format et le contenu du code QR** imprimé sur la facture. Le
-SFE doit s'assurer que ce code QR est scannable.
+les échanges ainsi que le format et le contenu du code QR.
 
-**Ce document n'est pas en ma possession.** C'est le seul élément qui me manque pour coder
-le module de certification, et il conditionne aussi le choix du MCF avec lequel je
-m'interface.
-
-Trois questions à poser à la DGI :
-
-1. Obtenir le protocole de communication SFE ↔ MCF.
-2. Quels MCF sont homologués à ce jour, et comment un éditeur obtient-il un MCF de test ?
-3. Un SFE mobile est-il recevable, et comment se traite alors l'exigence d'impression du
-   §2.1 ?
+Ce protocole n'est pas publié. Il est reconstitué dans
+[`07-protocole-mcf.md`](07-protocole-mcf.md) à partir de la documentation officielle
+béninoise, dont le dispositif burkinabè est directement issu — **à faire confirmer par la
+DGI**.
 
 ## Dossier d'homologation
 
-Pièces administratives : RCCM, attestation de situation fiscale, affiliation CNSS.
+La procédure complète est détaillée dans [`09-homologation.md`](09-homologation.md).
 
-Pièces techniques : manuels, spécifications, jeux de tests, fichiers d'installation.
-
-Le fournisseur doit en outre **démontrer le fonctionnement de son système** devant le comité
-d'homologation.
+Point essentiel : **l'homologation peut porter sur un périmètre restreint.** Un SFE n'est pas
+tenu de couvrir tous les types de facture ni tous les groupes de taxation — il est seulement
+limité, à l'usage, à ceux qui ont été validés.
 
 ## Conséquence sur ma conception
 

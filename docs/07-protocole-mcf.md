@@ -1,166 +1,219 @@
-# Protocole de communication SFE ↔ MCF
+# Dialogue avec le module de contrôle
 
-## Statut de ce document
+## Deux voies possibles
 
-⚠️ **Ce document n'est pas officiel.** Il reconstitue le protocole à partir d'une
-implémentation libre du système béninois e-MECeF
-([cresshounnoukon/mcf-invoice-reform-api](https://github.com/cresshounnoukon/mcf-invoice-reform-api),
-Spring Boot, bibliothèque série jSerialComm).
+Le Bénin, dont le système est l'ancêtre direct du nôtre, offre **deux moyens** au SFE
+d'obtenir les éléments de sécurité :
 
-Le Burkina et le Bénin partagent un vocabulaire et une architecture **identiques** — SFE,
-MCF, NIM, IFU, éléments de sécurité, rapports X/Z/A, groupes de taxation par lettre, types
-de facture `FV`/`FA`/`FT`/`EV` — ce qui indique très probablement le même fournisseur de
-solution. Le protocole burkinabè devrait donc être le même ou très proche.
-
-**Il reste à faire valider par la DGI avant d'écrire le module de certification.** Ce
-document sert à savoir quoi construire et surtout **quelles questions poser**.
-
-## Nature du MCF
-
-Le MCF n'est pas un service web : c'est un **boîtier physique branché en liaison série**
-sur le poste qui fait tourner le SFE. C'est ce qui explique le §2.26 de la note de service
-burkinabè, qui impose que le SFE permette « la configuration des paramètres du port sur
-lequel le MCF est connecté ».
-
-Conséquence directe pour mon projet : **une caisse purement mobile ne peut pas parler au MCF
-sans intermédiaire.** Voir « Ce que ça change pour moi » en fin de document.
-
-## Trame
-
-Chaque commande est une trame binaire :
-
-```
-SOH   LEN   SEQ   CMD   DATA…   AMB   BCC(4)   ETX
-0x01   1o    1o    1o   ASCII   0x05   4 o     0x03
-```
-
-- **SOH** — début de trame, `0x01`
-- **LEN** — `0x20 + longueur(DATA) + 4`
-- **SEQ** — numéro de séquence, de `0x20` à `0xFE`, incrémenté à chaque commande puis
-  rebouclé
-- **CMD** — code de la commande, un octet
-- **DATA** — champs en texte, séparés par des virgules, encodés en UTF-8 avec substitution
-  des caractères accentués
-- **AMB** — séparateur, `0x05`
-- **BCC** — somme de contrôle sur 4 octets : les 4 quartets de la somme, chacun décalé de
-  `0x30` pour rester imprimable
-- **ETX** — fin de trame
-
-Le débit constaté dans l'implémentation est de **115 200 bauds**.
-
-## Commandes
-
-| Code | Opération | Données |
+| Voie | Nature | Contrainte |
 |---|---|---|
-| `0xC1` | État du MCF et informations de l'entreprise | — |
-| `0xC2` | État de la liaison du MCF avec le serveur de l'Administration | — |
-| `0x2B` | Lecture d'un champ d'identité de l'entreprise | code du champ |
-| `0xC0` | **Ouverture d'une facture** | voir ci-dessous |
-| `0x31` | **Ajout d'un article** | voir ci-dessous |
-| `0x33` | Sous-total | — |
-| `0x35` | Total | — |
-| `0x38` | **Clôture de la facture** | — |
+| **MCF physique** | Boîtier branché en liaison série sur le poste | Un boîtier par point de vente, présence physique |
+| **e-MCF** | Implémentation **logicielle** du MCF hébergée par la DGI, exposée en **API REST** | Connexion internet requise |
 
-La commande `0xC2` est celle qui permet de satisfaire le §2.31 : alerter l'utilisateur
-quotidiennement si le MCF n'a pas été connecté à l'Administration depuis plus de 7 jours.
+L'e-MCF est décrit ainsi dans la documentation officielle béninoise :
 
-### Séquence d'émission d'une facture
+> Le e-MCF est une implémentation logicielle du MCF du côté de la DGI. Le SFE peut
+> communiquer avec le e-MCF via l'interface de programmation (API) pour obtenir les éléments
+> de sécurité et produire des factures normalisées **sans avoir besoin d'une machine
+> physique**.
+
+**C'est la question décisive à poser à la DGI burkinabè : existe-t-il un équivalent de
+l'e-MCF ?** Si oui, une caisse mobile suffit et aucun matériel n'est nécessaire. Si non, il
+faut une passerelle locale portant le boîtier série.
+
+Un indice favorable : une application officielle **« FEC Burkina-Faso »** est publiée sur
+Google Play pour vérifier les factures. Une vérification côté serveur suppose une
+infrastructure en ligne, donc probablement une voie dématérialisée.
+
+---
+
+## Voie A — l'API e-MCF
+
+Source : **e-MECeF API v1.0**, DGI Bénin, 15 janvier 2021.
+
+### Principes
+
+- **REST**, données en **JSON**, en requête comme en réponse
+- En-têtes `content-type: application/json` et `accept: application/json`
+- Authentification par **jeton JWT** : `Authorization: Bearer <token>`
+- Une requête non autorisée renvoie `401`
+- Un `POST` sans corps renvoie `400`
+- Un jeton par e-MCF, et **un e-MCF par point de vente**, créés par la DGI
+
+### API de facturation
+
+| Méthode | Chemin | Rôle |
+|---|---|---|
+| `GET` | `/` | État de l'API, du jeton et des factures en attente |
+| `POST` | `/` | **Demande de facture** — envoie les données, reçoit les totaux calculés |
+| `PUT` | `/{uid}/{action}` | **Finalisation** — `confirm` ou `cancel` |
+| `GET` | `/{uid}` | Détail d'une facture en attente |
+
+### Le déroulement, et le piège à connaître
+
+1. Le SFE envoie les données de la facture en `POST`.
+2. L'e-MCF renvoie **ses propres totaux calculés**, plus un `uid`.
+3. **Le SFE doit comparer ces totaux aux siens.** La documentation l'exige explicitement :
+   c'est le contrôle qui garantit qu'aucune erreur ne s'est glissée dans les données
+   envoyées. *C'est exactement pour cela que mon moteur de calcul doit être juste au
+   centime.*
+4. Le SFE confirme (`confirm`) ou annule (`cancel`).
+5. La confirmation renvoie les **éléments de sécurité**.
+
+Deux limites dures :
+
+- Une demande de facture non finalisée **expire au bout de 2 minutes**
+- Un e-MCF n'accepte que **10 demandes en attente** simultanées
+
+Une caisse hors-ligne ne peut donc pas préparer ses factures à l'avance et les faire
+certifier plus tard en lot : chaque certification doit se boucler en moins de deux minutes,
+en ligne. **La conséquence est structurante — voir « Ce que ça change » plus bas.**
+
+### Les éléments de sécurité renvoyés
+
+```json
+{
+  "dateTime":      "23/11/2020 13:17:08",
+  "qrCode":        "F;IN01000005;X537E4DBAJUUHHXNFWISFEKJ;9999900000001;20201123131708",
+  "codeMECeFDGI":  "X537-E4DB-AJUU-HHXN-FWIS-FEKJ",
+  "counters":      "64/64 FV",
+  "nim":           "IN01000005"
+}
+```
+
+### Le contenu du code QR
+
+C'est la réponse à une question restée longtemps ouverte. Le QR n'est **pas** une URL, et il
+ne contient **aucun montant** :
 
 ```
-0xC1  état du MCF, vérification de l'IFU
-0xC0  ouverture de la facture
-0x31  ajout d'un article        ← répété pour chaque ligne
-0x33  sous-total
-0x35  total
-0x38  clôture → renvoie les éléments de sécurité
+F;IN01000005;X537E4DBAJUUHHXNFWISFEKJ;9999900000001;20201123131708
 ```
 
-### Ouverture — `0xC0`
+| Position | Contenu | Exemple |
+|---|---|---|
+| 1 | Marqueur de type | `F` |
+| 2 | NIM du module | `IN01000005` |
+| 3 | Code MECeF/DGI **sans tirets** | `X537E4DBAJUUHHXNFWISFEKJ` |
+| 4 | IFU du vendeur | `9999900000001` |
+| 5 | Horodatage `AAAAMMJJHHMMSS` | `20201123131708` |
 
-```
-<opérateur>,<IFU client>,<groupes de taxation>,<type de facture>[,<référence d'origine>]
-```
+Champs séparés par des points-virgules. C'est compact — cinq champs, aucune donnée
+financière, aucune adresse de vérification. L'application de contrôle interroge le serveur
+avec ces identifiants ; elle ne lit pas les montants dans le QR.
 
-Exemple relevé dans le code :
+### Structure d'une demande de facture
 
-```
-1,Jan,9999900000154,0.00,18.00,0.00,18.00,FV
-```
-
-soit : identifiant opérateur `1`, nom `Jan`, IFU client `9999900000154`, quatre taux de
-taxation `0.00 / 18.00 / 0.00 / 18.00`, type de facture `FV`.
-
-La référence d'origine n'est renseignée que pour une facture d'avoir — ce qui correspond au
-§2.29 burkinabè, où une remise s'enregistre par un avoir dont la référence vaut `RRR`.
-
-**Point de vigilance :** le Bénin manipule ici **quatre** groupes de taxation. Le Burkina en
-définit **seize** (A à P) plus quatre groupes PSVB. C'est la divergence la plus probable
-entre les deux protocoles, et la première chose à vérifier auprès de la DGI.
-
-### Ajout d'un article — `0x31`
-
-```
-[<code>]<désignation> \t <groupe de taxation><prix>*<quantité>[;<taxe spécifique totale>,]
-```
-
-La tabulation sépare la désignation du bloc fiscal. La taxe spécifique n'apparaît que si
-elle s'applique, et elle est transmise **déjà multipliée par la quantité**.
-
-### Clôture — `0x38`
-
-La réponse est une liste séparée par des virgules :
-
-```
-<compteur de factures de vente>,<compteur total>,<type de facture>,
-<date et heure du MCF>,<numéro du MCF>,<IFU>,<signature>
+```json
+{
+  "ifu": "9999900000001",
+  "type": "FV",
+  "aib": "A",
+  "items": [
+    { "code": "9289", "name": "Lait", "price": 1200, "quantity": 12.250,
+      "taxGroup": "B", "taxSpecific": 230,
+      "originalPrice": 2400, "priceModification": "remise 50%" }
+  ],
+  "client":   { "ifu": "…", "name": "…", "contact": "…", "address": "…" },
+  "operator": { "id": "01", "name": "Jacques" },
+  "payment":  [ { "name": "ESPECES", "amount": 4950 } ],
+  "reference": "…"
+}
 ```
 
-Auxquels s'ajoute le **code QR**, récupéré séparément.
+Points à retenir :
 
-Cette réponse correspond terme à terme aux « éléments de sécurité » définis par la note de
-service burkinabè — code SECeF/DGI, identificateur de SECeF, compteurs, date et heure du
-MCF, code QR :
+- Les **prix sont des entiers** — pas de décimales sur les montants
+- Les **quantités acceptent des décimales**
+- `taxSpecific` vaut pour **la quantité entière**, pas par unité
+- `reference` est obligatoire pour les factures d'avoir, sur **24 caractères**
+- **`originalPrice` et `priceModification` existent dans la norme.** Le prix négocié que je
+  voulais gérer est donc explicitement prévu par le dispositif — ce n'est pas un
+  contournement.
 
-| Champ béninois | Élément de sécurité burkinabè |
+Modes de paiement acceptés : `ESPECES`, `VIREMENT`, `CARTEBANCAIRE`, `MOBILEMONEY`,
+`CHEQUES`, `CREDIT`, `AUTRE`. Le mobile money est bien un mode de plein droit.
+
+### La réponse aux totaux
+
+`ta`…`td` portent les taux par groupe, `taa`…`taf` les totaux par groupe, `hab`/`had` les
+montants hors taxe, `vab`/`vad` la TVA, `ts` la taxe spécifique, `aib` le prélèvement, et
+`total` le montant de la facture.
+
+### API d'information
+
+`GET /status`, `/taxGroups`, `/invoiceTypes`, `/paymentTypes` — les tables de référence sont
+donc **interrogeables à chaud**, ce qui permet de suivre un changement de taux sans
+republier l'application.
+
+### Codes d'erreur
+
+Treize erreurs documentées, dont : nombre maximum de factures en attente dépassé (1), type de
+facture invalide (3), référence d'origine manquante (4) ou n'ayant pas 24 caractères (5),
+groupe de taxation invalide (9), montant de l'avoir supérieur à la facture d'origine (12),
+facture déjà finalisée ou annulée (20).
+
+---
+
+## Voie B — le MCF physique
+
+Reconstitué à partir d'une implémentation libre
+([cresshounnoukon/mcf-invoice-reform-api](https://github.com/cresshounnoukon/mcf-invoice-reform-api)).
+Non officiel.
+
+Liaison série à **115 200 bauds**. Trame :
+
+```
+SOH   LEN            SEQ        CMD   DATA    AMB   BCC(4)   ETX
+0x01  0x20+len+4   0x20…0xFE   1 o   ASCII   0x05   4 o     0x03
+```
+
+Le BCC est la somme de contrôle, chaque quartet décalé de `0x30` pour rester imprimable.
+
+| Code | Opération |
 |---|---|
-| `totalSaleInvoiceCounter`, `totalCounter` | compteurs |
-| `dateFromDevice` | date et heure du MCF |
-| `deviceNo` | identificateur de SECeF (NIM) |
-| `signature` | code SECeF/DGI |
-| `qrCode` | code QR |
+| `0xC1` | État du MCF et informations de l'entreprise |
+| `0xC2` | État de la liaison avec le serveur de l'Administration |
+| `0x2B` | Lecture d'un champ d'identité de l'entreprise |
+| `0xC0` | Ouverture d'une facture |
+| `0x31` | Ajout d'un article |
+| `0x33` | Sous-total |
+| `0x35` | Total |
+| `0x38` | Clôture, renvoie les éléments de sécurité |
 
-La correspondance est suffisamment exacte pour considérer que les deux systèmes sont de la
-même famille.
+Séquence : `0xC1` → `0xC0` → `0x31` (par ligne) → `0x33` → `0x35` → `0x38`.
+
+La commande `0xC2` sert à satisfaire le §2.31 des spécifications burkinabè : alerter
+l'utilisateur si le MCF n'a pas joint l'Administration depuis plus de 7 jours.
+
+---
 
 ## Ce que ça change pour moi
 
-Le MCF étant un boîtier série, une application mobile ne peut pas s'y connecter directement.
-Trois montages sont possibles, à trancher avec la DGI :
+**La certification exige d'être en ligne, dans une fenêtre de deux minutes.** C'est
+incompatible avec une caisse qui fonctionne des journées entières sans réseau — et le
+hors-ligne n'est pas négociable au Burkina.
 
-1. **Passerelle locale.** Un petit poste dans la boutique — mini-PC ou boîtier Android à port
-   USB — porte le MCF et expose une API locale en Wi-Fi. Les téléphones de caisse lui parlent.
-   C'est le montage le plus proche de l'existant, et il fonctionne sans internet.
-2. **MCF déporté chez moi.** Mon serveur porte les MCF et les téléphones passent par lui.
-   Simple pour le commerçant, mais exige une connexion permanente — inacceptable ici — et
-   pose la question de savoir si un MCF peut être mutualisé, ce qui est peu probable puisqu'il
-   est rattaché à un IFU.
-3. **MCF logiciel ou API.** Le Bénin a dématérialisé son MECeF en plateforme web e-MECeF.
-   Si le Burkina prévoit un équivalent, tout devient plus simple. **C'est la question la plus
-   importante à poser.**
+La conception qui en découle :
 
-Le montage 1 est le plus vraisemblable, et il n'invalide pas la conception actuelle : le
-module de certification reste isolé derrière une interface, et c'est la passerelle qui parle
-série.
+1. **La vente est enregistrée hors ligne, immédiatement, comme aujourd'hui.** Elle n'attend
+   rien ni personne.
+2. **La certification est une étape distincte et différée.** Quand le réseau revient, chaque
+   vente en attente est présentée au module, certifiée, et reçoit ses éléments de sécurité.
+3. **La facture certifiée s'imprime ou se renvoie après coup** — au moment de la
+   certification, pas au moment de la vente.
+
+Ce découpage est cohérent avec le journal d'événements déjà retenu : une vente est un
+événement, sa certification en est un autre. Reste une question de droit, à poser à la DGI :
+**quel délai est toléré entre la vente et sa certification ?**
 
 ## Questions à poser à la DGI
 
-1. Obtenir le **protocole de communication SFE ↔ MCF** officiel.
-2. Quels **MCF sont homologués** à ce jour, et comment un éditeur obtient-il un exemplaire de
-   test ?
-3. Existe-t-il une **variante logicielle ou une API** du MCF, comme le e-MECeF béninois, ou
-   le boîtier physique est-il la seule voie ?
-4. Un **SFE mobile** est-il recevable, et comment se traite alors l'exigence d'impression
-   du §2.1 ?
-5. Comment les **seize groupes de taxation** et les quatre groupes PSVB sont-ils transmis au
-   MCF ?
-6. Un MCF peut-il servir **plusieurs points de vente** d'un même contribuable ?
+1. Le Burkina prévoit-il un **e-MCF dématérialisé** comme le Bénin, ou le boîtier physique
+   est-il la seule voie ?
+2. Quel **délai** est toléré entre l'encaissement et la certification de la facture ?
+3. Comment les **seize groupes de taxation** et les quatre groupes PSVB sont-ils transmis ?
+   Le Bénin n'en gère que six, et son champ `aib` ne couvre pas le PSVB burkinabè.
+4. Le **format du code QR** burkinabè est-il identique à celui décrit ici ?
+5. Quels **MCF sont homologués**, et comment obtenir un exemplaire de test ?
+6. Un MCF ou un e-MCF peut-il servir **plusieurs points de vente** d'un même contribuable ?

@@ -60,3 +60,4 @@ En construction. La feuille de route détaillée se trouve dans
 | [`docs/06-feuille-de-route.md`](docs/06-feuille-de-route.md) | Phases et jalons |
 | [`docs/07-protocole-mcf.md`](docs/07-protocole-mcf.md) | Protocole de dialogue avec le module de contrôle |
 | [`docs/08-idees-produit.md`](docs/08-idees-produit.md) | Idées à évaluer sur le terrain |
+| [`docs/09-homologation.md`](docs/09-homologation.md) | Procédure d'homologation du SFE |

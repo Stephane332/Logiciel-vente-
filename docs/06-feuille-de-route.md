@@ -23,12 +23,20 @@ Sans coder. Deux semaines.
 
 Six à dix semaines. L'objectif est d'être utile dès le premier jour, sans configuration.
 
-- [ ] Modèle de données conforme au vocabulaire DGI et journal d'événements
-- [ ] Enregistrement d'une vente en moins de 60 secondes, sans explication
-- [ ] Catalogue auto-construit : zéro article à saisir pour démarrer
-- [ ] Crédit client et cahier de dettes
-- [ ] Rapport du jour
-- [ ] Fonctionnement intégral hors ligne
+- [x] Modèle de données conforme au vocabulaire DGI et journal d'événements
+- [x] Journal inaltérable par chaînage d'empreintes, avec vérification
+- [x] Moteur de calcul fiscal, testé sur les seize groupes de taxation
+- [x] Catalogue auto-construit : zéro article à saisir pour démarrer
+- [x] Écran de vente branché sur la base, avec pavé de montant libre
+- [x] Nommage d'un article après plusieurs ventes du même montant
+- [x] Trois modes de suivi du stock, et alerte fondée sur la vitesse de vente
+- [x] Crédit client et cahier de dettes — côté données
+- [x] Rapport du jour — côté données
+- [x] Analyses : ce qui rapporte, ce qui dort, ce qui change
+- [x] Fonctionnement intégral hors ligne
+- [ ] Écran du cahier de dettes
+- [ ] Écran du rapport du soir et des alertes de stock
+- [ ] Prix négocié à la vente
 - [ ] Impression Bluetooth ESC/POS en option
 
 **Jalon :** installer chez 10 commerçants et regarder par-dessus leur épaule.

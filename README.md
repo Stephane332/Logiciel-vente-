@@ -56,6 +56,13 @@ dart run build_runner build    # génère le code de la base locale
 flutter test
 ```
 
+Pour une démonstration sans rien installer, l'application se compile aussi pour le
+navigateur — les données vivent alors dans le navigateur, pas sur un serveur :
+
+```sh
+flutter build web --release --no-web-resources-cdn
+```
+
 Le code généré par Drift (`*.g.dart`) n'est pas versionné : il se régénère à partir du
 schéma. Il faut donc lancer `build_runner` après un clone ou une modification des tables.
 

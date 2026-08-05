@@ -754,4 +754,98 @@ void main() {
       );
     });
   });
+
+  group('Vente à crédit', () {
+    Widget caisse() => MaterialApp(
+          theme: themeClair(),
+          home: EcranVente(depot: depot, documents: documents),
+        );
+
+    Future<void> ouvrirCredit(WidgetTester tester) async {
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crédit'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('on ne peut pas valider une dette sans savoir à qui',
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await ouvrirCredit(tester);
+
+      // Une dette sans nom, c'est de l'argent perdu.
+      expect(find.text('À qui ?'), findsWidgets);
+      final bouton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'À qui ?'));
+      expect(bouton.onPressed, isNull);
+    });
+
+    testWidgets('créer un client au comptoir puis noter la dette',
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await ouvrirCredit(tester);
+      await tester.tap(find.text('Nouveau client'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextField, 'Nom'), 'Salif');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Téléphone (facultatif)'),
+          '70112233');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Noter la dette'));
+      await tester.pumpAndSettle();
+
+      // La dette arrive vraiment dans le cahier, au nom du bon client.
+      final debiteurs = await depot.clientsDebiteurs();
+      expect(debiteurs.single.nom, 'Salif');
+      expect(debiteurs.single.encoursCentimes, f(650).centimes);
+    });
+
+    testWidgets('un habitué se retrouve d\'un geste', (tester) async {
+      await depot.creerClient(nom: 'Awa', telephone: '70998877');
+      await vendre('RIZ', 'Riz 1 kg', 650);
+
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await ouvrirCredit(tester);
+      await tester.tap(find.text('Awa'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Noter la dette'));
+      await tester.pumpAndSettle();
+
+      final debiteurs = await depot.clientsDebiteurs();
+      expect(debiteurs.single.nom, 'Awa');
+    });
+
+    testWidgets('les espèces ne demandent aucun client', (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      expect(await depot.clientsDebiteurs(), isEmpty);
+      final rapport = await depot.rapportDuJour();
+      expect(rapport.nombreVentes, 2);
+    });
+  });
 }

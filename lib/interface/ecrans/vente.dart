@@ -60,6 +60,7 @@ class _EcranVenteState extends State<EcranVente> {
 
   List<LigneArticle> _catalogue = const [];
   List<LigneArticle> _aNommer = const [];
+  List<LigneClient> _clients = const [];
   bool _chargement = true;
 
   @override
@@ -69,14 +70,16 @@ class _EcranVenteState extends State<EcranVente> {
   }
 
   Future<void> _recharger() async {
-    final (catalogue, aNommer) = await (
+    final (catalogue, aNommer, clients) = await (
       widget.depot.catalogue(),
       widget.depot.articlesANommer(),
+      widget.depot.clients(),
     ).wait;
     if (!mounted) return;
     setState(() {
       _catalogue = catalogue;
       _aNommer = aNommer;
+      _clients = clients;
       _chargement = false;
     });
   }
@@ -143,11 +146,14 @@ class _EcranVenteState extends State<EcranVente> {
       total: _total,
       comptes: widget.comptes,
       surConfiguration: widget.surConfiguration,
-      surPaiementChoisi: (mode) => _enregistrer(mode),
+      clients: _clients,
+      surNouveauClient: (nom, telephone) =>
+          widget.depot.creerClient(nom: nom, telephone: telephone),
+      surPaiementChoisi: _enregistrer,
     );
   }
 
-  Future<void> _enregistrer(ModePaiement mode) async {
+  Future<void> _enregistrer(ModePaiement mode, String? clientId) async {
     final lignes = <LigneAEnregistrer>[];
     _panier.forEach((code, quantite) {
       final article = _article(code);
@@ -169,6 +175,9 @@ class _EcranVenteState extends State<EcranVente> {
     final venteId = await widget.depot.enregistrerVente(
       lignes: lignes,
       paiements: [PaiementAEnregistrer(mode: mode, montant: _total)],
+      // Sans client, une vente à crédit n'entrerait jamais dans le cahier
+      // de dettes : la feuille de paiement l'exige donc avant de valider.
+      clientId: clientId,
     );
 
     final encaisse = _total;

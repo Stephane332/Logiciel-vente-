@@ -15,6 +15,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../domaine/mobile_money.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/references.dart';
+import '../../domaine/telephone.dart';
+import '../../donnees/base.dart';
 import '../composants/montant_anime.dart';
 import '../theme/palette.dart';
 
@@ -31,8 +33,15 @@ class FeuillePaiement extends StatefulWidget {
   /// Les comptes sur lesquels le commerçant se fait payer.
   final ComptesMarchands comptes;
 
-  /// Appelé avec le mode retenu, une fois la vente validée.
-  final Future<void> Function(ModePaiement mode) surPaiementChoisi;
+  /// Les clients connus, pour retrouver celui à qui l'on fait crédit.
+  final List<LigneClient> clients;
+
+  /// Crée un client à la volée et rend son identifiant.
+  final Future<String> Function(String nom, String? telephone)? surNouveauClient;
+
+  /// Appelé avec le mode retenu et, s'il y a crédit, le client concerné.
+  final Future<void> Function(ModePaiement mode, String? clientId)
+      surPaiementChoisi;
 
   /// Ouvre les réglages. Nul quand il n'y a nulle part où aller — en test,
   /// par exemple.
@@ -44,14 +53,19 @@ class FeuillePaiement extends StatefulWidget {
     required this.surPaiementChoisi,
     this.comptes = const ComptesMarchands.aucun(),
     this.surConfiguration,
+    this.clients = const [],
+    this.surNouveauClient,
   });
 
   static Future<void> presenter(
     BuildContext context, {
     required Montant total,
-    required Future<void> Function(ModePaiement mode) surPaiementChoisi,
+    required Future<void> Function(ModePaiement mode, String? clientId)
+        surPaiementChoisi,
     ComptesMarchands comptes = const ComptesMarchands.aucun(),
     VoidCallback? surConfiguration,
+    List<LigneClient> clients = const [],
+    Future<String> Function(String nom, String? telephone)? surNouveauClient,
   }) =>
       showModalBottomSheet(
         context: context,
@@ -62,6 +76,8 @@ class FeuillePaiement extends StatefulWidget {
           comptes: comptes,
           surPaiementChoisi: surPaiementChoisi,
           surConfiguration: surConfiguration,
+          clients: clients,
+          surNouveauClient: surNouveauClient,
         ),
       );
 
@@ -73,10 +89,46 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
   ModePaiement? _mode;
   OperateurMobile? _operateur;
 
+  /// À qui l'on fait crédit. Une dette sans nom n'est pas une dette : c'est
+  /// de l'argent perdu, et c'est ce que fait le cahier papier quand on
+  /// oublie d'écrire.
+  LigneClient? _client;
+
   @override
   void initState() {
     super.initState();
     _operateur = widget.comptes.disponibles.firstOrNull;
+  }
+
+  /// Une vente à crédit n'est validable qu'une fois qu'on sait à qui.
+  bool get _pretAValider =>
+      _mode != null && (_mode != ModePaiement.credit || _client != null);
+
+  String get _libelleValidation => switch (_mode) {
+        null => 'Choisir un mode',
+        ModePaiement.credit when _client == null => 'À qui ?',
+        ModePaiement.credit => 'Noter la dette',
+        _ => 'Valider la vente',
+      };
+
+  Future<void> _nouveauClient() async {
+    final creer = widget.surNouveauClient;
+    if (creer == null) return;
+
+    final saisie = await _FeuilleNouveauClient.demander(context);
+    if (saisie == null) return;
+
+    final id = await creer(saisie.nom, saisie.telephone);
+    if (!mounted) return;
+
+    setState(() => _client = LigneClient(
+          id: id,
+          nom: saisie.nom,
+          telephone: saisie.telephone,
+          telephoneNormalise: normaliserTelephone(saisie.telephone),
+          typeClient: TypeClient.comptant.etiquette,
+          encoursCentimes: 0,
+        ));
   }
 
   @override
@@ -162,29 +214,35 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
                   surChangementOperateur: (o) =>
                       setState(() => _operateur = o),
                 ),
+              (ModePaiement.credit, _) => _VoletCredit(
+                  clients: widget.clients,
+                  choisi: _client,
+                  surChoix: (client) => setState(() => _client = client),
+                  surNouveau: _nouveauClient,
+                ),
               _ => const SizedBox(width: double.infinity),
             },
           ),
 
           const SizedBox(height: Espace.xl),
           FilledButton(
-            onPressed: _mode == null
-                ? null
-                : () async {
+            onPressed: _pretAValider
+                ? () async {
                     final mode = _mode!;
                     final navigateur = Navigator.of(context);
-                    await widget.surPaiementChoisi(mode);
+                    await widget.surPaiementChoisi(mode, _client?.id);
                     navigateur.pop();
-                  },
+                  }
+                : null,
             style: FilledButton.styleFrom(
               backgroundColor: Couleurs.primaire,
               disabledBackgroundColor: Couleurs.bordure,
             ),
             child: Text(
-              _mode == null ? 'Choisir un mode' : 'Valider la vente',
+              _libelleValidation,
               style: textes.labelLarge?.copyWith(
                 fontSize: 17,
-                color: _mode == null ? Couleurs.encreLegere : Colors.white,
+                color: _pretAValider ? Colors.white : Couleurs.encreLegere,
               ),
             ),
           ),
@@ -480,6 +538,191 @@ class _PastilleOperateur extends StatelessWidget {
             fontWeight: actif ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// Ce qu'on saisit pour un client qu'on ne connaît pas encore.
+class _SaisieClient {
+  final String nom;
+  final String? telephone;
+  const _SaisieClient(this.nom, this.telephone);
+}
+
+/// Le choix du client à qui l'on fait crédit.
+///
+/// Une dette sans nom n'est pas une dette : c'est de l'argent perdu. C'est
+/// exactement ce qui arrive au cahier papier quand on oublie d'écrire.
+class _VoletCredit extends StatelessWidget {
+  final List<LigneClient> clients;
+  final LigneClient? choisi;
+  final ValueChanged<LigneClient> surChoix;
+  final VoidCallback surNouveau;
+
+  const _VoletCredit({
+    required this.clients,
+    required this.choisi,
+    required this.surChoix,
+    required this.surNouveau,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: Espace.l),
+      padding: const EdgeInsets.all(Espace.l),
+      decoration: BoxDecoration(
+        color: Couleurs.fond,
+        borderRadius: BorderRadius.circular(Rayon.m),
+        border: Border.all(color: Couleurs.bordure),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('À qui ?', style: textes.labelSmall),
+          const SizedBox(height: Espace.s),
+          if (clients.isEmpty)
+            Text(
+              "Tu n'as encore personne dans ton cahier.",
+              style: textes.bodyMedium,
+            )
+          else
+            Wrap(
+              spacing: Espace.s,
+              runSpacing: Espace.s,
+              children: [
+                for (final client in clients)
+                  ChoiceChip(
+                    label: Text(client.nom),
+                    selected: choisi?.id == client.id,
+                    onSelected: (_) => surChoix(client),
+                    selectedColor: Couleurs.primaireClair,
+                  ),
+              ],
+            ),
+          const SizedBox(height: Espace.m),
+          OutlinedButton.icon(
+            onPressed: surNouveau,
+            icon: const Icon(Icons.person_add_alt_rounded, size: 18),
+            label: const Text('Nouveau client'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+            ),
+          ),
+          if (choisi != null) ...[
+            const SizedBox(height: Espace.m),
+            Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    size: 16, color: Couleurs.primaireVif),
+                const SizedBox(width: Espace.xs),
+                Expanded(
+                  child: Text(
+                    choisi!.encoursCentimes > 0
+                        ? '${choisi!.nom} doit déjà '
+                            '${Montant(choisi!.encoursCentimes).enFrancs}'
+                        : '${choisi!.nom} ne doit rien pour l\'instant',
+                    style: textes.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Création d'un client au comptoir : un nom, et le numéro si on l'a.
+class _FeuilleNouveauClient extends StatefulWidget {
+  const _FeuilleNouveauClient();
+
+  static Future<_SaisieClient?> demander(BuildContext context) =>
+      showModalBottomSheet<_SaisieClient>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => const _FeuilleNouveauClient(),
+      );
+
+  @override
+  State<_FeuilleNouveauClient> createState() => _FeuilleNouveauClientState();
+}
+
+class _FeuilleNouveauClientState extends State<_FeuilleNouveauClient> {
+  final _nom = TextEditingController();
+  final _telephone = TextEditingController();
+
+  @override
+  void dispose() {
+    _nom.dispose();
+    _telephone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    final complet = _nom.text.trim().isNotEmpty;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: Espace.l,
+        right: Espace.l,
+        bottom: Espace.l + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(child: Text('Nouveau client', style: textes.titleLarge)),
+          const SizedBox(height: Espace.l),
+          TextField(
+            controller: _nom,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Nom',
+              hintText: 'Salif',
+              prefixIcon: Icon(Icons.person_outline_rounded),
+            ),
+          ),
+          const SizedBox(height: Espace.m),
+          TextField(
+            controller: _telephone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Téléphone (facultatif)',
+              hintText: '70 00 00 00',
+              prefixIcon: Icon(Icons.smartphone_rounded),
+              helperText: "Sert à lui envoyer son ardoise",
+            ),
+          ),
+          const SizedBox(height: Espace.l),
+          FilledButton(
+            onPressed: complet
+                ? () => Navigator.of(context).pop(_SaisieClient(
+                      _nom.text.trim(),
+                      _telephone.text.trim().isEmpty
+                          ? null
+                          : _telephone.text.trim(),
+                    ))
+                : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: Couleurs.primaire,
+              disabledBackgroundColor: Couleurs.bordure,
+              minimumSize: const Size.fromHeight(52),
+            ),
+            child: const Text('Enregistrer'),
+          ),
+        ],
       ),
     );
   }

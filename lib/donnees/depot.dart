@@ -996,6 +996,17 @@ class Depot {
   /// risque de ne plus revoir. Le cahier la signale à partir de là.
   static const joursDetteAncienne = 30;
 
+  /// Les clients connus, les plus récemment actifs d'abord.
+  ///
+  /// Sert à retrouver quelqu'un au moment de lui faire crédit : au comptoir,
+  /// c'est presque toujours un habitué, et il est en haut de la liste.
+  Future<List<LigneClient>> clients({int limite = 50}) {
+    final requete = base.select(base.clients)
+      ..orderBy([(c) => OrderingTerm.desc(c.derniereActivite)])
+      ..limit(limite);
+    return requete.get();
+  }
+
   /// Qui me doit combien, du plus ancien au plus récent.
   Future<List<LigneClient>> clientsDebiteurs() {
     final requete = base.select(base.clients)

@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 
 import 'palette.dart';
 
+/// La police embarquée, la même partout.
+const police = 'Outfit';
+
 /// Échelle typographique.
 ///
 /// Les montants sont en chiffres tabulaires et en graisse lourde : ils
@@ -116,7 +119,12 @@ ThemeData _assembler({
   required Color encre,
   required Color encreDouce,
 }) {
-  final typo = _typographie(encre, encreDouce);
+  // La famille est appliquée ici, pas seulement sur le thème : ces styles
+  // sont repassés tels quels aux boutons, et un style sans famille écrase
+  // celle du thème. Sur téléphone ça donnait un libellé dans la police du
+  // système ; sur le web, où aucune police de repli n'existe, ça ne donnait
+  // rien du tout — les libellés des boutons à icône ne s'affichaient pas.
+  final typo = _typographie(encre, encreDouce).apply(fontFamily: police);
 
   return ThemeData(
     useMaterial3: true,
@@ -125,7 +133,7 @@ ThemeData _assembler({
     // La police est embarquée, jamais chargée depuis le réseau : le rendu
     // doit être identique sur Android et sur iPhone, et fonctionner hors
     // ligne comme le reste de l'application.
-    fontFamily: 'Outfit',
+    fontFamily: police,
     textTheme: typo,
     splashFactory: InkSparkle.splashFactory,
     appBarTheme: AppBarTheme(

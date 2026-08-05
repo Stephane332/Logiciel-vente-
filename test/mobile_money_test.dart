@@ -19,8 +19,8 @@ void main() {
   group('Codes marchands', () {
     test('Orange Money compose le code de paiement marchand', () {
       expect(
-        OperateurMobile.orange.code(numero: '66798031', montant: f(2500)),
-        '*144*10*66798031*2500#',
+        OperateurMobile.orange.code(numero: '70000000', montant: f(2500)),
+        '*144*10*70000000*2500#',
       );
     });
 
@@ -33,10 +33,10 @@ void main() {
 
     test('le numéro est ramené à sa forme nationale quelle que soit la saisie',
         () {
-      for (final saisie in ['66798031', '+226 66 79 80 31', '0022666798031']) {
+      for (final saisie in ['70000000', '+226 70 00 00 00', '0022670000000']) {
         expect(
           OperateurMobile.orange.code(numero: saisie, montant: f(1000)),
-          '*144*10*66798031*1000#',
+          '*144*10*70000000*1000#',
         );
       }
     });
@@ -45,8 +45,8 @@ void main() {
       // Aucun opérateur d'ici n'accepte de centimes : un code refusé au
       // comptoir fait perdre la vente.
       expect(
-        OperateurMobile.orange.code(numero: '66798031', montant: Montant(250050)),
-        '*144*10*66798031*2500#',
+        OperateurMobile.orange.code(numero: '70000000', montant: Montant(250050)),
+        '*144*10*70000000*2500#',
       );
     });
 
@@ -60,7 +60,7 @@ void main() {
     test('un montant nul ou négatif est refusé', () {
       expect(
         () => OperateurMobile.orange
-            .code(numero: '66798031', montant: const Montant.zero()),
+            .code(numero: '70000000', montant: const Montant.zero()),
         throwsArgumentError,
       );
     });
@@ -69,9 +69,9 @@ void main() {
   group('Lien du composeur', () {
     test('le dièse est encodé, sans quoi le code est tronqué', () {
       final lien =
-          OperateurMobile.orange.lienComposeur(numero: '66798031', montant: f(2500));
+          OperateurMobile.orange.lienComposeur(numero: '70000000', montant: f(2500));
 
-      expect(lien, 'tel:*144*10*66798031*2500%23');
+      expect(lien, 'tel:*144*10*70000000*2500%23');
       expect(lien, isNot(contains('#')));
     });
 
@@ -91,7 +91,7 @@ void main() {
 
     test('seuls les opérateurs réellement configurés sont proposés', () {
       const comptes = ComptesMarchands({
-        OperateurMobile.orange: '66798031',
+        OperateurMobile.orange: '70000000',
         OperateurMobile.moov: '60112233',
       });
 
@@ -127,16 +127,16 @@ void main() {
 
     test('le numéro marchand est rangé sous forme normalisée', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '+226 66 79 80 31');
+          OperateurMobile.orange, '+226 70 00 00 00');
 
       final reglage = await parametres.tout();
-      expect(reglage.comptes.numeroDe(OperateurMobile.orange), '66798031');
+      expect(reglage.comptes.numeroDe(OperateurMobile.orange), '70000000');
       expect(reglage.mobileMoneyAConfigurer, isFalse);
     });
 
     test('un numéro invalide est effacé, pas rangé', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '66798031');
+          OperateurMobile.orange, '70000000');
       await parametres.definirNumeroMarchand(OperateurMobile.orange, 'zzz');
 
       final reglage = await parametres.tout();
@@ -145,7 +145,7 @@ void main() {
 
     test('vider un champ retire l\'opérateur de la liste', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '66798031');
+          OperateurMobile.orange, '70000000');
       await parametres.definirNumeroMarchand(OperateurMobile.orange, '');
 
       expect((await parametres.tout()).comptes.estVide, isTrue);

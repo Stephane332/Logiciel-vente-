@@ -94,6 +94,9 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
   /// oublie d'écrire.
   LigneClient? _client;
 
+  /// La liste des clients, enrichie de ceux créés sans quitter la feuille.
+  late List<LigneClient> _clients = widget.clients;
+
   @override
   void initState() {
     super.initState();
@@ -121,14 +124,21 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
     final id = await creer(saisie.nom, saisie.telephone);
     if (!mounted) return;
 
-    setState(() => _client = LigneClient(
-          id: id,
-          nom: saisie.nom,
-          telephone: saisie.telephone,
-          telephoneNormalise: normaliserTelephone(saisie.telephone),
-          typeClient: TypeClient.comptant.etiquette,
-          encoursCentimes: 0,
-        ));
+    final nouveau = LigneClient(
+      id: id,
+      nom: saisie.nom,
+      telephone: saisie.telephone,
+      telephoneNormalise: normaliserTelephone(saisie.telephone),
+      typeClient: TypeClient.comptant.etiquette,
+      encoursCentimes: 0,
+    );
+
+    setState(() {
+      _client = nouveau;
+      // Sans ça, la feuille continuerait d'annoncer « personne dans ton
+      // cahier » juste après y avoir ajouté quelqu'un.
+      _clients = [nouveau, ..._clients];
+    });
   }
 
   @override
@@ -215,7 +225,7 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
                       setState(() => _operateur = o),
                 ),
               (ModePaiement.credit, _) => _VoletCredit(
-                  clients: widget.clients,
+                  clients: _clients,
                   choisi: _client,
                   surChoix: (client) => setState(() => _client = client),
                   surNouveau: _nouveauClient,

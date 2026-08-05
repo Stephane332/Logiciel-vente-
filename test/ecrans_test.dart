@@ -391,6 +391,31 @@ void main() {
       expect(entete.montant, f(500));
     });
 
+    testWidgets('un article créé au stock est vendable à la caisse',
+        (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Stock'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Article'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, "Nom de l'article"), 'Savon');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Prix de vente'), '350');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
+      await tester.pumpAndSettle();
+
+      // De retour à la caisse, il doit être là tout de suite : sinon le
+      // commerçant croit que sa saisie n'a servi à rien.
+      await tester.tap(find.text('Caisse'));
+      await tester.pumpAndSettle();
+      expect(find.text('Savon'), findsOneWidget);
+    });
+
     testWidgets('le cahier de dettes se remet à jour après une vente à crédit',
         (tester) async {
       await tester.pumpWidget(application());
@@ -508,13 +533,13 @@ void main() {
         (tester) async {
       await vendre('RIZ', 'Riz 1 kg', 2500);
       await tester.pumpWidget(caisse(
-        comptes: const ComptesMarchands({OperateurMobile.orange: '66798031'}),
+        comptes: const ComptesMarchands({OperateurMobile.orange: '70000000'}),
       ));
       await tester.pumpAndSettle();
 
       await ouvrirMobileMoney(tester);
 
-      expect(find.text('*144*10*66798031*2500#'), findsOneWidget);
+      expect(find.text('*144*10*70000000*2500#'), findsOneWidget);
       expect(find.byType(QrImageView), findsOneWidget);
     });
 
@@ -523,7 +548,7 @@ void main() {
       await vendre('RIZ', 'Riz 1 kg', 2500);
       await tester.pumpWidget(caisse(
         comptes: const ComptesMarchands({
-          OperateurMobile.orange: '66798031',
+          OperateurMobile.orange: '70000000',
           OperateurMobile.moov: '60112233',
         }),
       ));
@@ -540,7 +565,7 @@ void main() {
       await vendre('RIZ', 'Riz 1 kg', 2500);
       await tester.pumpWidget(caisse(
         comptes: const ComptesMarchands({
-          OperateurMobile.orange: '66798031',
+          OperateurMobile.orange: '70000000',
           OperateurMobile.moov: '60112233',
         }),
       ));

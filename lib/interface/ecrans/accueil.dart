@@ -49,6 +49,7 @@ class _AccueilState extends State<Accueil> {
   /// des dettes, pendant que le commerçant attend sa caisse.
   final _visites = {0};
 
+  final _cleCaisse = GlobalKey<EcranVenteState>();
   final _cleDettes = GlobalKey<EcranDettesState>();
   final _cleStock = GlobalKey<EcranStockState>();
   final _cleRapport = GlobalKey<EcranRapportState>();
@@ -88,6 +89,8 @@ class _AccueilState extends State<Accueil> {
     // À la première visite l'écran se monte et se charge lui-même.
     if (premiereVisite) return;
     switch (index) {
+      case 0:
+        _cleCaisse.currentState?.recharger();
       case 1:
         _cleDettes.currentState?.recharger();
       case 2:
@@ -110,6 +113,7 @@ class _AccueilState extends State<Accueil> {
         index: _destination,
         children: [
           EcranVente(
+            key: _cleCaisse,
             depot: widget.depot,
             documents: _documents,
             comptes: _reglage.comptes,

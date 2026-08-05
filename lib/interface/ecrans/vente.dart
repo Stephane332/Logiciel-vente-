@@ -44,10 +44,10 @@ class EcranVente extends StatefulWidget {
   });
 
   @override
-  State<EcranVente> createState() => _EcranVenteState();
+  State<EcranVente> createState() => EcranVenteState();
 }
 
-class _EcranVenteState extends State<EcranVente> {
+class EcranVenteState extends State<EcranVente> {
   /// Le panier en cours : code d'article vers quantité.
   final _panier = <String, int>{};
 
@@ -66,10 +66,15 @@ class _EcranVenteState extends State<EcranVente> {
   @override
   void initState() {
     super.initState();
-    _recharger();
+    recharger();
   }
 
-  Future<void> _recharger() async {
+  /// Relit le catalogue et les clients.
+  ///
+  /// Publique : la coquille l'appelle au retour sur la caisse. Un article
+  /// créé depuis l'écran de stock doit être vendable tout de suite, sinon le
+  /// commerçant croit que sa saisie n'a servi à rien.
+  Future<void> recharger() async {
     final (catalogue, aNommer, clients) = await (
       widget.depot.catalogue(),
       widget.depot.articlesANommer(),
@@ -183,7 +188,7 @@ class _EcranVenteState extends State<EcranVente> {
     final encaisse = _total;
     _panier.clear();
     _prixNegocies.clear();
-    await _recharger();
+    await recharger();
     _proposerRecu(venteId, encaisse);
   }
 
@@ -204,7 +209,11 @@ class _EcranVenteState extends State<EcranVente> {
     messager.showSnackBar(SnackBar(
       content: Text('Vente enregistrée · ${total.enFrancs}'),
       behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 4),
+      // Le bandeau flotte au-dessus de la barre d'encaissement, jamais
+      // dessus : au comptoir, la vente suivante commence dans la seconde,
+      // et un bouton masqué pendant trois secondes fait perdre le client.
+      margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+      duration: const Duration(seconds: 3),
       action: SnackBarAction(label: 'Reçu', onPressed: () => _recu(venteId)),
     ));
   }
@@ -233,7 +242,7 @@ class _EcranVenteState extends State<EcranVente> {
         PaiementAEnregistrer(mode: ModePaiement.especes, montant: montant)
       ],
     );
-    await _recharger();
+    await recharger();
     _proposerRecu(venteId, montant);
   }
 
@@ -249,7 +258,7 @@ class _EcranVenteState extends State<EcranVente> {
     if (nom == null || nom.trim().isEmpty) return;
 
     await widget.depot.nommerArticle(article.code, nom.trim());
-    await _recharger();
+    await recharger();
   }
 
   @override

@@ -289,4 +289,60 @@ void main() {
       expect(document.texte, isNot(contains('Payé en')));
     });
   });
+
+  group('Rapport du soir', () {
+    RapportDuJour chiffres({
+      num encaisse = 0,
+      num credit = 0,
+      num remises = 0,
+      int ventes = 0,
+    }) =>
+        RapportDuJour(
+          encaisse: f(encaisse),
+          aCredit: f(credit),
+          remisesAccordees: f(remises),
+          nombreVentes: ventes,
+          articlesEnRupture: 0,
+        );
+
+    test('une journée ordinaire tient en quelques lignes alignées', () {
+      final texte = documents
+          .rapportDuSoir(
+            rapport: chiffres(encaisse: 145000, credit: 32000, ventes: 27),
+            date: quand,
+          )
+          .texte;
+
+      expect(texte, contains('CHEZ AWA'));
+      expect(texte, contains('Journée du 05/08/2026'));
+      // Chaque montant tombe sur la même colonne, comme sur un ticket.
+      for (final ligne in texte
+          .split('\n')
+          .where((l) => l.contains(' F') && l.contains(' '))) {
+        expect(ligne.length, 38);
+      }
+      expect(texte, contains('Rien à racheter.'));
+    });
+
+    test('ce qui ne bouge pas ne s\'affiche pas', () {
+      final texte = documents.rapportDuSoir(rapport: chiffres()).texte;
+
+      expect(texte, isNot(contains('À crédit')));
+      expect(texte, isNot(contains('Remises')));
+    });
+
+    test('les alertes de stock arrivent telles que les analyses les disent',
+        () {
+      final texte = documents
+          .rapportDuSoir(
+            rapport: chiffres(encaisse: 5000, ventes: 3),
+            aRacheter: const ['Riz 1 kg — rupture', 'Huile — il te reste 2 jours'],
+          )
+          .texte;
+
+      expect(texte, contains('À racheter :'));
+      expect(texte, contains('· Riz 1 kg — rupture'));
+      expect(texte, contains('· Huile — il te reste 2 jours'));
+    });
+  });
 }

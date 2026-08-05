@@ -11,6 +11,7 @@ import '../domaine/document_client.dart';
 import '../domaine/montant.dart';
 import '../domaine/references.dart';
 import 'base.dart';
+import 'depot.dart';
 
 class Documents {
   final BaseLocale base;
@@ -183,4 +184,25 @@ class Documents {
       depuis: premiereDette,
     );
   }
+
+  /// Le rapport du soir, prêt à partir au patron.
+  ///
+  /// Le texte se compose ici et pas dans l'écran : c'est un document comme
+  /// les autres, il doit s'aligner comme les autres, et il doit pouvoir se
+  /// vérifier sans lancer d'interface.
+  RapportDuSoir rapportDuSoir({
+    required RapportDuJour rapport,
+    List<String> aRacheter = const [],
+    DateTime? date,
+  }) =>
+      RapportDuSoir(
+        nomCommerce: nomCommerce,
+        date: date ?? DateTime.now(),
+        encaisse: rapport.encaisse,
+        aCredit: rapport.aCredit,
+        remises: rapport.remisesAccordees,
+        nombreVentes: rapport.nombreVentes,
+        aRacheter: aRacheter,
+      );
+
 }

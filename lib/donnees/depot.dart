@@ -707,6 +707,11 @@ class Depot {
         .write(ClientsCompanion(consentementLe: Value(evenement.horodatage)));
   }
 
+  /// Au-delà de ce délai sans mouvement, une dette change de nature : ce
+  /// n'est plus une facilité accordée à un habitué, c'est une créance qu'on
+  /// risque de ne plus revoir. Le cahier la signale à partir de là.
+  static const joursDetteAncienne = 30;
+
   /// Qui me doit combien, du plus ancien au plus récent.
   Future<List<LigneClient>> clientsDebiteurs() {
     final requete = base.select(base.clients)
@@ -858,4 +863,22 @@ class _LignesResolues {
   final Montant remise;
 
   const _LignesResolues(this.lignes, this.total, this.remise);
+}
+
+/// L'ancienneté d'une dette, telle que le cahier la lit.
+///
+/// Ces deux règles vivent ici et pas dans l'écran : ce sont des décisions de
+/// crédit, pas des choix d'affichage, et une relance automatique devra un
+/// jour s'appuyer sur exactement la même définition.
+extension AncienneteDette on LigneClient {
+  /// Nombre de jours depuis le dernier mouvement. Nul si le client n'a
+  /// jamais rien fait bouger.
+  int? ageEnJours(DateTime maintenant) => derniereActivite == null
+      ? null
+      : maintenant.difference(derniereActivite!).inDays;
+
+  bool detteAncienne(DateTime maintenant) {
+    final jours = ageEnJours(maintenant);
+    return jours != null && jours >= Depot.joursDetteAncienne;
+  }
 }

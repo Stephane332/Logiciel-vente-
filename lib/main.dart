@@ -22,7 +22,6 @@ Future<void> main() async {
     depot: Depot(base, Journal(base, appareil: appareil)),
     documents: Documents(base, nomCommerce: nomCommerce),
     analyses: Analyses(base),
-    nomCommerce: nomCommerce,
   ));
 }
 
@@ -30,14 +29,12 @@ class Application extends StatelessWidget {
   final Depot depot;
   final Documents documents;
   final Analyses analyses;
-  final String nomCommerce;
 
   const Application({
     super.key,
     required this.depot,
     required this.documents,
     required this.analyses,
-    required this.nomCommerce,
   });
 
   @override
@@ -50,7 +47,6 @@ class Application extends StatelessWidget {
           depot: depot,
           documents: documents,
           analyses: analyses,
-          nomCommerce: nomCommerce,
         ),
       );
 }

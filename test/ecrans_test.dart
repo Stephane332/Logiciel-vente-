@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:carnet/domaine/montant.dart';
 import 'package:carnet/domaine/references.dart';
+import 'package:carnet/domaine/telephone.dart';
 import 'package:carnet/donnees/analyses.dart';
 import 'package:carnet/donnees/base.dart';
 import 'package:carnet/donnees/depot.dart';
@@ -201,8 +202,8 @@ void main() {
           home: Scaffold(
             body: EcranRapport(
               depot: depot,
+              documents: documents,
               analyses: analyses,
-              nomCommerce: 'Alimentation Nabonswendé',
             ),
           ),
         );
@@ -281,7 +282,27 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('À racheter'), findsOneWidget);
-      expect(find.text('Rupture'), findsOneWidget);
+      // Le même mot qu'au patron : l'écran et le message envoyé sortent
+      // maintenant de la même règle.
+      expect(find.text('rupture'), findsOneWidget);
+    });
+
+    testWidgets('le résumé envoyé reprend les chiffres affichés',
+        (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650, quantite: 2);
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Envoyer le résumé'));
+      await tester.pumpAndSettle();
+
+      // Le document part en un seul bloc de texte, aligné en chasse fixe.
+      expect(
+        find.textContaining(RegExp(r'ALIMENTATION NABONSWENDÉ[\s\S]*'
+            r'Encaissé\s+1 300 F')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -292,7 +313,6 @@ void main() {
             depot: depot,
             documents: documents,
             analyses: analyses,
-            nomCommerce: 'Alimentation Nabonswendé',
           ),
         );
 
@@ -380,6 +400,63 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Salif'), findsOneWidget);
+    });
+  });
+
+  group("Règles descendues dans le domaine", () {
+    test('un numéro se rend en forme internationale quelle que soit sa saisie',
+        () {
+      for (final saisie in ['70112233', '+226 70 11 22 33', '0022670112233']) {
+        expect(telephoneInternational(saisie), '22670112233');
+      }
+      expect(telephoneInternational(null), isNull);
+      expect(telephoneInternational('12'), isNull);
+    });
+
+    test("l'ancienneté d'une dette se mesure au jour près", () async {
+      final client = await depot.creerClient(nom: 'Salif');
+      final maintenant = DateTime(2026, 8, 5, 12);
+
+      await vendre('DIVERS', 'Divers', 1000,
+          clientId: client,
+          mode: ModePaiement.credit,
+          quand: maintenant.subtract(const Duration(days: 40)));
+
+      final ligne = (await depot.clientsDebiteurs()).single;
+      expect(ligne.ageEnJours(maintenant), 40);
+      expect(ligne.detteAncienne(maintenant), isTrue);
+    });
+
+    test('une dette de la veille reste une facilité, pas une créance',
+        () async {
+      final client = await depot.creerClient(nom: 'Awa');
+      final maintenant = DateTime(2026, 8, 5, 12);
+
+      await vendre('DIVERS', 'Divers', 1000,
+          clientId: client,
+          mode: ModePaiement.credit,
+          quand: maintenant.subtract(const Duration(days: 1)));
+
+      final ligne = (await depot.clientsDebiteurs()).single;
+      expect(ligne.detteAncienne(maintenant), isFalse);
+    });
+
+    test('le seuil est franc : 30 jours bascule, 29 non', () async {
+      final client = await depot.creerClient(nom: 'Boukary');
+      final maintenant = DateTime(2026, 8, 5, 12);
+
+      await vendre('DIVERS', 'Divers', 1000,
+          clientId: client,
+          mode: ModePaiement.credit,
+          quand: maintenant.subtract(Duration(days: Depot.joursDetteAncienne)));
+
+      final ligne = (await depot.clientsDebiteurs()).single;
+      expect(ligne.detteAncienne(maintenant), isTrue);
+      expect(
+        ligne.detteAncienne(
+            maintenant.subtract(const Duration(days: 1))),
+        isFalse,
+      );
     });
   });
 }

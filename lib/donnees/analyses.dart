@@ -136,12 +136,18 @@ class AlerteStock {
 
   bool get enRupture => stockRestant.milliemes <= 0;
 
-  String get message {
-    if (enRupture) return '$designation — rupture';
-    if (joursRestants == null) return '$designation — stock dormant';
-    if (joursRestants == 0) return '$designation — il ne reste presque rien';
-    return '$designation — il te reste $joursRestants jour'
-        '${joursRestants! > 1 ? 's' : ''}';
+  String get message => '$designation — $detail';
+
+  /// L'état du stock en deux mots, sans le nom de l'article.
+  ///
+  /// Sert la liste à l'écran, où la désignation occupe déjà sa colonne. Un
+  /// seul endroit décide de ces trois cas, sinon l'écran et le message envoyé
+  /// au patron finiraient par ne plus dire la même chose.
+  String get detail {
+    if (enRupture) return 'rupture';
+    if (joursRestants == null) return 'stock dormant';
+    if (joursRestants == 0) return 'il ne reste presque rien';
+    return 'il te reste $joursRestants jour${joursRestants! > 1 ? 's' : ''}';
   }
 }
 
@@ -150,16 +156,31 @@ class Analyses {
 
   const Analyses(this.base);
 
+  /// Minuit prochain — la borne haute de toute période « jusqu'à aujourd'hui ».
+  static DateTime _prochainMinuit(DateTime? maintenant) {
+    final reference = maintenant ?? DateTime.now();
+    return DateTime(reference.year, reference.month, reference.day)
+        .add(const Duration(days: 1));
+  }
+
   /// Ce qui s'est le mieux vendu sur une période.
   ///
   /// Classé par chiffre d'affaires : dix sachets d'eau à 100 F pèsent moins
   /// qu'un sac de riz à 20 000 F, et c'est le second qui décide du
   /// réapprovisionnement.
+  /// Sans bornes explicites, la période court sur [jours] journées entières
+  /// et se ferme à minuit prochain. Borner à l'instant présent ferait
+  /// disparaître la vente qu'on vient d'encaisser — c'est justement celle que
+  /// le commerçant cherche des yeux quand il ouvre son rapport.
   Future<List<PerformanceArticle>> meilleuresVentes({
-    required DateTime debut,
-    required DateTime fin,
+    DateTime? debut,
+    DateTime? fin,
+    int jours = 7,
+    DateTime? maintenant,
     int limite = 10,
   }) async {
+    final finEffective = fin ?? _prochainMinuit(maintenant);
+    final debutEffectif = debut ?? finEffective.subtract(Duration(days: jours));
     final lignes = await base.customSelect(
       '''
       SELECT l.code_article               AS code,
@@ -177,8 +198,8 @@ class Analyses {
       LIMIT ?
       ''',
       variables: [
-        Variable<DateTime>(debut),
-        Variable<DateTime>(fin),
+        Variable<DateTime>(debutEffectif),
+        Variable<DateTime>(finEffective),
         Variable<int>(limite),
       ],
       readsFrom: {base.lignesVente, base.ventes},
@@ -196,15 +217,20 @@ class Analyses {
     int joursSansVente = 21,
     int ventesMinimum = 3,
     DateTime? maintenant,
+    int? limite,
   }) async {
     final reference = maintenant ?? DateTime.now();
-    final limite = reference.subtract(Duration(days: joursSansVente));
+    final seuil = reference.subtract(Duration(days: joursSansVente));
 
+    // Le catalogue se construit tout seul à l'usage : il n'est pas
+    // naturellement petit, et rien ne sert de calculer la valeur immobilisée
+    // de cent articles pour n'en montrer que cinq.
     final requete = base.select(base.articles)
       ..where((a) =>
           a.nombreVentes.isBiggerOrEqualValue(ventesMinimum) &
-          a.derniereVente.isSmallerThanValue(limite))
+          a.derniereVente.isSmallerThanValue(seuil))
       ..orderBy([(a) => OrderingTerm.asc(a.derniereVente)]);
+    if (limite != null) requete.limit(limite);
 
     final articles = await requete.get();
 
@@ -236,10 +262,11 @@ class Analyses {
     int limite = 10,
   }) async {
     final duree = fin.difference(debut);
-    final actuelles = await meilleuresVentes(
-        debut: debut, fin: fin, limite: 1000);
-    final precedentes = await meilleuresVentes(
-        debut: debut.subtract(duree), fin: debut, limite: 1000);
+    final [actuelles, precedentes] = await Future.wait([
+      meilleuresVentes(debut: debut, fin: fin, limite: 1000),
+      meilleuresVentes(
+          debut: debut.subtract(duree), fin: debut, limite: 1000),
+    ]);
 
     final avant = {for (final p in precedentes) p.code: p.chiffre};
     final codes = {...actuelles.map((a) => a.code), ...avant.keys};

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../domaine/telephone.dart';
 import '../theme/palette.dart';
 
 /// Présente un document et propose de l'envoyer.
@@ -44,23 +45,23 @@ class FeuilleDocument extends StatelessWidget {
             FeuilleDocument(titre: titre, texte: texte, telephone: telephone),
       );
 
+  Future<void> _ouvrir(String lien) =>
+      launchUrl(Uri.parse(lien), mode: LaunchMode.externalApplication);
+
   /// Ouvre WhatsApp avec le message pré-rempli.
-  Future<void> _versWhatsapp() async {
-    final destinataire =
-        telephone == null ? '' : 'phone=$indicatifBurkina$telephone&';
-    final lien = Uri.parse(
+  ///
+  /// WhatsApp veut le numéro en forme internationale ; le composeur SMS le
+  /// prend en forme nationale. Les deux formes viennent du domaine.
+  Future<void> _versWhatsapp() {
+    final international = telephoneInternational(telephone);
+    final destinataire = international == null ? '' : 'phone=$international&';
+    return _ouvrir(
         'https://wa.me/?${destinataire}text=${Uri.encodeComponent(texte)}');
-    await launchUrl(lien, mode: LaunchMode.externalApplication);
   }
 
   /// Ouvre l'application SMS avec le message pré-rempli.
-  Future<void> _versSms() async {
-    final lien = Uri.parse(
-        'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texte)}');
-    await launchUrl(lien, mode: LaunchMode.externalApplication);
-  }
-
-  static const indicatifBurkina = '226';
+  Future<void> _versSms() => _ouvrir(
+      'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texte)}');
 
   @override
   Widget build(BuildContext context) {

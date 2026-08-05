@@ -44,3 +44,12 @@ String presenterTelephone(String? normalise) {
   return '${normalise.substring(0, 2)} ${normalise.substring(2, 4)} '
       '${normalise.substring(4, 6)} ${normalise.substring(6)}';
 }
+
+/// Rend la forme internationale, sans « + » ni espaces.
+///
+/// C'est ce qu'attendent WhatsApp et les liens d'appel. Renvoie `null` si on
+/// n'a pas de numéro : au commerçant de choisir le contact lui-même.
+String? telephoneInternational(String? normalise) {
+  final national = normaliserTelephone(normalise);
+  return national == null ? null : '$indicatifBurkina$national';
+}

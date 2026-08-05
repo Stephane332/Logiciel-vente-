@@ -18,14 +18,12 @@ class Accueil extends StatefulWidget {
   final Depot depot;
   final Documents documents;
   final Analyses analyses;
-  final String nomCommerce;
 
   const Accueil({
     super.key,
     required this.depot,
     required this.documents,
     required this.analyses,
-    required this.nomCommerce,
   });
 
   @override
@@ -34,6 +32,13 @@ class Accueil extends StatefulWidget {
 
 class _AccueilState extends State<Accueil> {
   int _destination = 0;
+
+  /// Les onglets déjà ouverts au moins une fois.
+  ///
+  /// La pile monte tous ses enfants d'un coup : sans ce filtre, ouvrir
+  /// l'application lancerait aussi les analyses de la semaine et le calcul
+  /// des dettes, pendant que le commerçant attend sa caisse.
+  final _visites = {0};
 
   final _cleDettes = GlobalKey<EcranDettesState>();
   final _cleRapport = GlobalKey<EcranRapportState>();
@@ -44,7 +49,13 @@ class _AccueilState extends State<Accueil> {
   /// seuls : sans ce rappel, le rapport montrerait les chiffres d'avant la
   /// vente qu'on vient d'encaisser.
   void _aller(int index) {
+    if (index == _destination) return;
+
+    final premiereVisite = _visites.add(index);
     setState(() => _destination = index);
+
+    // À la première visite l'écran se monte et se charge lui-même.
+    if (premiereVisite) return;
     switch (index) {
       case 1:
         _cleDettes.currentState?.recharger();
@@ -52,6 +63,10 @@ class _AccueilState extends State<Accueil> {
         _cleRapport.currentState?.recharger();
     }
   }
+
+  /// N'instancie l'écran qu'une fois son onglet ouvert.
+  Widget _onglet(int index, Widget Function() construire) =>
+      _visites.contains(index) ? construire() : const SizedBox.shrink();
 
   @override
   Widget build(BuildContext context) {
@@ -62,16 +77,22 @@ class _AccueilState extends State<Accueil> {
         index: _destination,
         children: [
           EcranVente(depot: widget.depot, documents: widget.documents),
-          EcranDettes(
-            key: _cleDettes,
-            depot: widget.depot,
-            documents: widget.documents,
+          _onglet(
+            1,
+            () => EcranDettes(
+              key: _cleDettes,
+              depot: widget.depot,
+              documents: widget.documents,
+            ),
           ),
-          EcranRapport(
-            key: _cleRapport,
-            depot: widget.depot,
-            analyses: widget.analyses,
-            nomCommerce: widget.nomCommerce,
+          _onglet(
+            2,
+            () => EcranRapport(
+              key: _cleRapport,
+              depot: widget.depot,
+              documents: widget.documents,
+              analyses: widget.analyses,
+            ),
           ),
         ],
       ),

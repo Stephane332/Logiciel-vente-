@@ -10,23 +10,23 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../domaine/montant.dart';
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
+import '../../donnees/documents.dart';
 import '../composants/montant_anime.dart';
 import '../composants/partage.dart';
 import '../theme/palette.dart';
 
 class EcranRapport extends StatefulWidget {
   final Depot depot;
+  final Documents documents;
   final Analyses analyses;
-  final String nomCommerce;
 
   const EcranRapport({
     super.key,
     required this.depot,
+    required this.documents,
     required this.analyses,
-    required this.nomCommerce,
   });
 
   @override
@@ -38,7 +38,9 @@ class EcranRapportState extends State<EcranRapport> {
   List<AlerteStock> _alertes = const [];
   List<ArticleEndormi> _endormis = const [];
   List<PerformanceArticle> _meilleures = const [];
-  bool _chargement = true;
+
+  /// Ce qui apparaît sous « Ce qui dort ». Au-delà, le commerçant ne lit plus.
+  static const _plafondEndormis = 5;
 
   @override
   void initState() {
@@ -51,24 +53,15 @@ class EcranRapportState extends State<EcranRapport> {
   /// Publique : la coquille de navigation l'appelle à chaque retour sur
   /// l'écran, sinon le rapport afficherait l'état d'avant la dernière vente.
   Future<void> recharger() async {
-    final maintenant = DateTime.now();
-
-    // La semaine se compte en journées entières et se ferme à minuit
-    // prochain. Borner à l'instant présent ferait disparaître la vente qui
-    // vient d'être encaissée — c'est justement celle que le commerçant
-    // cherche des yeux quand il ouvre son rapport.
-    final finDeJournee =
-        DateTime(maintenant.year, maintenant.month, maintenant.day)
-            .add(const Duration(days: 1));
-
-    final rapport = await widget.depot.rapportDuJour(maintenant);
-    final alertes = await widget.analyses.aReapprovisionner();
-    final endormis = await widget.analyses.articlesQuiDorment();
-    final meilleures = await widget.analyses.meilleuresVentes(
-      debut: finDeJournee.subtract(const Duration(days: 7)),
-      fin: finDeJournee,
-      limite: 5,
-    );
+    // Les quatre lectures ne dépendent pas les unes des autres. Les enchaîner
+    // ferait quatre allers-retours au lieu d'un sur un téléphone d'entrée de
+    // gamme, à chaque ouverture de l'onglet.
+    final (rapport, alertes, endormis, meilleures) = await (
+      widget.depot.rapportDuJour(),
+      widget.analyses.aReapprovisionner(),
+      widget.analyses.articlesQuiDorment(limite: _plafondEndormis),
+      widget.analyses.meilleuresVentes(limite: 5),
+    ).wait;
 
     if (!mounted) return;
     setState(() {
@@ -76,43 +69,27 @@ class EcranRapportState extends State<EcranRapport> {
       _alertes = alertes;
       _endormis = endormis;
       _meilleures = meilleures;
-      _chargement = false;
     });
   }
 
-  /// Le résumé tel qu'il partirait au patron, le soir.
-  String get _resume {
-    final rapport = _rapport!;
-    final lignes = <String>[
-      widget.nomCommerce.toUpperCase(),
-      "Aujourd'hui",
-      '',
-      '${rapport.encaisse.enFrancs} encaissés',
-      if (rapport.aCredit.estPositif) '${rapport.aCredit.enFrancs} à crédit',
-      '${rapport.nombreVentes} vente${rapport.nombreVentes > 1 ? 's' : ''}',
-      if (rapport.remisesAccordees.estPositif)
-        '${rapport.remisesAccordees.enFrancs} de remises accordées',
-    ];
-
-    if (_alertes.isNotEmpty) {
-      lignes
-        ..add('')
-        ..add('À racheter :');
-      for (final alerte in _alertes.take(5)) {
-        lignes.add('· ${alerte.message}');
-      }
-    }
-
-    return lignes.join('\n');
-  }
+  /// Le résumé tel qu'il part au patron, le soir.
+  ///
+  /// Composé par [Documents], comme le reçu et l'ardoise : c'est un document,
+  /// il doit s'aligner comme les autres.
+  String _resume(RapportDuJour rapport) => widget.documents
+      .rapportDuSoir(
+        rapport: rapport,
+        aRacheter: [for (final alerte in _alertes.take(5)) alerte.message],
+      )
+      .texte;
 
   @override
   Widget build(BuildContext context) {
-    if (_chargement || _rapport == null) {
+    final rapport = _rapport;
+    if (rapport == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final rapport = _rapport!;
     final textes = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -160,14 +137,11 @@ class EcranRapportState extends State<EcranRapport> {
                 sousTitre: 'Calculé sur ton rythme de vente',
                 enfants: [
                   for (final alerte in _alertes)
-                    _LigneAlerte(
+                    _Ligne(
                       libelle: alerte.designation,
-                      detail: alerte.enRupture
-                          ? 'Rupture'
-                          : alerte.joursRestants == null
-                              ? 'Ne se vend plus'
-                              : 'Encore ${alerte.joursRestants} jour'
-                                  '${alerte.joursRestants! > 1 ? 's' : ''}',
+                      detail: alerte.detail,
+                      pastille:
+                          alerte.enRupture ? Couleurs.alerte : Couleurs.accent,
                       urgent: alerte.enRupture,
                     ),
                 ],
@@ -181,9 +155,9 @@ class EcranRapportState extends State<EcranRapport> {
                 sousTitre: 'Sur les sept derniers jours',
                 enfants: [
                   for (final article in _meilleures)
-                    _LigneMontant(
+                    _Ligne(
                       libelle: article.designation,
-                      montant: article.chiffre,
+                      detail: article.chiffre.enFrancs,
                     ),
                 ],
               ),
@@ -195,14 +169,14 @@ class EcranRapportState extends State<EcranRapport> {
                 titre: 'Ce qui dort',
                 sousTitre: "Vendu régulièrement, puis plus rien",
                 enfants: [
-                  for (final article in _endormis.take(5))
-                    _LigneAlerte(
+                  for (final article in _endormis)
+                    _Ligne(
                       libelle: article.designation,
                       detail: article.valeurImmobilisee == null
                           ? '${article.joursSansVente} jours'
                           : '${article.joursSansVente} j · '
                               '${article.valeurImmobilisee!.enFrancs} bloqués',
-                      urgent: false,
+                      pastille: Couleurs.accent,
                     ),
                 ],
               ),
@@ -213,7 +187,7 @@ class EcranRapportState extends State<EcranRapport> {
               onPressed: () => FeuilleDocument.presenter(
                 context,
                 titre: 'Résumé du jour',
-                texte: _resume,
+                texte: _resume(rapport),
               ),
               icon: const Icon(Icons.send_rounded, size: 20),
               label: const Text('Envoyer le résumé'),
@@ -264,15 +238,24 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _LigneAlerte extends StatelessWidget {
+/// Une ligne de liste : un libellé à gauche, un détail à droite.
+///
+/// La même pour les alertes et pour les montants — c'est la pastille qui
+/// change, pas la mise en page.
+class _Ligne extends StatelessWidget {
   final String libelle;
   final String detail;
+
+  /// Couleur du point de tête. Nulle quand la ligne n'en porte pas.
+  final Color? pastille;
+
   final bool urgent;
 
-  const _LigneAlerte({
+  const _Ligne({
     required this.libelle,
     required this.detail,
-    required this.urgent,
+    this.pastille,
+    this.urgent = false,
   });
 
   @override
@@ -280,19 +263,18 @@ class _LigneAlerte extends StatelessWidget {
     final textes = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: Espace.l, vertical: Espace.m),
+      padding:
+          const EdgeInsets.symmetric(horizontal: Espace.l, vertical: Espace.m),
       child: Row(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: urgent ? Couleurs.alerte : Couleurs.accent,
-              shape: BoxShape.circle,
+          if (pastille != null) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: pastille, shape: BoxShape.circle),
             ),
-          ),
-          const SizedBox(width: Espace.m),
+            const SizedBox(width: Espace.m),
+          ],
           Expanded(
             child: Text(libelle,
                 style: textes.titleMedium, overflow: TextOverflow.ellipsis),
@@ -300,37 +282,10 @@ class _LigneAlerte extends StatelessWidget {
           const SizedBox(width: Espace.s),
           Text(
             detail,
-            style: textes.labelSmall?.copyWith(
+            style: (urgent ? textes.labelSmall : textes.labelLarge)?.copyWith(
               color: urgent ? Couleurs.alerte : Couleurs.encreDouce,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LigneMontant extends StatelessWidget {
-  final String libelle;
-  final Montant montant;
-
-  const _LigneMontant({required this.libelle, required this.montant});
-
-  @override
-  Widget build(BuildContext context) {
-    final textes = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: Espace.l, vertical: Espace.m),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(libelle,
-                style: textes.titleMedium, overflow: TextOverflow.ellipsis),
-          ),
-          const SizedBox(width: Espace.s),
-          Text(montant.enFrancs, style: textes.labelLarge),
         ],
       ),
     );

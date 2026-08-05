@@ -16,6 +16,7 @@ import '../../donnees/base.dart';
 import '../../donnees/depot.dart';
 import '../../donnees/documents.dart';
 import '../composants/montant_anime.dart';
+import '../composants/pave_numerique.dart';
 import '../composants/partage.dart';
 import '../composants/tuile_produit.dart';
 import '../theme/palette.dart';
@@ -58,8 +59,10 @@ class _EcranVenteState extends State<EcranVente> {
   }
 
   Future<void> _recharger() async {
-    final catalogue = await widget.depot.catalogue();
-    final aNommer = await widget.depot.articlesANommer();
+    final (catalogue, aNommer) = await (
+      widget.depot.catalogue(),
+      widget.depot.articlesANommer(),
+    ).wait;
     if (!mounted) return;
     setState(() {
       _catalogue = catalogue;
@@ -108,7 +111,8 @@ class _EcranVenteState extends State<EcranVente> {
   /// Un appui long : le geste rapide reste l'appui simple, qui vend au prix
   /// du catalogue.
   Future<void> _negocier(LigneArticle article) async {
-    final montant = await _demanderMontant(
+    final montant = await demanderMontant(
+      context,
       titre: 'Prix pour ${article.designation}',
       indication: 'Catalogue : ${Montant(article.prixCentimes).enFrancs}',
       valider: 'Utiliser ce prix',
@@ -155,10 +159,11 @@ class _EcranVenteState extends State<EcranVente> {
       paiements: [PaiementAEnregistrer(mode: mode, montant: _total)],
     );
 
+    final encaisse = _total;
     _panier.clear();
     _prixNegocies.clear();
     await _recharger();
-    await _proposerRecu(venteId);
+    _proposerRecu(venteId, encaisse);
   }
 
   /// Propose le reçu après la vente.
@@ -166,31 +171,34 @@ class _EcranVenteState extends State<EcranVente> {
   /// Sans insister : au comptoir, la plupart des clients n'en veulent pas, et
   /// une question posée à chaque vente ferait perdre plus de temps qu'elle
   /// n'en fait gagner.
-  Future<void> _proposerRecu(String venteId) async {
-    final recu = await widget.documents.pourVente(venteId);
-    if (recu == null || !mounted) return;
+  ///
+  /// Le document n'est composé que si le reçu est réellement demandé. Le
+  /// construire à chaque vente coûterait trois requêtes sur le geste le plus
+  /// répété de la journée, pour un texte que presque personne ne lira.
+  void _proposerRecu(String venteId, Montant total) {
+    if (!mounted) return;
 
     final messager = ScaffoldMessenger.of(context);
     messager.hideCurrentSnackBar();
     messager.showSnackBar(SnackBar(
-      content: Text('Vente enregistrée · ${recu.total.enFrancs}'),
+      content: Text('Vente enregistrée · ${total.enFrancs}'),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 4),
-      action: SnackBarAction(
-        label: 'Reçu',
-        onPressed: () => FeuilleDocument.presenter(
-          context,
-          titre: 'Reçu',
-          texte: recu.texte,
-        ),
-      ),
+      action: SnackBarAction(label: 'Reçu', onPressed: () => _recu(venteId)),
     ));
+  }
+
+  Future<void> _recu(String venteId) async {
+    final recu = await widget.documents.pourVente(venteId);
+    if (recu == null || !mounted) return;
+    await FeuilleDocument.presenter(context, titre: 'Reçu', texte: recu.texte);
   }
 
   /// Encaisse un montant libre : aucun article n'est choisi, seul le montant
   /// compte. Le catalogue se construira tout seul si le montant revient.
   Future<void> _montantLibre() async {
-    final montant = await _demanderMontant(titre: 'Montant de la vente');
+    final montant =
+        await demanderMontant(context, titre: 'Montant de la vente');
     if (montant == null || !montant.estPositif) return;
 
     final venteId = await widget.depot.enregistrerVente(
@@ -205,41 +213,7 @@ class _EcranVenteState extends State<EcranVente> {
       ],
     );
     await _recharger();
-    await _proposerRecu(venteId);
-  }
-
-  Future<Montant?> _demanderMontant({
-    required String titre,
-    String? indication,
-    String valider = 'Encaisser',
-  }) {
-    var saisie = '';
-    return showModalBottomSheet<Montant>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (contexte) => StatefulBuilder(
-        builder: (contexte, rafraichir) => _PaveNumerique(
-          titre: titre,
-          indication: indication,
-          saisie: saisie,
-          valider: valider,
-          surTouche: (touche) => rafraichir(() {
-            if (touche == '<') {
-              if (saisie.isNotEmpty) {
-                saisie = saisie.substring(0, saisie.length - 1);
-              }
-            } else if (saisie.length < 9) {
-              if (!(saisie.isEmpty && touche == '0')) saisie += touche;
-            }
-          }),
-          surValidation: saisie.isEmpty
-              ? null
-              : () => Navigator.of(contexte)
-                  .pop(Montant.depuisDecimal(int.parse(saisie))),
-        ),
-      ),
-    );
+    _proposerRecu(venteId, montant);
   }
 
   Future<void> _proposerNommage() async {
@@ -450,131 +424,6 @@ class _BandeauNommage extends StatelessWidget {
 ///
 /// Gros chiffres, pas de clavier système : la saisie d'un montant est le seul
 /// endroit où l'on tape, et elle doit rester rapide debout.
-class _PaveNumerique extends StatelessWidget {
-  final String titre;
-  final String? indication;
-  final String saisie;
-
-  /// Ce que fait le bouton de validation. Encaisser n'est pas fixer un prix :
-  /// le commerçant doit lire ce qu'il s'apprête à déclencher.
-  final String valider;
-
-  final ValueChanged<String> surTouche;
-  final VoidCallback? surValidation;
-
-  const _PaveNumerique({
-    required this.titre,
-    required this.indication,
-    required this.saisie,
-    required this.valider,
-    required this.surTouche,
-    required this.surValidation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textes = Theme.of(context).textTheme;
-    final montant =
-        saisie.isEmpty ? const Montant.zero() : Montant.depuisDecimal(int.parse(saisie));
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: Espace.l,
-        right: Espace.l,
-        bottom: Espace.l + MediaQuery.paddingOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(titre, style: textes.labelSmall),
-          const SizedBox(height: Espace.s),
-          MontantAnime(
-            montant,
-            style: textes.displayMedium,
-            couleur: saisie.isEmpty ? Couleurs.encreLegere : Couleurs.encre,
-          ),
-          if (indication != null) ...[
-            const SizedBox(height: Espace.xs),
-            Text(indication!, style: textes.labelSmall),
-          ],
-          const SizedBox(height: Espace.l),
-          for (final rangee in const [
-            ['1', '2', '3'],
-            ['4', '5', '6'],
-            ['7', '8', '9'],
-            ['00', '0', '<'],
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: Espace.s),
-              child: Row(
-                children: [
-                  for (final touche in rangee)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: _Touche(
-                          libelle: touche,
-                          onPressed: () => surTouche(touche),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          const SizedBox(height: Espace.s),
-          FilledButton(
-            onPressed: surValidation,
-            style: FilledButton.styleFrom(
-              backgroundColor: Couleurs.primaire,
-              disabledBackgroundColor: Couleurs.bordure,
-            ),
-            child: Text(
-              valider,
-              style: textes.labelLarge?.copyWith(
-                fontSize: 17,
-                color: surValidation == null
-                    ? Couleurs.encreLegere
-                    : Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Touche extends StatelessWidget {
-  final String libelle;
-  final VoidCallback onPressed;
-
-  const _Touche({required this.libelle, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final textes = Theme.of(context).textTheme;
-    final effacement = libelle == '<';
-
-    return Material(
-      color: effacement ? Couleurs.alerteClair : Couleurs.fond,
-      borderRadius: BorderRadius.circular(Rayon.m),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(Rayon.m),
-        child: SizedBox(
-          height: cibleTactile,
-          child: Center(
-            child: effacement
-                ? const Icon(Icons.backspace_outlined,
-                    size: 22, color: Couleurs.alerte)
-                : Text(libelle, style: textes.headlineMedium),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _EnTete extends StatelessWidget {
   final Montant total;
   final int nombreArticles;

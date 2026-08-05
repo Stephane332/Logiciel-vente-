@@ -178,8 +178,14 @@ class DocumentClient {
     return '$ajustee${' ' * (_largeur - ajustee.length - montant.length)}$montant';
   }
 
-  String _totalise(String libelle, Montant montant) {
-    final valeur = montant.enFrancs;
+  String _totalise(String libelle, Montant montant) =>
+      aligne(libelle, montant.enFrancs);
+
+  /// Libellé à gauche, valeur collée à droite, sur la largeur du ticket.
+  ///
+  /// C'est ce qui rend les documents lisibles en chasse fixe : les montants
+  /// tombent tous sur la même colonne, comme sur un ticket de caisse.
+  static String aligne(String libelle, String valeur) {
     final espaces = _largeur - libelle.length - valeur.length;
     return '$libelle${' ' * (espaces < 1 ? 1 : espaces)}$valeur';
   }
@@ -361,4 +367,69 @@ class AchatResume {
         gauche.length > place ? '${gauche.substring(0, place - 1)}…' : gauche;
     return '$ajustee${' ' * (DocumentClient._largeur - ajustee.length - valeur.length)}$valeur';
   }
+}
+
+/// Le rapport du soir, tel qu'il part au patron.
+///
+/// Le seul document des sept qui ne s'adresse pas au client mais au
+/// propriétaire. Il tient dans un message : ce qui est rentré, ce qui a été
+/// promis, et ce qu'il faut racheter demain. Le patron qui n'est pas au
+/// magasin voit son commerce sans y être.
+class RapportDuSoir {
+  final String nomCommerce;
+  final DateTime date;
+  final Montant encaisse;
+  final Montant aCredit;
+  final Montant remises;
+  final int nombreVentes;
+
+  /// Ce qu'il faut racheter, déjà formulé par les analyses. On ne reformule
+  /// pas ici : l'écran et le message doivent dire exactement la même chose.
+  final List<String> aRacheter;
+
+  const RapportDuSoir({
+    required this.nomCommerce,
+    required this.date,
+    required this.encaisse,
+    required this.aCredit,
+    required this.remises,
+    required this.nombreVentes,
+    this.aRacheter = const [],
+  });
+
+  String get texte {
+    final lignes = <String>[
+      nomCommerce.toUpperCase(),
+      'Journée du ${_date(date)}',
+      DocumentClient._separateur,
+      DocumentClient.aligne('Encaissé', encaisse.enFrancs),
+    ];
+
+    if (aCredit.estPositif) {
+      lignes.add(DocumentClient.aligne('À crédit', aCredit.enFrancs));
+    }
+    if (remises.estPositif) {
+      lignes.add(DocumentClient.aligne('Remises accordées', remises.enFrancs));
+    }
+
+    lignes
+      ..add(DocumentClient.aligne(
+          'Ventes', '$nombreVentes'))
+      ..add(DocumentClient._separateur);
+
+    if (aRacheter.isEmpty) {
+      lignes.add('Rien à racheter.');
+    } else {
+      lignes.add('À racheter :');
+      for (final article in aRacheter) {
+        lignes.add('· $article');
+      }
+    }
+
+    return lignes.join('\n');
+  }
+
+  static String _date(DateTime date) =>
+      '${DocumentClient._deuxChiffres(date.day)}/'
+      '${DocumentClient._deuxChiffres(date.month)}/${date.year}';
 }

@@ -154,7 +154,7 @@ Pour le client, connaître ses propres achats est une curiosité. Pour le commer
 outil : il rappelle une cliente qui s'éloigne, il comprend pourquoi une dette ne bouge plus,
 il prépare ce qu'elle vient chercher. Et c'est lui qui paie l'abonnement.
 
-### Ce que j'ai écarté
+### Ce que j'ai écarté — et revu depuis
 
 **Une application destinée aux clients finaux.** Trois raisons :
 
@@ -167,7 +167,14 @@ il prépare ce qu'elle vient chercher. Et c'est lui qui paie l'abonnement.
 
 Si l'idée revient un jour, la bonne porte d'entrée n'est pas une application mais **le
 reçu** : un message envoyé après la vente, qui peut porter au passage un solde ou un
-décompte de fidélité. À reconsidérer une fois que les reçus par SMS existent.
+décompte de fidélité.
+
+**Mise à jour — c'est exactement ce qui a été retenu.** La moitié du raisonnement ci-dessus
+était juste, l'autre fausse : une application serait bien une erreur, mais j'en avais conclu
+à tort que le client ne devait pas être servi du tout. Chaque parcours a un moment client, et
+le servir profite d'abord au commerçant — une note visible évite les disputes à table, une
+ardoise partagée évite le « je t'ai déjà payé ». Le véhicule est un **message**, pas une
+application. Voir [`11-cote-client.md`](11-cote-client.md).
 
 ---
 
@@ -184,6 +191,7 @@ décompte de fidélité. À reconsidérer une fois que les reçus par SMS existe
 | Ce qui rapporte, ce qui dort, l'évolution | Faible | Élevé | **Fait** |
 | Habitudes par client | Faible | Moyen | **Fait**, à brancher à l'interface |
 | Application pour les clients finaux | Élevé | Faible | Écarté |
+| Documents client par message — reçu, note, ardoise | Faible | Élevé | **Fait** |
 
 Les deux premières sont peu coûteuses et touchent au cœur du métier. Elles méritent d'entrer
 dès la phase 1, avec le carnet.

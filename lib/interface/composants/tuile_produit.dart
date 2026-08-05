@@ -18,7 +18,13 @@ class TuileProduit extends StatefulWidget {
   /// Nombre d'unités déjà mises au panier. Zéro masque le badge.
   final int quantiteAuPanier;
 
+  /// Vrai quand le prix affiché a été négocié pour cette vente.
+  final bool prixNegocie;
+
   final VoidCallback onPressed;
+
+  /// Appui long : changer le prix pour cette vente seulement.
+  final VoidCallback? onLongPress;
 
   const TuileProduit({
     super.key,
@@ -26,6 +32,8 @@ class TuileProduit extends StatefulWidget {
     required this.prix,
     required this.onPressed,
     this.quantiteAuPanier = 0,
+    this.prixNegocie = false,
+    this.onLongPress,
   });
 
   @override
@@ -67,6 +75,12 @@ class _TuileProduitState extends State<TuileProduit>
       onTapUp: (_) => _controleur.reverse(),
       onTapCancel: () => _controleur.reverse(),
       onTap: _appuyer,
+      onLongPress: widget.onLongPress == null
+          ? null
+          : () {
+              HapticFeedback.mediumImpact();
+              widget.onLongPress!();
+            },
       child: ScaleTransition(
         scale: _echelle,
         child: AnimatedContainer(
@@ -113,9 +127,25 @@ class _TuileProduitState extends State<TuileProduit>
                         style: textes.titleMedium,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        widget.prix.enFrancs,
-                        style: textes.labelLarge?.copyWith(color: teinte),
+                      Row(
+                        children: [
+                          if (widget.prixNegocie) ...[
+                            const Icon(Icons.edit_rounded,
+                                size: 13, color: Couleurs.accent),
+                            const SizedBox(width: 3),
+                          ],
+                          Flexible(
+                            child: Text(
+                              widget.prix.enFrancs,
+                              overflow: TextOverflow.ellipsis,
+                              style: textes.labelLarge?.copyWith(
+                                color: widget.prixNegocie
+                                    ? Couleurs.accent
+                                    : teinte,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

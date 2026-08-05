@@ -13,6 +13,7 @@ import 'package:carnet/domaine/montant.dart';
 import 'package:carnet/domaine/references.dart';
 import 'package:carnet/donnees/base.dart';
 import 'package:carnet/donnees/depot.dart';
+import 'package:carnet/donnees/documents.dart';
 import 'package:carnet/donnees/journal.dart';
 import 'package:carnet/interface/ecrans/vente.dart';
 import 'package:carnet/interface/theme/theme.dart';
@@ -20,10 +21,12 @@ import 'package:carnet/interface/theme/theme.dart';
 void main() {
   late BaseLocale base;
   late Depot depot;
+  late Documents documents;
 
   setUp(() {
     base = BaseLocale(NativeDatabase.memory());
     depot = Depot(base, Journal(base, appareil: 'CAISSE1'));
+    documents = Documents(base, nomCommerce: 'Boutique Test');
   });
 
   tearDown(() => base.close());
@@ -32,7 +35,7 @@ void main() {
 
   Widget application() => MaterialApp(
         theme: themeClair(),
-        home: EcranVente(depot: depot),
+        home: EcranVente(depot: depot, documents: documents),
       );
 
   /// Garnit le catalogue comme le ferait l'usage : par des ventes.
@@ -241,5 +244,103 @@ void main() {
     final rapport = await depot.rapportDuJour();
     expect(rapport.nombreVentes, 1);
     expect(rapport.encaisse, f(7500));
+  });
+
+  group('Prix négocié', () {
+    /// Ouvre le pavé de négociation sur un article et y saisit un prix.
+    Future<void> negocier(WidgetTester tester, String nom, String saisie) async {
+      await tester.longPress(find.text(nom));
+      await tester.pumpAndSettle();
+
+      // On vise l'InkWell de la touche : le montant affiché au-dessus du
+      // pavé contient les mêmes chiffres, et un simple find.text taperait
+      // dessus.
+      for (final touche in saisie.split('')) {
+        await tester.tap(find.widgetWithText(InkWell, touche));
+        await tester.pump();
+      }
+      await tester.tap(find.text('Utiliser ce prix'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("l'appui long change le prix pour cette vente seulement",
+        (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await negocier(tester, 'Riz 1 kg', '500');
+
+      // L'article est entré au panier au prix discuté, pas à celui du
+      // catalogue : le total le prouve.
+      final semantique = tester.ensureSemantics();
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('500 F'), findsWidgets);
+      semantique.dispose();
+
+      expect(find.text('1 article'), findsOneWidget);
+    });
+
+    testWidgets('le catalogue garde son prix après la vente négociée',
+        (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await negocier(tester, 'Riz 1 kg', '500');
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      // Le prix négocié valait pour cette vente. Le prix de référence, lui,
+      // ne bouge pas : sinon une remise de complaisance déformerait le
+      // catalogue pour tous les clients suivants.
+      final catalogue = await depot.catalogue();
+      final riz = catalogue.firstWhere((a) => a.code == 'RIZ');
+      expect(Montant(riz.prixCentimes), f(650));
+    });
+
+    testWidgets('la remise consentie est comptée dans le rapport',
+        (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await negocier(tester, 'Riz 1 kg', '500');
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      // 650 au catalogue, 500 encaissés : 150 F offerts. C'est ce que le
+      // commerçant doit voir le soir.
+      final rapport = await depot.rapportDuJour();
+      expect(rapport.remisesAccordees, f(150));
+      expect(rapport.encaisse, f(650 + 1200 + 500));
+    });
+
+    testWidgets('vider le panier oublie les prix négociés', (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await negocier(tester, 'Riz 1 kg', '500');
+      await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+      await tester.pumpAndSettle();
+
+      // Le client suivant repart du prix affiché.
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+
+      final semantique = tester.ensureSemantics();
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('650 F'), findsWidgets);
+      semantique.dispose();
+    });
   });
 }

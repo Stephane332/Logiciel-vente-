@@ -34,9 +34,10 @@ Six à dix semaines. L'objectif est d'être utile dès le premier jour, sans con
 - [x] Rapport du jour — côté données
 - [x] Analyses : ce qui rapporte, ce qui dort, ce qui change
 - [x] Fonctionnement intégral hors ligne
-- [ ] Écran du cahier de dettes
-- [ ] Écran du rapport du soir et des alertes de stock
-- [ ] Prix négocié à la vente
+- [x] Reçu et ardoise envoyés au client par WhatsApp ou SMS
+- [x] Écran du cahier de dettes, avec encaissement des remboursements
+- [x] Écran du rapport du soir et des alertes de stock
+- [x] Prix négocié à la vente, et remise mesurée dans le rapport
 - [ ] Impression Bluetooth ESC/POS en option
 
 **Jalon :** installer chez 10 commerçants et regarder par-dessus leur épaule.

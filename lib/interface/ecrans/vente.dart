@@ -14,7 +14,9 @@ import '../../domaine/montant.dart';
 import '../../domaine/references.dart';
 import '../../donnees/base.dart';
 import '../../donnees/depot.dart';
+import '../../donnees/documents.dart';
 import '../composants/montant_anime.dart';
+import '../composants/partage.dart';
 import '../composants/tuile_produit.dart';
 import '../theme/palette.dart';
 import 'feuille_paiement.dart';
@@ -22,8 +24,13 @@ import 'nommer_article.dart';
 
 class EcranVente extends StatefulWidget {
   final Depot depot;
+  final Documents documents;
 
-  const EcranVente({super.key, required this.depot});
+  const EcranVente({
+    super.key,
+    required this.depot,
+    required this.documents,
+  });
 
   @override
   State<EcranVente> createState() => _EcranVenteState();
@@ -32,6 +39,13 @@ class EcranVente extends StatefulWidget {
 class _EcranVenteState extends State<EcranVente> {
   /// Le panier en cours : code d'article vers quantité.
   final _panier = <String, int>{};
+
+  /// Prix négocié pour cette vente, quand il diffère du catalogue.
+  ///
+  /// Sur un marché le prix se discute. Le prix du catalogue est une
+  /// proposition, pas une contrainte : on garde les deux pour pouvoir montrer
+  /// au commerçant ce que ses remises lui coûtent.
+  final _prixNegocies = <String, Montant>{};
 
   List<LigneArticle> _catalogue = const [];
   List<LigneArticle> _aNommer = const [];
@@ -61,14 +75,18 @@ class _EcranVenteState extends State<EcranVente> {
     return null;
   }
 
+  /// Le prix pratiqué pour un article : le prix négocié s'il y en a un,
+  /// sinon celui du catalogue.
+  Montant _prixPratique(LigneArticle article) =>
+      _prixNegocies[article.code] ?? Montant(article.prixCentimes);
+
   Montant get _total {
     var total = const Montant.zero();
     _panier.forEach((code, quantite) {
       final article = _article(code);
       if (article == null) return;
       total = total +
-          Montant(article.prixCentimes)
-              .multiplieParQuantite(Quantite.unites(quantite));
+          _prixPratique(article).multiplieParQuantite(Quantite.unites(quantite));
     });
     return total;
   }
@@ -80,7 +98,28 @@ class _EcranVenteState extends State<EcranVente> {
     setState(() => _panier[article.code] = (_panier[article.code] ?? 0) + 1);
   }
 
-  void _viderPanier() => setState(_panier.clear);
+  void _viderPanier() => setState(() {
+        _panier.clear();
+        _prixNegocies.clear();
+      });
+
+  /// Change le prix d'un article pour cette vente seulement.
+  ///
+  /// Un appui long : le geste rapide reste l'appui simple, qui vend au prix
+  /// du catalogue.
+  Future<void> _negocier(LigneArticle article) async {
+    final montant = await _demanderMontant(
+      titre: 'Prix pour ${article.designation}',
+      indication: 'Catalogue : ${Montant(article.prixCentimes).enFrancs}',
+      valider: 'Utiliser ce prix',
+    );
+    if (montant == null || !montant.estPositif) return;
+
+    setState(() {
+      _prixNegocies[article.code] = montant;
+      _panier[article.code] = _panier[article.code] ?? 1;
+    });
+  }
 
   Future<void> _encaisser() async {
     if (_panier.isEmpty) return;
@@ -97,32 +136,64 @@ class _EcranVenteState extends State<EcranVente> {
     _panier.forEach((code, quantite) {
       final article = _article(code);
       if (article == null) return;
+      final negocie = _prixNegocies[code];
       lignes.add(LigneAEnregistrer(
         codeArticle: code,
         designation: article.designation,
-        prixUnitaire: Montant(article.prixCentimes),
+        prixUnitaire: negocie ?? Montant(article.prixCentimes),
+        // Le prix du catalogue n'est conservé que s'il a été modifié :
+        // sinon il n'y a pas de remise à mesurer.
+        prixCatalogue: negocie == null ? null : Montant(article.prixCentimes),
         quantite: Quantite.unites(quantite),
         groupeTaxation: GroupeTaxation.parEtiquette(article.groupeTaxation),
       ));
     });
     if (lignes.isEmpty) return;
 
-    await widget.depot.enregistrerVente(
+    final venteId = await widget.depot.enregistrerVente(
       lignes: lignes,
       paiements: [PaiementAEnregistrer(mode: mode, montant: _total)],
     );
 
     _panier.clear();
+    _prixNegocies.clear();
     await _recharger();
+    await _proposerRecu(venteId);
+  }
+
+  /// Propose le reçu après la vente.
+  ///
+  /// Sans insister : au comptoir, la plupart des clients n'en veulent pas, et
+  /// une question posée à chaque vente ferait perdre plus de temps qu'elle
+  /// n'en fait gagner.
+  Future<void> _proposerRecu(String venteId) async {
+    final recu = await widget.documents.pourVente(venteId);
+    if (recu == null || !mounted) return;
+
+    final messager = ScaffoldMessenger.of(context);
+    messager.hideCurrentSnackBar();
+    messager.showSnackBar(SnackBar(
+      content: Text('Vente enregistrée · ${recu.total.enFrancs}'),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'Reçu',
+        onPressed: () => FeuilleDocument.presenter(
+          context,
+          titre: 'Reçu',
+          texte: recu.texte,
+        ),
+      ),
+    ));
   }
 
   /// Encaisse un montant libre : aucun article n'est choisi, seul le montant
   /// compte. Le catalogue se construira tout seul si le montant revient.
   Future<void> _montantLibre() async {
-    final montant = await _demanderMontant();
+    final montant = await _demanderMontant(titre: 'Montant de la vente');
     if (montant == null || !montant.estPositif) return;
 
-    await widget.depot.enregistrerVente(
+    final venteId = await widget.depot.enregistrerVente(
       lignes: [
         LigneAEnregistrer(
           prixUnitaire: montant,
@@ -134,9 +205,14 @@ class _EcranVenteState extends State<EcranVente> {
       ],
     );
     await _recharger();
+    await _proposerRecu(venteId);
   }
 
-  Future<Montant?> _demanderMontant() {
+  Future<Montant?> _demanderMontant({
+    required String titre,
+    String? indication,
+    String valider = 'Encaisser',
+  }) {
     var saisie = '';
     return showModalBottomSheet<Montant>(
       context: context,
@@ -144,7 +220,10 @@ class _EcranVenteState extends State<EcranVente> {
       showDragHandle: true,
       builder: (contexte) => StatefulBuilder(
         builder: (contexte, rafraichir) => _PaveNumerique(
+          titre: titre,
+          indication: indication,
           saisie: saisie,
+          valider: valider,
           surTouche: (touche) => rafraichir(() {
             if (touche == '<') {
               if (saisie.isNotEmpty) {
@@ -229,9 +308,11 @@ class _EcranVenteState extends State<EcranVente> {
                         final article = _catalogue[index - 2];
                         return TuileProduit(
                           nom: article.designation,
-                          prix: Montant(article.prixCentimes),
+                          prix: _prixPratique(article),
+                          prixNegocie: _prixNegocies.containsKey(article.code),
                           quantiteAuPanier: _panier[article.code] ?? 0,
                           onPressed: () => _ajouter(article),
+                          onLongPress: () => _negocier(article),
                         );
                       },
                     ),
@@ -370,12 +451,22 @@ class _BandeauNommage extends StatelessWidget {
 /// Gros chiffres, pas de clavier système : la saisie d'un montant est le seul
 /// endroit où l'on tape, et elle doit rester rapide debout.
 class _PaveNumerique extends StatelessWidget {
+  final String titre;
+  final String? indication;
   final String saisie;
+
+  /// Ce que fait le bouton de validation. Encaisser n'est pas fixer un prix :
+  /// le commerçant doit lire ce qu'il s'apprête à déclencher.
+  final String valider;
+
   final ValueChanged<String> surTouche;
   final VoidCallback? surValidation;
 
   const _PaveNumerique({
+    required this.titre,
+    required this.indication,
     required this.saisie,
+    required this.valider,
     required this.surTouche,
     required this.surValidation,
   });
@@ -395,13 +486,17 @@ class _PaveNumerique extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Montant de la vente', style: textes.labelSmall),
+          Text(titre, style: textes.labelSmall),
           const SizedBox(height: Espace.s),
           MontantAnime(
             montant,
             style: textes.displayMedium,
             couleur: saisie.isEmpty ? Couleurs.encreLegere : Couleurs.encre,
           ),
+          if (indication != null) ...[
+            const SizedBox(height: Espace.xs),
+            Text(indication!, style: textes.labelSmall),
+          ],
           const SizedBox(height: Espace.l),
           for (final rangee in const [
             ['1', '2', '3'],
@@ -434,7 +529,7 @@ class _PaveNumerique extends StatelessWidget {
               disabledBackgroundColor: Couleurs.bordure,
             ),
             child: Text(
-              'Encaisser',
+              valider,
               style: textes.labelLarge?.copyWith(
                 fontSize: 17,
                 color: surValidation == null

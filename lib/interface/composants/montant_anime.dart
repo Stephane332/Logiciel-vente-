@@ -37,20 +37,26 @@ class MontantAnime extends StatelessWidget {
     var texte = montant.enFrancs;
     if (!avecDevise) texte = texte.replaceAll(' F', '');
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        for (var i = 0; i < texte.length; i++)
-          _Caractere(
-            caractere: texte[i],
-            // La position sert de clé : un chiffre qui change à la même
-            // place défile, au lieu d'être reconstruit.
-            position: texte.length - i,
-            style: styleFinal,
-          ),
-      ],
+    // Le montant est découpé caractère par caractère pour l'animation. Sans
+    // cette étiquette, un lecteur d'écran l'épellerait chiffre par chiffre.
+    return Semantics(
+      label: texte,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          for (var i = 0; i < texte.length; i++)
+            _Caractere(
+              caractere: texte[i],
+              // La position sert de clé : un chiffre qui change à la même
+              // place défile, au lieu d'être reconstruit.
+              position: texte.length - i,
+              style: styleFinal,
+            ),
+        ],
+      ),
     );
   }
 }

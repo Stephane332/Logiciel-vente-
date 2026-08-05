@@ -89,7 +89,9 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
   Widget build(BuildContext context) {
     final textes = Theme.of(context).textTheme;
 
-    return Padding(
+    // La feuille défile : le volet mobile money l'agrandit, et sur un écran
+    // court ou clavier ouvert elle déborderait sinon.
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: Espace.l,
         right: Espace.l,

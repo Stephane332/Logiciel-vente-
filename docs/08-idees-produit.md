@@ -117,6 +117,60 @@ déjà le choix d'architecture retenu.
 
 ---
 
+## 7. Les habitudes d'achat — idée retenue, mais retournée
+
+L'idée de départ était double : que le commerçant voie ses produits favoris par période, et
+que **le client** voie les siens. J'ai gardé la première, transformé la seconde, et écarté
+une troisième qui s'y cachait.
+
+### Ce que j'ai gardé, et construit
+
+Le suivi par période, mais formulé autrement que « produits favoris ». Un commerçant sait
+déjà ce qu'il vend le plus — il le voit tous les jours. Ce qu'il ne sait pas, c'est **ce qui
+a changé**.
+
+D'où trois analyses, implémentées dans [`lib/donnees/analyses.dart`](../lib/donnees/analyses.dart) :
+
+- **Ce qui rapporte** sur une période, classé par chiffre d'affaires et non par quantité :
+  dix sachets d'eau à 100 F pèsent moins qu'un sac de riz à 20 000 F, et c'est le second qui
+  décide du réapprovisionnement.
+- **Ce qui dort** : les articles vendus régulièrement puis abandonnés, avec le montant du
+  stock immobilisé quand il est connu. C'est le point aveugle du commerçant — il remarque
+  tout de suite ce qui marche, presque jamais ce qui a cessé de marcher.
+- **L'évolution** entre deux périodes de même durée, ce qui baisse le plus en tête. C'est la
+  seule façon honnête de dire « ça baisse » : ici les ventes suivent les saisons, les fêtes
+  et la rentrée, et un chiffre isolé ne veut rien dire.
+
+Coût quasi nul : les données étaient déjà dans le journal, il n'y avait qu'à les lire.
+
+### Ce que j'ai retourné
+
+« Le client voit ses produits favoris » devient **« le commerçant voit les habitudes de
+chaque client »**. Mêmes données, destinataire différent.
+
+*« Awa achète du riz toutes les semaines. Elle n'est pas venue depuis trois semaines. »*
+
+Pour le client, connaître ses propres achats est une curiosité. Pour le commerçant, c'est un
+outil : il rappelle une cliente qui s'éloigne, il comprend pourquoi une dette ne bouge plus,
+il prépare ce qu'elle vient chercher. Et c'est lui qui paie l'abonnement.
+
+### Ce que j'ai écarté
+
+**Une application destinée aux clients finaux.** Trois raisons :
+
+1. C'est un **second produit**, avec sa propre acquisition, ses installations, son support.
+   Seul, ça coulerait la phase 1.
+2. **La grande majorité des clients sont anonymes** — client comptant, ni nom ni numéro. La
+   fonction ne servirait qu'à une minorité.
+3. Mon client, c'est le commerçant. Une fonction qui ne sert que le consommateur final ne
+   fait ni vendre ni rester.
+
+Si l'idée revient un jour, la bonne porte d'entrée n'est pas une application mais **le
+reçu** : un message envoyé après la vente, qui peut porter au passage un solde ou un
+décompte de fidélité. À reconsidérer une fois que les reçus par SMS existent.
+
+---
+
 ## Ordre de priorité proposé
 
 | Idée | Effort | Impact | Quand |
@@ -127,6 +181,9 @@ déjà le choix d'architecture retenu.
 | Vente fractionnée | Moyen | Élevé | Phase 2 |
 | Module en marque blanche | Nul puis moyen | Élevé | Après homologation |
 | Rapport vocal | Élevé | À vérifier | À tester en phase 0 |
+| Ce qui rapporte, ce qui dort, l'évolution | Faible | Élevé | **Fait** |
+| Habitudes par client | Faible | Moyen | **Fait**, à brancher à l'interface |
+| Application pour les clients finaux | Élevé | Faible | Écarté |
 
 Les deux premières sont peu coûteuses et touchent au cœur du métier. Elles méritent d'entrer
 dès la phase 1, avec le carnet.

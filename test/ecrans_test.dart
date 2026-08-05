@@ -611,8 +611,7 @@ void main() {
       expect(find.text('40'), findsOneWidget);
     });
 
-    testWidgets('refuser retire la proposition sans rien compter',
-        (tester) async {
+    testWidgets('« plus tard » range l\'article sans le perdre', (tester) async {
       for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
         await vendre('RIZ', 'Riz 1 kg', 650);
       }
@@ -620,11 +619,81 @@ void main() {
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Pas celui-là'));
+      await tester.tap(find.text('Plus tard'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Rien à compter pour le moment'), findsOneWidget);
+      // La proposition disparaît, rien n'est compté — mais l'article reste
+      // à portée de main, dans la liste du bas.
+      expect(find.textContaining('Tu vends souvent'), findsNothing);
       expect(await depot.articlesEnStock(), isEmpty);
+      expect(find.text('Pas encore suivis'), findsOneWidget);
+      expect(find.text('Riz 1 kg'), findsOneWidget);
+    });
+
+    testWidgets('on peut compter un article rangé après un « plus tard »',
+        (tester) async {
+      for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
+        await vendre('RIZ', 'Riz 1 kg', 650);
+      }
+      await depot.reporterPropositionSuivi('RIZ');
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Compter'));
+      await tester.pumpAndSettle();
+      await saisir(tester, '30', 'Commencer à suivre');
+
+      expect(find.text('Ce que je suis'), findsOneWidget);
+      expect(find.text('30'), findsOneWidget);
+    });
+
+    testWidgets('un article peut être créé de toutes pièces', (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Article'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.widgetWithText(TextField, "Nom de l'article"), 'Savon');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Prix de vente'), '350');
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Quantité en stock (facultatif)'),
+          '24');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Savon'), findsOneWidget);
+      expect(find.text('24'), findsOneWidget);
+    });
+
+    testWidgets('un article sans nom se signale dans la liste du bas',
+        (tester) async {
+      // Trois ventes à montant libre : l'article existe mais n'a pas de nom.
+      for (var i = 0; i < 3; i++) {
+        await depot.enregistrerVente(
+          lignes: [
+            LigneAEnregistrer(
+              prixUnitaire: f(500),
+              quantite: const Quantite.unites(1),
+            )
+          ],
+          paiements: [
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          ],
+        );
+      }
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      // Le commerçant peut le nommer quand il veut, sans attendre qu'on le
+      // lui demande à la caisse.
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
     });
 
     testWidgets('une réception s\'ajoute au stock', (tester) async {

@@ -329,4 +329,188 @@ void main() {
       expect(await analyses.pertesEtEcarts(), const Montant.zero());
     });
   });
+
+  group('Rien n\'est définitif', () {
+    Future<void> vendreNFois(int fois) async {
+      for (var i = 0; i < fois; i++) {
+        await vendre('RIZ');
+      }
+    }
+
+    test('« plus tard » masque la proposition mais garde l\'article',
+        () async {
+      await vendreNFois(Depot.seuilDeSuiviStock);
+      await depot.nommerArticle('RIZ', 'Riz 1 kg');
+      await depot.reporterPropositionSuivi('RIZ');
+
+      expect(await depot.articlesASuivre(), isEmpty);
+
+      // Il reste retrouvable, et le suivi peut démarrer à tout moment.
+      final restants = await depot.articlesSansSuivi();
+      expect(restants.map((a) => a.code), contains('RIZ'));
+    });
+
+    test('on peut suivre un article après avoir dit « plus tard »', () async {
+      await vendreNFois(Depot.seuilDeSuiviStock);
+      await depot.nommerArticle('RIZ', 'Riz 1 kg');
+      await depot.reporterPropositionSuivi('RIZ');
+
+      await depot.ajusterStock('RIZ', q(25));
+
+      expect((await article('RIZ')).stockMilliemes, q(25).milliemes);
+      expect((await depot.articlesEnStock()).single.code, 'RIZ');
+    });
+
+    test('arrêter de suivre remet l\'article dans la liste du bas', () async {
+      await vendre('RIZ');
+      await depot.ajusterStock('RIZ', q(40));
+      await depot.definirSuiviStock('RIZ', SuiviStock.aucun);
+
+      expect(await depot.articlesEnStock(), isEmpty);
+      expect((await depot.articlesSansSuivi()).map((a) => a.code),
+          contains('RIZ'));
+    });
+
+    test('le report se rejoue depuis le journal', () async {
+      await vendreNFois(Depot.seuilDeSuiviStock);
+      await depot.nommerArticle('RIZ', 'Riz 1 kg');
+      await depot.reporterPropositionSuivi('RIZ');
+
+      await depot.reconstruireProjections();
+
+      expect(await depot.articlesASuivre(), isEmpty);
+    });
+  });
+
+  group('Saisir son catalogue à l\'avance', () {
+    test('un commerçant peut créer un article avec son stock', () async {
+      final code = await depot.creerArticle(
+        designation: 'Riz 1 kg',
+        prix: f(650),
+        stock: q(50),
+      );
+
+      final cree = await article(code);
+      expect(cree.designation, 'Riz 1 kg');
+      expect(cree.prixCentimes, f(650).centimes);
+      expect(cree.stockMilliemes, q(50).milliemes);
+      expect(cree.nomme, isTrue);
+    });
+
+    test('le stock est facultatif à la création', () async {
+      final code = await depot.creerArticle(
+        designation: 'Coupe de cheveux',
+        prix: f(1000),
+      );
+
+      // Un prestataire de services n'a pas de stock à compter.
+      expect((await article(code)).stockMilliemes, isNull);
+      expect(await depot.articlesEnStock(), isEmpty);
+    });
+
+    test('un article créé à la main est vendable tout de suite', () async {
+      final code = await depot.creerArticle(
+        designation: 'Riz 1 kg',
+        prix: f(650),
+        stock: q(50),
+      );
+
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            codeArticle: code,
+            designation: 'Riz 1 kg',
+            prixUnitaire: f(650),
+            quantite: q(2),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300))
+        ],
+      );
+
+      expect((await article(code)).stockMilliemes, q(48).milliemes);
+    });
+
+    test('un nom vide ou un prix nul est refusé', () async {
+      expect(
+        () => depot.creerArticle(designation: '  ', prix: f(650)),
+        throwsArgumentError,
+      );
+      expect(
+        () => depot.creerArticle(
+            designation: 'Riz', prix: const Montant.zero()),
+        throwsArgumentError,
+      );
+    });
+
+    test('les accents ne partent pas dans le code', () async {
+      final code = await depot.creerArticle(
+        designation: 'Café éthiopien',
+        prix: f(2500),
+      );
+      expect(code, startsWith('CAFE-ETHIOPIEN-'));
+    });
+
+    test('deux articles du même nom ne s\'écrasent pas', () async {
+      final premier = await depot.creerArticle(
+          designation: 'Sachet', prix: f(100));
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      final second = await depot.creerArticle(
+          designation: 'Sachet', prix: f(200));
+
+      expect(premier, isNot(second));
+      expect((await depot.catalogue()).length, 2);
+    });
+
+    test('la création se rejoue depuis le journal', () async {
+      final code = await depot.creerArticle(
+        designation: 'Riz 1 kg',
+        prix: f(650),
+        stock: q(50),
+      );
+
+      await depot.reconstruireProjections();
+
+      final rejoue = await article(code);
+      expect(rejoue.designation, 'Riz 1 kg');
+      expect(rejoue.stockMilliemes, q(50).milliemes);
+    });
+  });
+
+  group('Corriger nom et prix', () {
+    test('un article se renomme à tout moment', () async {
+      await vendre('RIZ');
+      await depot.nommerArticle('RIZ', 'Riz parfumé 1 kg');
+
+      expect((await article('RIZ')).designation, 'Riz parfumé 1 kg');
+    });
+
+    test('le prix se change sans toucher aux ventes passées', () async {
+      await vendre('RIZ');
+      await depot.modifierPrix('RIZ', f(700));
+
+      expect((await article('RIZ')).prixCentimes, f(700).centimes);
+
+      // La vente d'hier garde le prix pratiqué ce jour-là.
+      final rapport = await depot.rapportDuJour();
+      expect(rapport.encaisse, f(650));
+    });
+
+    test('un prix nul est refusé', () async {
+      await vendre('RIZ');
+      expect(
+        () => depot.modifierPrix('RIZ', const Montant.zero()),
+        throwsArgumentError,
+      );
+    });
+
+    test('le changement de prix se rejoue depuis le journal', () async {
+      await vendre('RIZ');
+      await depot.modifierPrix('RIZ', f(700));
+
+      await depot.reconstruireProjections();
+      expect((await article('RIZ')).prixCentimes, f(700).centimes);
+    });
+  });
 }

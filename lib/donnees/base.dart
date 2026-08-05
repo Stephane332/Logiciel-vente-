@@ -75,6 +75,14 @@ class Articles extends Table {
   TextColumn get photo => text().nullable()();
   DateTimeColumn get derniereVente => dateTime().nullable()();
 
+  /// Quand le commerçant a répondu « plus tard » à la proposition de suivre
+  /// le stock de cet article.
+  ///
+  /// Ça masque la proposition, pas la possibilité : l'article reste listé
+  /// dans l'écran de stock, et le suivi peut démarrer à tout moment. Un refus
+  /// par erreur ne coûte donc rien.
+  DateTimeColumn get propositionSuiviReporteeLe => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {code};
 }
@@ -290,7 +298,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -340,6 +348,9 @@ class BaseLocale extends _$BaseLocale {
               'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
               'ON mouvements_stock (code_article, horodatage)',
             );
+          }
+          if (depuis < 7) {
+            await m.addColumn(articles, articles.propositionSuiviReporteeLe);
           }
         },
         beforeOpen: (details) async {

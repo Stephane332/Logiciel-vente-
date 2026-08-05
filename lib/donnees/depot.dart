@@ -719,6 +719,133 @@ class Depot {
     return requete.get();
   }
 
+  /// Crée un article à la main, avec son nom et son prix.
+  ///
+  /// Le catalogue se construit tout seul à l'usage — c'est le chemin normal,
+  /// et celui qui ne demande aucun travail. Mais un commerçant qui *veut*
+  /// saisir ses articles à l'avance doit pouvoir le faire : c'est son
+  /// commerce, pas le mien. Certains préfèrent une soirée de saisie à des
+  /// semaines de construction progressive, et ils ont le droit.
+  ///
+  /// Renvoie le code de l'article. Un article déjà connu est mis à jour
+  /// plutôt que dupliqué.
+  Future<String> creerArticle({
+    required String designation,
+    required Montant prix,
+    String? code,
+    Quantite? stock,
+  }) async {
+    final nom = designation.trim();
+    if (nom.isEmpty) {
+      throw ArgumentError('Un article a besoin d\'un nom.');
+    }
+    if (!prix.estPositif) {
+      throw ArgumentError('Un article a besoin d\'un prix positif.');
+    }
+
+    final identifiant = code ?? _codeDepuisNom(nom);
+
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.articleCree, {
+        'code': identifiant,
+        'designation': nom,
+        'prix': prix.centimes,
+      });
+      await _appliquerCreationArticle(evenement);
+    });
+
+    if (stock != null) {
+      await ajusterStock(identifiant, stock);
+    }
+    return identifiant;
+  }
+
+  Future<void> _appliquerCreationArticle(Evenement evenement) async {
+    final charge = evenement.charge;
+
+    await base.into(base.articles).insertOnConflictUpdate(
+          ArticlesCompanion.insert(
+            code: charge['code']! as String,
+            designation: charge['designation']! as String,
+            prixCentimes: charge['prix']! as int,
+            nomme: const Value(true),
+          ),
+        );
+  }
+
+  /// Change le prix de vente d'un article.
+  ///
+  /// Les ventes déjà enregistrées gardent le prix pratiqué ce jour-là : le
+  /// journal ne se réécrit pas.
+  Future<void> modifierPrix(String code, Montant prix) async {
+    if (!prix.estPositif) {
+      throw ArgumentError('Un prix de vente est positif.');
+    }
+
+    await base.transaction(() async {
+      final evenement =
+          await journal.ajouter(TypeEvenement.articlePrixModifie, {
+        'code': code,
+        'prix': prix.centimes,
+      });
+      await _appliquerPrix(evenement);
+    });
+  }
+
+  Future<void> _appliquerPrix(Evenement evenement) async {
+    await (base.update(base.articles)
+          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+        .write(ArticlesCompanion(
+      prixCentimes: Value(evenement.charge['prix']! as int),
+    ));
+  }
+
+  /// Un code lisible dérivé du nom, pour un article saisi à la main.
+  ///
+  /// Les accents et la ponctuation sautent : le code voyagera un jour dans
+  /// des échanges où ils poseraient problème.
+  static String _codeDepuisNom(String nom) {
+    const accents = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+    const sans = 'aaaaaaceeeeiiiinooooouuuuyy';
+
+    final tampon = StringBuffer();
+    for (final caractere in nom.toLowerCase().split('')) {
+      final index = accents.indexOf(caractere);
+      tampon.write(index >= 0 ? sans[index] : caractere);
+    }
+
+    final base = tampon
+        .toString()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+
+    final racine = base.isEmpty ? 'article' : base;
+    // Le suffixe évite qu'un même nom écrase un article existant portant un
+    // prix différent.
+    return '${racine.toUpperCase()}-${DateTime.now().millisecondsSinceEpoch % 100000}';
+  }
+
+  /// Le commerçant préfère ne pas suivre ce stock pour l'instant.
+  ///
+  /// La proposition disparaît, l'article reste. Il figure toujours dans
+  /// l'écran de stock, où le suivi peut démarrer d'un bouton — un refus par
+  /// erreur ne coûte donc rien, et un changement d'avis non plus.
+  Future<void> reporterPropositionSuivi(String code) async {
+    await base.transaction(() async {
+      final evenement = await journal
+          .ajouter(TypeEvenement.propositionSuiviReportee, {'code': code});
+      await _appliquerReport(evenement);
+    });
+  }
+
+  Future<void> _appliquerReport(Evenement evenement) async {
+    await (base.update(base.articles)
+          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+        .write(ArticlesCompanion(
+      propositionSuiviReporteeLe: Value(evenement.horodatage),
+    ));
+  }
+
   /// Nombre de ventes au-delà duquel on propose de compter le stock.
   ///
   /// Plus haut que le seuil de nommage : on ne demande à un commerçant de
@@ -735,8 +862,25 @@ class Depot {
       ..where((a) =>
           a.nomme.equals(true) &
           a.suiviStock.equals(SuiviStock.aucun.cle) &
+          a.propositionSuiviReporteeLe.isNull() &
           a.nombreVentes.isBiggerOrEqualValue(seuilDeSuiviStock))
       ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
+    return requete.get();
+  }
+
+  /// Tous les articles dont le stock n'est pas suivi, proposés ou non.
+  ///
+  /// C'est le filet de sécurité : quoi qu'il ait répondu aux propositions, le
+  /// commerçant retrouve ici n'importe quel article et peut en démarrer le
+  /// suivi. Rien n'est jamais définitif.
+  Future<List<LigneArticle>> articlesSansSuivi({int limite = 60}) {
+    final requete = base.select(base.articles)
+      ..where((a) => a.suiviStock.equals(SuiviStock.aucun.cle))
+      ..orderBy([
+        (a) => OrderingTerm.desc(a.nombreVentes),
+        (a) => OrderingTerm.desc(a.derniereVente),
+      ])
+      ..limit(limite);
     return requete.get();
   }
 
@@ -976,6 +1120,12 @@ class Depot {
             }
           case TypeEvenement.suiviStockDefini:
             await _appliquerModeSuivi(evenement);
+          case TypeEvenement.propositionSuiviReportee:
+            await _appliquerReport(evenement);
+          case TypeEvenement.articleCree:
+            await _appliquerCreationArticle(evenement);
+          case TypeEvenement.articlePrixModifie:
+            await _appliquerPrix(evenement);
           case TypeEvenement.creditRembourse:
             await _appliquerRemboursement(evenement);
           case TypeEvenement.caisseMouvement:
@@ -989,8 +1139,6 @@ class Depot {
           case TypeEvenement.venteSoldee:
             await _appliquerSolde(evenement);
           case TypeEvenement.venteAnnulee:
-          case TypeEvenement.articleCree:
-          case TypeEvenement.articlePrixModifie:
           case TypeEvenement.creditAccorde:
           case TypeEvenement.ventecertifiee:
             break;

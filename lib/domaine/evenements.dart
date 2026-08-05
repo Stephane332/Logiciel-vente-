@@ -38,6 +38,10 @@ enum TypeEvenement {
   /// même type d'événement, et le rejeu devait deviner lequel des deux en
   /// reniflant la charge. Un journal ne se relit pas aux devinettes.
   suiviStockDefini('suivi_stock_defini'),
+
+  /// Le commerçant a répondu « plus tard » à la proposition de suivre le
+  /// stock d'un article. Ça masque la proposition, jamais la possibilité.
+  propositionSuiviReportee('proposition_suivi_reportee'),
   clientCree('client_cree'),
   consentementDonne('consentement_donne'),
   creditAccorde('credit_accorde'),

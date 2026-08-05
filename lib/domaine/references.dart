@@ -188,6 +188,63 @@ enum SuiviStock {
       );
 }
 
+/// Où en est une vente.
+///
+/// Ce qui distingue les commerces n'est pas leur métier mais l'ordre de trois
+/// moments : commander, servir, payer. Une vente au comptoir les traverse en
+/// un seul geste ; une note de restaurant reste ouverte le temps du repas ;
+/// une vente à crédit est servie sans être soldée.
+enum EtatVente {
+  /// Des lignes peuvent encore s'ajouter : note de restaurant, commande en
+  /// préparation, devis en cours.
+  ouverte('ouverte'),
+
+  /// La marchandise est remise ou le service rendu, mais tout n'est pas
+  /// encaissé. C'est l'état d'une vente à crédit.
+  servie('servie'),
+
+  /// La somme des règlements égale le total.
+  soldee('soldee');
+
+  final String cle;
+  const EtatVente(this.cle);
+
+  static EtatVente parCle(String cle) => values.firstWhere(
+        (e) => e.cle == cle,
+        orElse: () => soldee,
+      );
+}
+
+/// Ce qui regroupe les lignes d'une vente tant qu'elle est ouverte.
+///
+/// Même champ, rempli différemment selon le métier. Au comptoir, il ne sert
+/// pas du tout.
+enum TypeContenant {
+  /// Restaurant, maquis.
+  table('table', 'Table'),
+
+  /// Fast-food, vente à emporter.
+  ticket('ticket', 'Ticket'),
+
+  /// Réservation, crédit, livraison à une personne connue.
+  client('client', 'Client'),
+
+  /// Livraison à une adresse.
+  livraison('livraison', 'Livraison');
+
+  final String cle;
+  final String libelle;
+  const TypeContenant(this.cle, this.libelle);
+
+  static TypeContenant? parCle(String? cle) {
+    if (cle == null) return null;
+    for (final type in values) {
+      if (type.cle == cle) return type;
+    }
+    return null;
+  }
+}
+
 /// Étiquettes des lignes de commentaire (§2.27). Huit lignes au minimum.
 enum LigneCommentaire {
   referenceExoneration('A', 'Réf. exo.', "Référence du certificat d'exonération"),

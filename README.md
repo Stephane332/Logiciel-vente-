@@ -79,3 +79,4 @@ schéma. Il faut donc lancer `build_runner` après un clone ou une modification 
 | [`docs/07-protocole-mcf.md`](docs/07-protocole-mcf.md) | Protocole de dialogue avec le module de contrôle |
 | [`docs/08-idees-produit.md`](docs/08-idees-produit.md) | Idées à évaluer sur le terrain |
 | [`docs/09-homologation.md`](docs/09-homologation.md) | Procédure d'homologation du SFE |
+| [`docs/10-parcours-de-vente.md`](docs/10-parcours-de-vente.md) | Parcours de vente et types de clients |

@@ -22,6 +22,10 @@ import 'dart:convert';
 /// renommer**, un journal existant deviendrait illisible.
 enum TypeEvenement {
   venteEnregistree('vente_enregistree'),
+  venteOuverte('vente_ouverte'),
+  lignesAjoutees('lignes_ajoutees'),
+  venteServie('vente_servie'),
+  venteSoldee('vente_soldee'),
   venteAnnulee('vente_annulee'),
   articleCree('article_cree'),
   articleNomme('article_nomme'),

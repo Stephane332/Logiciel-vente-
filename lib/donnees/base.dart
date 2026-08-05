@@ -92,6 +92,20 @@ class Ventes extends Table {
   TextColumn get clientId => text().nullable()();
   TextColumn get operateur => text().nullable()();
 
+  /// Où en est la vente : `ouverte`, `servie`, `soldee`.
+  ///
+  /// Une vente au comptoir traverse les trois en un seul geste. Une note de
+  /// restaurant reste ouverte le temps du repas. Une vente à crédit est
+  /// servie sans être soldée.
+  TextColumn get etat => text().withDefault(const Constant('soldee'))();
+
+  /// Ce qui regroupe les lignes tant que la vente est ouverte : une table,
+  /// un numéro de ticket, un nom, une adresse. Nul au comptoir.
+  TextColumn get contenant => text().nullable()();
+
+  /// Nature du contenant : `table`, `ticket`, `client`, `livraison`.
+  TextColumn get typeContenant => text().nullable()();
+
   /// Où en est la certification. Une vente naît non certifiée : la caisse
   /// fonctionne hors ligne, la certification vient ensuite.
   TextColumn get etatCertification =>
@@ -211,7 +225,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -234,6 +248,11 @@ class BaseLocale extends _$BaseLocale {
         onUpgrade: (m, depuis, vers) async {
           if (depuis < 2) {
             await m.addColumn(articles, articles.suiviStock);
+          }
+          if (depuis < 3) {
+            await m.addColumn(ventes, ventes.etat);
+            await m.addColumn(ventes, ventes.contenant);
+            await m.addColumn(ventes, ventes.typeContenant);
           }
         },
         beforeOpen: (details) async {

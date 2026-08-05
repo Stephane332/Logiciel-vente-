@@ -103,41 +103,14 @@ class Depot {
     final quand = horodatage ?? DateTime.now();
 
     return base.transaction(() async {
-      final lignesResolues = <Map<String, Object?>>[];
-      var total = const Montant.zero();
-      var remise = const Montant.zero();
-
-      for (final ligne in lignes) {
-        final code =
-            ligne.codeArticle ?? _codeAutomatiquePour(ligne.prixUnitaire);
-        final designation = ligne.designation ??
-            await _designationConnue(code) ??
-            'Article à ${ligne.prixUnitaire.enFrancs}';
-
-        final montant = ligne.prixUnitaire.multiplieParQuantite(ligne.quantite);
-        total = total + montant;
-
-        if (ligne.prixCatalogue != null) {
-          final ecart = ligne.prixCatalogue!.multiplieParQuantite(ligne.quantite) -
-              montant;
-          if (ecart.estPositif) remise = remise + ecart;
-        }
-
-        lignesResolues.add({
-          'code': code,
-          'designation': designation,
-          'quantite': ligne.quantite.milliemes,
-          'prix': ligne.prixUnitaire.centimes,
-          'prixCatalogue': ligne.prixCatalogue?.centimes,
-          'groupe': ligne.groupeTaxation.etiquette,
-          'montant': montant.centimes,
-        });
-      }
+      final resolues = await _resoudreLignes(lignes);
+      final total = resolues.total;
+      final remise = resolues.remise;
 
       final evenement = await journal.ajouter(
         TypeEvenement.venteEnregistree,
         {
-          'lignes': lignesResolues,
+          'lignes': resolues.lignes,
           'paiements': [
             for (final p in paiements)
               {
@@ -176,14 +149,75 @@ class Depot {
           ),
         );
 
-    final lignes = (charge['lignes']! as List).cast<Map<String, Object?>>();
+    await _poserLignes(
+      venteId: venteId,
+      lignes: (charge['lignes']! as List).cast<Map<String, Object?>>(),
+      quand: evenement.horodatage,
+    );
+
+    await _poserPaiements(
+      venteId: venteId,
+      paiements:
+          (charge['paiements'] as List? ?? const []).cast<Map<String, Object?>>(),
+      clientId: charge['clientId'] as String?,
+      quand: evenement.horodatage,
+    );
+  }
+
+  /// Résout des lignes brutes en lignes prêtes à écrire : code d'article
+  /// déduit si besoin, désignation retrouvée, montants calculés.
+  Future<_LignesResolues> _resoudreLignes(List<LigneAEnregistrer> lignes) async {
+    final resolues = <Map<String, Object?>>[];
+    var total = const Montant.zero();
+    var remise = const Montant.zero();
+
+    for (final ligne in lignes) {
+      final code =
+          ligne.codeArticle ?? _codeAutomatiquePour(ligne.prixUnitaire);
+      final designation = ligne.designation ??
+          await _designationConnue(code) ??
+          'Article à ${ligne.prixUnitaire.enFrancs}';
+
+      final montant = ligne.prixUnitaire.multiplieParQuantite(ligne.quantite);
+      total = total + montant;
+
+      if (ligne.prixCatalogue != null) {
+        final ecart =
+            ligne.prixCatalogue!.multiplieParQuantite(ligne.quantite) - montant;
+        if (ecart.estPositif) remise = remise + ecart;
+      }
+
+      resolues.add({
+        'code': code,
+        'designation': designation,
+        'quantite': ligne.quantite.milliemes,
+        'prix': ligne.prixUnitaire.centimes,
+        'prixCatalogue': ligne.prixCatalogue?.centimes,
+        'groupe': ligne.groupeTaxation.etiquette,
+        'montant': montant.centimes,
+      });
+    }
+
+    return _LignesResolues(resolues, total, remise);
+  }
+
+  /// Écrit les lignes d'une vente et met à jour le catalogue.
+  ///
+  /// Le décalage sert quand on ajoute à une vente qui a déjà des lignes :
+  /// les identifiants doivent rester uniques.
+  Future<void> _poserLignes({
+    required String venteId,
+    required List<Map<String, Object?>> lignes,
+    required DateTime quand,
+    int decalage = 0,
+  }) async {
     for (var i = 0; i < lignes.length; i++) {
       final ligne = lignes[i];
       final code = ligne['code']! as String;
 
       await base.into(base.lignesVente).insert(
             LignesVenteCompanion.insert(
-              id: '$venteId-$i',
+              id: '$venteId-${decalage + i}',
               venteId: venteId,
               codeArticle: code,
               designation: ligne['designation']! as String,
@@ -201,17 +235,24 @@ class Depot {
         prixCentimes: ligne['prix']! as int,
         groupe: ligne['groupe']! as String,
         quantiteMilliemes: ligne['quantite']! as int,
-        quand: evenement.horodatage,
+        quand: quand,
       );
     }
+  }
 
-    final paiements = (charge['paiements'] as List? ?? const [])
-        .cast<Map<String, Object?>>();
+  /// Écrit les règlements d'une vente et alimente le cahier de dettes.
+  Future<void> _poserPaiements({
+    required String venteId,
+    required List<Map<String, Object?>> paiements,
+    required DateTime quand,
+    String? clientId,
+    int decalage = 0,
+  }) async {
     for (var i = 0; i < paiements.length; i++) {
       final paiement = paiements[i];
       await base.into(base.paiements).insert(
             PaiementsCompanion.insert(
-              id: '$venteId-p$i',
+              id: '$venteId-p${decalage + i}',
               venteId: venteId,
               mode: paiement['mode']! as String,
               montantCentimes: paiement['montant']! as int,
@@ -221,13 +262,8 @@ class Depot {
           );
 
       // Une vente à crédit alimente le cahier de dettes.
-      final clientId = charge['clientId'] as String?;
       if (paiement['mode'] == ModePaiement.credit.name && clientId != null) {
-        await _ajusterEncours(
-          clientId,
-          paiement['montant']! as int,
-          evenement.horodatage,
-        );
+        await _ajusterEncours(clientId, paiement['montant']! as int, quand);
       }
     }
   }
@@ -304,6 +340,186 @@ class Depot {
           ..where((a) => a.code.equals(code)))
         .getSingleOrNull();
     return article?.designation;
+  }
+
+  // ---------------------------------------------------- parcours en plusieurs temps
+
+  /// Ouvre une vente qui restera modifiable : note de restaurant, commande en
+  /// préparation, devis.
+  ///
+  /// Le contenant est ce qui la regroupe — une table, un numéro de ticket, un
+  /// nom. Au comptoir il ne sert pas, et [enregistrerVente] reste la voie
+  /// courte.
+  Future<String> ouvrirVente({
+    String? contenant,
+    TypeContenant? typeContenant,
+    String? clientId,
+    String? operateur,
+    DateTime? horodatage,
+  }) async {
+    return base.transaction(() async {
+      final evenement = await journal.ajouter(
+        TypeEvenement.venteOuverte,
+        {
+          'contenant': contenant,
+          'typeContenant': typeContenant?.cle,
+          'clientId': clientId,
+          'operateur': operateur,
+        },
+        horodatage: horodatage,
+      );
+      await _appliquerOuverture(evenement);
+      return evenement.id;
+    });
+  }
+
+  Future<void> _appliquerOuverture(Evenement evenement) async {
+    await base.into(base.ventes).insert(
+          VentesCompanion.insert(
+            id: evenement.id,
+            horodatage: evenement.horodatage,
+            totalCentimes: 0,
+            etat: Value(EtatVente.ouverte.cle),
+            contenant: Value(evenement.charge['contenant'] as String?),
+            typeContenant: Value(evenement.charge['typeContenant'] as String?),
+            clientId: Value(evenement.charge['clientId'] as String?),
+            operateur: Value(evenement.charge['operateur'] as String?),
+          ),
+        );
+  }
+
+  /// Ajoute des lignes à une vente ouverte.
+  ///
+  /// C'est le geste du serveur qui rapporte une commande supplémentaire à une
+  /// table déjà servie.
+  Future<void> ajouterAVente(String venteId, List<LigneAEnregistrer> lignes) async {
+    if (lignes.isEmpty) return;
+
+    await base.transaction(() async {
+      final vente = await (base.select(base.ventes)
+            ..where((v) => v.id.equals(venteId)))
+          .getSingleOrNull();
+      if (vente == null) {
+        throw ArgumentError('Vente inconnue : $venteId');
+      }
+      if (vente.etat != EtatVente.ouverte.cle) {
+        throw StateError(
+            "On ne peut ajouter qu'à une vente ouverte (état : ${vente.etat}).");
+      }
+
+      final resolues = await _resoudreLignes(lignes);
+      final evenement = await journal.ajouter(TypeEvenement.lignesAjoutees, {
+        'venteId': venteId,
+        'lignes': resolues.lignes,
+        'total': resolues.total.centimes,
+        'remise': resolues.remise.centimes,
+      });
+      await _appliquerAjoutLignes(evenement);
+    });
+  }
+
+  Future<void> _appliquerAjoutLignes(Evenement evenement) async {
+    final venteId = evenement.charge['venteId']! as String;
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingle();
+
+    final depart = await (base.select(base.lignesVente)
+          ..where((l) => l.venteId.equals(venteId)))
+        .get();
+
+    await _poserLignes(
+      venteId: venteId,
+      lignes: (evenement.charge['lignes']! as List).cast<Map<String, Object?>>(),
+      quand: evenement.horodatage,
+      decalage: depart.length,
+    );
+
+    await (base.update(base.ventes)..where((v) => v.id.equals(venteId))).write(
+      VentesCompanion(
+        totalCentimes:
+            Value(vente.totalCentimes + (evenement.charge['total']! as int)),
+        remiseCentimes:
+            Value(vente.remiseCentimes + (evenement.charge['remise'] as int? ?? 0)),
+      ),
+    );
+  }
+
+  /// Marque une vente comme servie sans être soldée : c'est l'état d'une
+  /// vente à crédit, ou d'une table qui a mangé mais pas encore payé.
+  Future<void> marquerServie(String venteId) async {
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.venteServie, {
+        'venteId': venteId,
+      });
+      await _appliquerEtat(evenement, EtatVente.servie);
+    });
+  }
+
+  /// Solde une vente ouverte par un ou plusieurs règlements.
+  Future<void> solder(String venteId, List<PaiementAEnregistrer> paiements) async {
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.venteSoldee, {
+        'venteId': venteId,
+        'paiements': [
+          for (final p in paiements)
+            {
+              'mode': p.mode.name,
+              'montant': p.montant.centimes,
+              'reference': p.reference,
+              'expediteur': p.expediteur,
+            }
+        ],
+      });
+      await _appliquerSolde(evenement);
+    });
+  }
+
+  Future<void> _appliquerSolde(Evenement evenement) async {
+    final venteId = evenement.charge['venteId']! as String;
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingle();
+
+    final existants = await (base.select(base.paiements)
+          ..where((p) => p.venteId.equals(venteId)))
+        .get();
+
+    await _poserPaiements(
+      venteId: venteId,
+      paiements:
+          (evenement.charge['paiements']! as List).cast<Map<String, Object?>>(),
+      clientId: vente.clientId,
+      quand: evenement.horodatage,
+      decalage: existants.length,
+    );
+
+    await _appliquerEtat(evenement, EtatVente.soldee);
+  }
+
+  Future<void> _appliquerEtat(Evenement evenement, EtatVente etat) async {
+    await (base.update(base.ventes)
+          ..where((v) => v.id.equals(evenement.charge['venteId']! as String)))
+        .write(VentesCompanion(etat: Value(etat.cle)));
+  }
+
+  /// Les ventes encore ouvertes : les tables en cours, les commandes en
+  /// préparation.
+  Future<List<LigneVente>> ventesOuvertes() {
+    final requete = base.select(base.ventes)
+      ..where((v) =>
+          v.etat.equals(EtatVente.ouverte.cle) & v.annulee.equals(false))
+      ..orderBy([(v) => OrderingTerm.asc(v.horodatage)]);
+    return requete.get();
+  }
+
+  /// Les ventes servies mais pas encore payées.
+  Future<List<LigneVente>> ventesAEncaisser() {
+    final requete = base.select(base.ventes)
+      ..where((v) =>
+          v.etat.equals(EtatVente.servie.cle) & v.annulee.equals(false))
+      ..orderBy([(v) => OrderingTerm.asc(v.horodatage)]);
+    return requete.get();
   }
 
   // -------------------------------------------------------------- catalogue
@@ -576,6 +792,14 @@ class Depot {
             await _appliquerRemboursement(evenement);
           case TypeEvenement.caisseMouvement:
             await _appliquerMouvementCaisse(evenement);
+          case TypeEvenement.venteOuverte:
+            await _appliquerOuverture(evenement);
+          case TypeEvenement.lignesAjoutees:
+            await _appliquerAjoutLignes(evenement);
+          case TypeEvenement.venteServie:
+            await _appliquerEtat(evenement, EtatVente.servie);
+          case TypeEvenement.venteSoldee:
+            await _appliquerSolde(evenement);
           case TypeEvenement.venteAnnulee:
           case TypeEvenement.articleCree:
           case TypeEvenement.articlePrixModifie:
@@ -586,4 +810,14 @@ class Depot {
       }
     });
   }
+}
+
+
+/// Lignes résolues, prêtes à être écrites.
+class _LignesResolues {
+  final List<Map<String, Object?>> lignes;
+  final Montant total;
+  final Montant remise;
+
+  const _LignesResolues(this.lignes, this.total, this.remise);
 }

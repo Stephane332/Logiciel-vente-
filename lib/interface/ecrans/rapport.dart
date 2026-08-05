@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
+import '../../domaine/montant.dart';
 import '../../donnees/documents.dart';
 import '../composants/montant_anime.dart';
 import '../composants/partage.dart';
@@ -43,6 +44,7 @@ class EcranRapportState extends State<EcranRapport> {
   List<AlerteStock> _alertes = const [];
   List<ArticleEndormi> _endormis = const [];
   List<PerformanceArticle> _meilleures = const [];
+  Montant _perdu = const Montant.zero();
 
   /// Ce qui apparaît sous « Ce qui dort ». Au-delà, le commerçant ne lit plus.
   static const _plafondEndormis = 5;
@@ -61,11 +63,12 @@ class EcranRapportState extends State<EcranRapport> {
     // Les quatre lectures ne dépendent pas les unes des autres. Les enchaîner
     // ferait quatre allers-retours au lieu d'un sur un téléphone d'entrée de
     // gamme, à chaque ouverture de l'onglet.
-    final (rapport, alertes, endormis, meilleures) = await (
+    final (rapport, alertes, endormis, meilleures, perdu) = await (
       widget.depot.rapportDuJour(),
       widget.analyses.aReapprovisionner(),
       widget.analyses.articlesQuiDorment(limite: _plafondEndormis),
       widget.analyses.meilleuresVentes(limite: 5),
+      widget.analyses.pertesEtEcarts(),
     ).wait;
 
     if (!mounted) return;
@@ -74,6 +77,7 @@ class EcranRapportState extends State<EcranRapport> {
       _alertes = alertes;
       _endormis = endormis;
       _meilleures = meilleures;
+      _perdu = perdu;
     });
   }
 
@@ -85,6 +89,7 @@ class EcranRapportState extends State<EcranRapport> {
       .rapportDuSoir(
         rapport: rapport,
         aRacheter: [for (final alerte in _alertes.take(5)) alerte.message],
+        perdu: _perdu,
       )
       .texte;
 
@@ -138,6 +143,16 @@ class EcranRapportState extends State<EcranRapport> {
                   teinte: Couleurs.accent,
                   icone: Icons.discount_outlined,
                 ),
+                // Marchandise partie sans rapporter un franc. On ne l'affiche
+                // que s'il y en a : une pastille à zéro tous les jours finit
+                // par ne plus être lue.
+                if (_perdu.estPositif)
+                  PastilleMontant(
+                    libelle: 'Perdu',
+                    montant: _perdu,
+                    teinte: Couleurs.alerte,
+                    icone: Icons.remove_circle_outline_rounded,
+                  ),
               ],
             ),
 

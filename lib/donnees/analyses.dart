@@ -293,6 +293,40 @@ class Analyses {
   ///
   /// Ne concerne que les articles en suivi direct : un plat de restaurant
   /// consomme des ingrédients et non lui-même, un service ne consomme rien.
+  /// Ce qui est sorti du stock sans être vendu, sur une période.
+  ///
+  /// Pertes déclarées et écarts d'inventaire confondus : dans les deux cas
+  /// de la marchandise est partie sans rapporter un franc. C'est le chiffre
+  /// que le patron doit voir, et celui qu'un gérant n'a pas envie de montrer.
+  ///
+  /// Valorisé au prix de vente : c'est ce que le commerce a réellement perdu
+  /// comme recette, pas ce qu'il avait payé.
+  Future<Montant> pertesEtEcarts({DateTime? debut, DateTime? fin}) async {
+    final finEffective = fin ?? _prochainMinuit(null);
+    final debutEffectif =
+        debut ?? finEffective.subtract(const Duration(days: 1));
+
+    final ligne = await base.customSelect(
+      '''
+      SELECT COALESCE(SUM(-m.variation_milliemes * a.prix_centimes), 0) AS perdu
+      FROM mouvements_stock m
+      JOIN articles a ON a.code = m.code_article
+      WHERE m.variation_milliemes < 0
+        AND m.horodatage >= ?
+        AND m.horodatage <  ?
+      ''',
+      variables: [
+        Variable<DateTime>(debutEffectif),
+        Variable<DateTime>(finEffective),
+      ],
+      readsFrom: {base.mouvementsStock, base.articles},
+    ).getSingle();
+
+    // Les quantités sont en millièmes, les prix en centimes : le produit des
+    // deux est en millièmes de centime.
+    return Montant((ligne.read<int>('perdu') / 1000).round());
+  }
+
   Future<List<AlerteStock>> aReapprovisionner({
     int joursDAvance = 5,
     int fenetreObservation = 14,

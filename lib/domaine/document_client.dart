@@ -381,6 +381,10 @@ class RapportDuSoir {
   final Montant encaisse;
   final Montant aCredit;
   final Montant remises;
+
+  /// Marchandise sortie du stock sans être vendue.
+  final Montant perdu;
+
   final int nombreVentes;
 
   /// Ce qu'il faut racheter, déjà formulé par les analyses. On ne reformule
@@ -394,6 +398,7 @@ class RapportDuSoir {
     required this.aCredit,
     required this.remises,
     required this.nombreVentes,
+    this.perdu = const Montant.zero(),
     this.aRacheter = const [],
   });
 
@@ -410,6 +415,9 @@ class RapportDuSoir {
     }
     if (remises.estPositif) {
       lignes.add(DocumentClient.aligne('Remises accordées', remises.enFrancs));
+    }
+    if (perdu.estPositif) {
+      lignes.add(DocumentClient.aligne('Perdu en stock', perdu.enFrancs));
     }
 
     lignes

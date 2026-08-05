@@ -49,7 +49,10 @@ après l'installation. En dessous, je corrige le produit avant d'en installer d'
 
 Huit à douze semaines.
 
-- [ ] Stock progressif et alertes de rupture
+- [x] Stock progressif : aucun inventaire à saisir, l'article entre quand il
+      revient assez souvent
+- [x] Réceptions, comptages et pertes, avec la trace de chaque mouvement (§2.20)
+- [x] Valeur de ce qui est parti sans être vendu, dans le rapport du soir
 - [x] Comptes marchands configurables, un numéro par opérateur
 - [x] Encaissement mobile money par code QR et USSD, sans aucune API payante
 - [ ] Capture des SMS de confirmation sur Android

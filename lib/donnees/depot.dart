@@ -554,23 +554,134 @@ class Depot {
   ///
   /// Déclarer un stock, c'est demander à ce qu'il soit suivi : l'article
   /// passe automatiquement en suivi direct.
-  Future<void> ajusterStock(String code, Quantite quantite) async {
+  Future<void> ajusterStock(
+    String code,
+    Quantite quantite, {
+    String? motif,
+    DateTime? horodatage,
+  }) =>
+      _bougerStock(
+        code: code,
+        nature: NatureMouvementStock.inventaire,
+        quantite: quantite,
+        motif: motif,
+        horodatage: horodatage,
+      );
+
+  /// Enregistre une réception de marchandise.
+  ///
+  /// S'ajoute au stock connu, contrairement à l'inventaire qui le remplace.
+  /// C'est le geste courant : « j'ai reçu vingt sacs » se dit sans avoir à
+  /// recompter l'étagère.
+  Future<void> entrerStock(
+    String code,
+    Quantite quantite, {
+    String? motif,
+    DateTime? horodatage,
+  }) =>
+      _bougerStock(
+        code: code,
+        nature: NatureMouvementStock.entree,
+        quantite: quantite,
+        motif: motif,
+        horodatage: horodatage,
+      );
+
+  /// Enregistre une perte : casse, vol, péremption, cadeau.
+  ///
+  /// Sans cette ligne, une perte devient un écart inexpliqué — et c'est
+  /// exactement là que l'argent d'un commerce disparaît sans qu'on sache
+  /// jamais par où.
+  Future<void> declarerPerte(
+    String code,
+    Quantite quantite, {
+    String? motif,
+    DateTime? horodatage,
+  }) =>
+      _bougerStock(
+        code: code,
+        nature: NatureMouvementStock.perte,
+        quantite: quantite,
+        motif: motif,
+        horodatage: horodatage,
+      );
+
+  Future<void> _bougerStock({
+    required String code,
+    required NatureMouvementStock nature,
+    required Quantite quantite,
+    String? motif,
+    DateTime? horodatage,
+  }) async {
+    if (quantite.milliemes < 0) {
+      throw ArgumentError('Un mouvement de stock se déclare en positif.');
+    }
+
     await base.transaction(() async {
-      final evenement = await journal.ajouter(TypeEvenement.stockAjuste, {
-        'code': code,
-        'quantite': quantite.milliemes,
-      });
+      final evenement = await journal.ajouter(
+        TypeEvenement.stockAjuste,
+        {
+          'code': code,
+          'nature': nature.cle,
+          'quantite': quantite.milliemes,
+          'motif': motif,
+        },
+        horodatage: horodatage,
+      );
       await _appliquerAjustementStock(evenement);
     });
   }
 
   Future<void> _appliquerAjustementStock(Evenement evenement) async {
-    await (base.update(base.articles)
-          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+    final charge = evenement.charge;
+    final code = charge['code']! as String;
+    final quantite = charge['quantite']! as int;
+
+    // Les événements écrits avant l'introduction des natures sont des
+    // inventaires : c'est tout ce que le dépôt savait faire à l'époque.
+    final nature = NatureMouvementStock.parCle(
+        charge['nature'] as String? ?? NatureMouvementStock.inventaire.cle);
+
+    final article = await (base.select(base.articles)
+          ..where((a) => a.code.equals(code)))
+        .getSingleOrNull();
+    if (article == null) return;
+
+    final avant = article.stockMilliemes ?? 0;
+    final apres = switch (nature) {
+      NatureMouvementStock.inventaire => quantite,
+      NatureMouvementStock.entree => avant + quantite,
+      NatureMouvementStock.perte => avant - quantite,
+    };
+
+    await (base.update(base.articles)..where((a) => a.code.equals(code)))
         .write(ArticlesCompanion(
-      stockMilliemes: Value(evenement.charge['quantite']! as int),
+      stockMilliemes: Value(apres),
+      // Déclarer un stock, c'est décider de le suivre.
       suiviStock: Value(SuiviStock.direct.cle),
     ));
+
+    await base.into(base.mouvementsStock).insert(
+          MouvementsStockCompanion.insert(
+            id: evenement.id,
+            codeArticle: code,
+            horodatage: evenement.horodatage,
+            nature: nature.cle,
+            variationMilliemes: apres - avant,
+            stockApresMilliemes: apres,
+            motif: Value(charge['motif'] as String?),
+          ),
+        );
+  }
+
+  /// L'historique des mouvements d'un article, du plus récent au plus ancien.
+  Future<List<LigneMouvementStock>> mouvementsDe(String code,
+      {int limite = 20}) {
+    final requete = base.select(base.mouvementsStock)
+      ..where((m) => m.codeArticle.equals(code))
+      ..orderBy([(m) => OrderingTerm.desc(m.horodatage)])
+      ..limit(limite);
+    return requete.get();
   }
 
   /// Change le mode de suivi du stock d'un article.
@@ -579,7 +690,7 @@ class Depot {
   /// qu'un chiffre qu'on a cessé de tenir à jour.
   Future<void> definirSuiviStock(String code, SuiviStock suivi) async {
     await base.transaction(() async {
-      final evenement = await journal.ajouter(TypeEvenement.stockAjuste, {
+      final evenement = await journal.ajouter(TypeEvenement.suiviStockDefini, {
         'code': code,
         'suivi': suivi.cle,
       });
@@ -605,6 +716,35 @@ class Depot {
       ..where((a) =>
           a.nomme.equals(false) & a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage))
       ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
+    return requete.get();
+  }
+
+  /// Nombre de ventes au-delà duquel on propose de compter le stock.
+  ///
+  /// Plus haut que le seuil de nommage : on ne demande à un commerçant de
+  /// compter son étagère qu'une fois qu'il est clair que l'article compte
+  /// pour lui. Poser la question trop tôt, c'est se faire refuser.
+  static const seuilDeSuiviStock = 8;
+
+  /// Les articles nommés, vendus souvent, dont le stock n'est pas encore suivi.
+  ///
+  /// C'est la deuxième marche de la construction progressive : d'abord le
+  /// nom, ensuite la quantité. Jamais un inventaire à saisir d'un coup.
+  Future<List<LigneArticle>> articlesASuivre() {
+    final requete = base.select(base.articles)
+      ..where((a) =>
+          a.nomme.equals(true) &
+          a.suiviStock.equals(SuiviStock.aucun.cle) &
+          a.nombreVentes.isBiggerOrEqualValue(seuilDeSuiviStock))
+      ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
+    return requete.get();
+  }
+
+  /// Les articles dont le stock est réellement suivi, les plus bas d'abord.
+  Future<List<LigneArticle>> articlesEnStock() {
+    final requete = base.select(base.articles)
+      ..where((a) => a.suiviStock.equals(SuiviStock.direct.cle))
+      ..orderBy([(a) => OrderingTerm.asc(a.stockMilliemes)]);
     return requete.get();
   }
 
@@ -814,6 +954,7 @@ class Depot {
       await base.delete(base.articles).go();
       await base.delete(base.clients).go();
       await base.delete(base.mouvementsCaisse).go();
+      await base.delete(base.mouvementsStock).go();
 
       for (final evenement in await journal.tous()) {
         switch (evenement.type) {
@@ -826,11 +967,15 @@ class Depot {
           case TypeEvenement.articleNomme:
             await _appliquerNommage(evenement);
           case TypeEvenement.stockAjuste:
+            // Les journaux écrits avant la séparation des deux événements
+            // portent parfois un changement de suivi sous ce type-là.
             if (evenement.charge.containsKey('suivi')) {
               await _appliquerModeSuivi(evenement);
             } else {
               await _appliquerAjustementStock(evenement);
             }
+          case TypeEvenement.suiviStockDefini:
+            await _appliquerModeSuivi(evenement);
           case TypeEvenement.creditRembourse:
             await _appliquerRemboursement(evenement);
           case TypeEvenement.caisseMouvement:

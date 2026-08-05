@@ -1,7 +1,7 @@
 /// Coquille de navigation.
 ///
-/// Trois destinations, pas une de plus : la caisse, les dettes, le rapport.
-/// Un menu qui se déplie serait un menu qu'on n'ouvre jamais.
+/// Quatre destinations, pas une de plus : la caisse, les dettes, le stock, le
+/// rapport. Un menu qui se déplie serait un menu qu'on n'ouvre jamais.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +14,7 @@ import '../theme/palette.dart';
 import 'dettes.dart';
 import 'rapport.dart';
 import 'reglages.dart';
+import 'stock.dart';
 import 'vente.dart';
 
 class Accueil extends StatefulWidget {
@@ -49,6 +50,7 @@ class _AccueilState extends State<Accueil> {
   final _visites = {0};
 
   final _cleDettes = GlobalKey<EcranDettesState>();
+  final _cleStock = GlobalKey<EcranStockState>();
   final _cleRapport = GlobalKey<EcranRapportState>();
 
   late Reglage _reglage = widget.reglage;
@@ -89,6 +91,8 @@ class _AccueilState extends State<Accueil> {
       case 1:
         _cleDettes.currentState?.recharger();
       case 2:
+        _cleStock.currentState?.recharger();
+      case 3:
         _cleRapport.currentState?.recharger();
     }
   }
@@ -119,8 +123,9 @@ class _AccueilState extends State<Accueil> {
               documents: _documents,
             ),
           ),
+          _onglet(2, () => EcranStock(key: _cleStock, depot: widget.depot)),
           _onglet(
-            2,
+            3,
             () => EcranRapport(
               key: _cleRapport,
               depot: widget.depot,
@@ -147,6 +152,11 @@ class _AccueilState extends State<Accueil> {
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book_rounded),
             label: 'Dettes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2_rounded),
+            label: 'Stock',
           ),
           NavigationDestination(
             icon: Icon(Icons.insights_outlined),

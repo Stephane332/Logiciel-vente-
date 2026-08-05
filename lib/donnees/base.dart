@@ -235,6 +235,36 @@ class MouvementsCaisse extends Table {
 /// rarement, et je préfère pouvoir en ajouter un sans migration de schéma.
 /// Ils ne passent pas par le journal d'événements — ce n'est pas de
 /// l'activité commerciale, et la DGI n'a rien à y vérifier.
+/// Projection : ce qui a fait bouger le stock, hors vente.
+///
+/// Réceptions, comptages et pertes. Les ventes n'y sont pas : elles sont
+/// déjà dans les lignes de vente. C'est le contrôle d'inventaire exigé au
+/// §2.20, et c'est surtout ce qui permet de répondre à « où est passée la
+/// différence ».
+@DataClassName('LigneMouvementStock')
+class MouvementsStock extends Table {
+  TextColumn get id => text()();
+  TextColumn get codeArticle => text()();
+  DateTimeColumn get horodatage => dateTime()();
+
+  /// `entree`, `inventaire` ou `perte`.
+  TextColumn get nature => text()();
+
+  /// Variation appliquée au stock, en millièmes. Négative pour une perte.
+  ///
+  /// Pour un inventaire, c'est l'écart constaté entre le stock connu et le
+  /// stock compté — la valeur qui intéresse vraiment le patron.
+  IntColumn get variationMilliemes => integer()();
+
+  /// Stock après le mouvement, pour relire l'historique sans tout recalculer.
+  IntColumn get stockApresMilliemes => integer()();
+
+  TextColumn get motif => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('LigneReglage')
 class Reglages extends Table {
   TextColumn get cle => text()();
@@ -253,13 +283,14 @@ class Reglages extends Table {
   Paiements,
   Clients,
   MouvementsCaisse,
+  MouvementsStock,
   Reglages,
 ])
 class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -282,6 +313,10 @@ class BaseLocale extends _$BaseLocale {
             'CREATE INDEX IF NOT EXISTS idx_clients_telephone '
             'ON clients (telephone_normalise)',
           );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
+            'ON mouvements_stock (code_article, horodatage)',
+          );
         },
         onUpgrade: (m, depuis, vers) async {
           if (depuis < 2) {
@@ -298,6 +333,13 @@ class BaseLocale extends _$BaseLocale {
           }
           if (depuis < 5) {
             await m.createTable(reglages);
+          }
+          if (depuis < 6) {
+            await m.createTable(mouvementsStock);
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
+              'ON mouvements_stock (code_article, horodatage)',
+            );
           }
         },
         beforeOpen: (details) async {

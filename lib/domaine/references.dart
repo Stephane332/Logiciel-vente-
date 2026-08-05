@@ -188,6 +188,39 @@ enum SuiviStock {
       );
 }
 
+/// Ce qui fait bouger un stock, hors vente.
+///
+/// La DGI impose un contrôle d'inventaire avec entrées, sorties et rapport
+/// d'état (§2.20). Mais l'exigence légale rejoint ici un vrai besoin : la
+/// question qu'un commerçant se pose n'est pas « combien j'en ai », c'est
+/// « où est passée la différence ». Sans trace des mouvements, il n'y a pas
+/// de réponse — et c'est exactement là que l'argent disparaît.
+///
+/// Les ventes n'y figurent pas : elles sont déjà dans les lignes de vente,
+/// et les redoubler ici ferait grossir la table pour rien.
+enum NatureMouvementStock {
+  /// Réception de marchandise. S'ajoute au stock connu.
+  entree('entree', 'Reçu'),
+
+  /// Comptage physique. Remplace le stock connu, quel qu'il soit.
+  inventaire('inventaire', 'Compté'),
+
+  /// Casse, vol, péremption, cadeau. Retire du stock et laisse une trace.
+  ///
+  /// C'est la ligne que personne n'aime remplir et que tout le monde devrait
+  /// tenir : sans elle, une perte devient un écart inexpliqué.
+  perte('perte', 'Perdu');
+
+  final String cle;
+  final String libelle;
+  const NatureMouvementStock(this.cle, this.libelle);
+
+  static NatureMouvementStock parCle(String cle) => values.firstWhere(
+        (n) => n.cle == cle,
+        orElse: () => inventaire,
+      );
+}
+
 /// Où en est une vente.
 ///
 /// Ce qui distingue les commerces n'est pas leur métier mais l'ordre de trois

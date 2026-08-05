@@ -31,6 +31,13 @@ enum TypeEvenement {
   articleNomme('article_nomme'),
   articlePrixModifie('article_prix_modifie'),
   stockAjuste('stock_ajuste'),
+
+  /// Le mode de suivi d'un article a changé.
+  ///
+  /// Distinct de `stockAjuste` : les deux modifiaient la même table par le
+  /// même type d'événement, et le rejeu devait deviner lequel des deux en
+  /// reniflant la charge. Un journal ne se relit pas aux devinettes.
+  suiviStockDefini('suivi_stock_defini'),
   clientCree('client_cree'),
   consentementDonne('consentement_donne'),
   creditAccorde('credit_accorde'),

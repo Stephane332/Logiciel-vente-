@@ -24,6 +24,7 @@ import 'package:carnet/interface/composants/montant_anime.dart';
 import 'package:carnet/interface/ecrans/accueil.dart';
 import 'package:carnet/interface/ecrans/dettes.dart';
 import 'package:carnet/interface/ecrans/rapport.dart';
+import 'package:carnet/interface/ecrans/stock.dart';
 import 'package:carnet/interface/ecrans/vente.dart';
 import 'package:carnet/interface/theme/theme.dart';
 
@@ -550,6 +551,138 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('*555*60112233*2500#'), findsOneWidget);
+    });
+  });
+
+  group('Stock', () {
+    Widget application() => MaterialApp(
+          theme: themeClair(),
+          home: Scaffold(body: EcranStock(depot: depot)),
+        );
+
+    Quantite q(num unites) => Quantite.depuisDecimal(unites);
+
+    /// Saisit une quantité sur le pavé, puis valide.
+    Future<void> saisir(WidgetTester tester, String chiffres,
+        String valider) async {
+      for (final touche in chiffres.split('')) {
+        await tester.tap(find.widgetWithText(InkWell, touche));
+        await tester.pump();
+      }
+      await tester.tap(find.text(valider));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('une boutique neuve ne montre aucun stock', (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      // Aucun inventaire à saisir : c'est le principe.
+      expect(find.text('Rien à compter pour le moment'), findsOneWidget);
+    });
+
+    testWidgets('un article vendu souvent finit par être proposé',
+        (tester) async {
+      for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
+        await vendre('RIZ', 'Riz 1 kg', 650);
+      }
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Tu vends souvent Riz 1 kg'), findsOneWidget);
+    });
+
+    testWidgets('accepter le suivi fait entrer l\'article dans le stock',
+        (tester) async {
+      for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
+        await vendre('RIZ', 'Riz 1 kg', 650);
+      }
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Compter'));
+      await tester.pumpAndSettle();
+      await saisir(tester, '40', 'Commencer à suivre');
+
+      expect(find.textContaining('Tu vends souvent'), findsNothing);
+      expect(find.text('Ce que je suis'), findsOneWidget);
+      expect(find.text('40'), findsOneWidget);
+    });
+
+    testWidgets('refuser retire la proposition sans rien compter',
+        (tester) async {
+      for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
+        await vendre('RIZ', 'Riz 1 kg', 650);
+      }
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pas celui-là'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rien à compter pour le moment'), findsOneWidget);
+      expect(await depot.articlesEnStock(), isEmpty);
+    });
+
+    testWidgets('une réception s\'ajoute au stock', (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await depot.ajusterStock('RIZ', q(40));
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reçu'));
+      await tester.pumpAndSettle();
+      await saisir(tester, '20', 'Ajouter au stock');
+
+      expect(find.text('60'), findsOneWidget);
+    });
+
+    testWidgets('un comptage remplace le stock théorique', (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await depot.ajusterStock('RIZ', q(40));
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Compté'));
+      await tester.pumpAndSettle();
+      await saisir(tester, '37', 'Corriger le stock');
+
+      expect(find.text('37'), findsOneWidget);
+
+      // L'écart constaté est tracé : c'est ce qui répond à « où est passée
+      // la différence ».
+      final dernier = (await depot.mouvementsDe('RIZ')).first;
+      expect(dernier.variationMilliemes, q(3).milliemes * -1);
+    });
+
+    testWidgets('un stock épuisé se signale', (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await depot.ajusterStock('RIZ', q(0));
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rupture'), findsOneWidget);
+    });
+
+    testWidgets('les plus bas remontent en tête', (tester) async {
+      await vendre('RIZ', 'Riz 1 kg', 650);
+      await vendre('HUILE', 'Huile 1 L', 1200);
+      await depot.ajusterStock('RIZ', q(40));
+      await depot.ajusterStock('HUILE', q(2));
+
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.text('Huile 1 L')).dy,
+        lessThan(tester.getTopLeft(find.text('Riz 1 kg')).dy),
+      );
     });
   });
 }

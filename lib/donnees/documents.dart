@@ -193,9 +193,11 @@ class Documents {
   RapportDuSoir rapportDuSoir({
     required RapportDuJour rapport,
     List<String> aRacheter = const [],
+    Montant perdu = const Montant.zero(),
     DateTime? date,
   }) =>
       RapportDuSoir(
+        perdu: perdu,
         nomCommerce: nomCommerce,
         date: date ?? DateTime.now(),
         encaisse: rapport.encaisse,

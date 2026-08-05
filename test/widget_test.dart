@@ -1,111 +1,245 @@
 /// Tests de l'écran de vente.
 ///
-/// Vérifie le comportement que le commerçant constate réellement : le total
-/// suit les articles ajoutés, et l'encaissement ne s'ouvre pas sur un panier
-/// vide.
+/// L'écran lit maintenant un vrai catalogue et écrit de vraies ventes : ces
+/// tests vérifient le comportement de bout en bout, depuis le geste du
+/// commerçant jusqu'à l'écriture dans le journal.
 library;
 
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:carnet/domaine/montant.dart';
+import 'package:carnet/domaine/references.dart';
+import 'package:carnet/donnees/base.dart';
+import 'package:carnet/donnees/depot.dart';
+import 'package:carnet/donnees/journal.dart';
 import 'package:carnet/interface/ecrans/vente.dart';
 import 'package:carnet/interface/theme/theme.dart';
 
-Widget _application() => MaterialApp(
-      theme: themeClair(),
-      home: const EcranVente(),
-    );
-
 void main() {
-  testWidgets('le panier démarre vide', (tester) async {
-    final semantique = tester.ensureSemantics();
-    await tester.pumpWidget(_application());
+  late BaseLocale base;
+  late Depot depot;
 
-    expect(find.bySemanticsLabel('0 F'), findsOneWidget);
-    expect(find.text('Choisir un article'), findsOneWidget);
-    expect(find.text('Encaisser'), findsNothing);
-    semantique.dispose();
+  setUp(() {
+    base = BaseLocale(NativeDatabase.memory());
+    depot = Depot(base, Journal(base, appareil: 'CAISSE1'));
   });
 
-  testWidgets('ajouter un article met le total à jour', (tester) async {
-    await tester.pumpWidget(_application());
+  tearDown(() => base.close());
 
-    await tester.tap(find.text('Riz 1 kg'));
+  Montant f(num francs) => Montant.depuisDecimal(francs);
+
+  Widget application() => MaterialApp(
+        theme: themeClair(),
+        home: EcranVente(depot: depot),
+      );
+
+  /// Garnit le catalogue comme le ferait l'usage : par des ventes.
+  Future<void> garnirCatalogue() async {
+    for (final (code, nom, prix) in const [
+      ('RIZ', 'Riz 1 kg', 650),
+      ('HUILE', 'Huile 1 L', 1200),
+    ]) {
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            codeArticle: code,
+            designation: nom,
+            prixUnitaire: Montant.depuisDecimal(prix),
+            quantite: const Quantite.unites(1),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(
+            mode: ModePaiement.especes,
+            montant: Montant.depuisDecimal(prix),
+          )
+        ],
+      );
+    }
+  }
+
+  testWidgets('une caisse neuve démarre sur un catalogue vide', (tester) async {
+    await tester.pumpWidget(application());
     await tester.pumpAndSettle();
 
-    // Le prix de la tuile est un texte simple, le total une étiquette
-    // d'accessibilité : le montant animé est découpé caractère par caractère.
-    expect(find.text('650 F'), findsOneWidget);
-    expect(find.text('1 article'), findsOneWidget);
-    expect(find.text('Encaisser'), findsOneWidget);
+    // Aucun article, mais les deux actions sont toujours là : le commerçant
+    // peut encaisser dès la première seconde, sans rien configurer.
+    expect(find.text('Montant\nlibre'), findsOneWidget);
+    expect(find.text('Scanner'), findsOneWidget);
+    expect(find.text('Choisir un article'), findsOneWidget);
   });
 
-  testWidgets('le total additionne plusieurs articles', (tester) async {
-    await tester.pumpWidget(_application());
+  testWidgets('le catalogue affiche ce qui a déjà été vendu', (tester) async {
+    await garnirCatalogue();
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Riz 1 kg')); //   650
+    expect(find.text('Riz 1 kg'), findsOneWidget);
+    expect(find.text('Huile 1 L'), findsOneWidget);
+  });
+
+  testWidgets('ajouter des articles met le total à jour', (tester) async {
+    await garnirCatalogue();
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Riz 1 kg'));
     await tester.pump();
-    await tester.tap(find.text('Riz 1 kg')); //   650
+    await tester.tap(find.text('Riz 1 kg'));
     await tester.pump();
-    await tester.tap(find.text('Huile 1 L')); // 1200
+    await tester.tap(find.text('Huile 1 L'));
     await tester.pumpAndSettle();
 
     final semantique = tester.ensureSemantics();
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('2 500 F'), findsOneWidget);
     semantique.dispose();
+
     expect(find.text('3 articles'), findsOneWidget);
+    expect(find.text('Encaisser'), findsOneWidget);
   });
 
   testWidgets('vider le panier remet le total à zéro', (tester) async {
-    await tester.pumpWidget(_application());
+    await garnirCatalogue();
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Riz 1 kg'));
     await tester.pumpAndSettle();
-    expect(find.text('Encaisser'), findsOneWidget);
-
     await tester.tap(find.byIcon(Icons.delete_outline_rounded));
     await tester.pumpAndSettle();
 
-    final semantique = tester.ensureSemantics();
-    await tester.pumpAndSettle();
-    expect(find.bySemanticsLabel('0 F'), findsOneWidget);
-    semantique.dispose();
     expect(find.text('Choisir un article'), findsOneWidget);
   });
 
-  testWidgets("la feuille d'encaissement propose les trois modes",
-      (tester) async {
-    await tester.pumpWidget(_application());
+  testWidgets('encaisser écrit vraiment la vente', (tester) async {
+    await garnirCatalogue();
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Riz 1 kg'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Encaisser'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Montant à encaisser'), findsOneWidget);
-    expect(find.text('Espèces'), findsOneWidget);
-    expect(find.text('Mobile money'), findsOneWidget);
-    expect(find.text('Crédit'), findsOneWidget);
-    expect(find.text('Choisir un mode'), findsOneWidget);
+    await tester.tap(find.text('Espèces'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valider la vente'));
+    await tester.pumpAndSettle();
+
+    // Le riz a été vendu deux fois : une pour garnir, une par l'écran.
+    final catalogue = await depot.catalogue();
+    final riz = catalogue.firstWhere((a) => a.code == 'RIZ');
+    expect(riz.nombreVentes, 2);
+
+    // Et le panier est reparti à zéro.
+    expect(find.text('Choisir un article'), findsOneWidget);
   });
 
-  testWidgets('le mobile money affiche le code marchand pré-rempli',
-      (tester) async {
-    await tester.pumpWidget(_application());
+  testWidgets('la vente survit à un redémarrage', (tester) async {
+    await garnirCatalogue();
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Riz 1 kg'));
+    await tester.tap(find.text('Huile 1 L'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Encaisser'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Mobile money'));
-    // Pas de pumpAndSettle ici : le point d'attente pulse en boucle, et
-    // l'animation ne se termine jamais.
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.tap(find.text('Espèces'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valider la vente'));
+    await tester.pumpAndSettle();
 
-    // Le montant et le numéro marchand sont déjà dans le code : le client
-    // n'a rien à saisir d'autre que son code secret.
-    expect(find.text('*144*10*70123456*650#'), findsOneWidget);
-    expect(find.text('En attente du SMS de confirmation'), findsOneWidget);
+    // On rouvre l'écran comme après une fermeture de l'application.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    final rapport = await depot.rapportDuJour();
+    expect(rapport.nombreVentes, 3);
+    expect(rapport.encaisse, f(650 + 1200 + 1200));
+  });
+
+  testWidgets("le bandeau de nommage n'apparaît qu'après trois ventes",
+      (tester) async {
+    Future<void> vendreMontantLibre() => depot.enregistrerVente(
+          lignes: [
+            LigneAEnregistrer(
+              prixUnitaire: f(500),
+              quantite: const Quantite.unites(1),
+            )
+          ],
+          paiements: [
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          ],
+        );
+
+    await vendreMontantLibre();
+    await vendreMontantLibre();
+
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+    expect(find.textContaining("C'est quoi ?"), findsNothing);
+
+    await vendreMontantLibre();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining("Tu vends souvent à 500 F"), findsOneWidget);
+  });
+
+  testWidgets("nommer un article le renomme dans le catalogue", (tester) async {
+    for (var i = 0; i < 3; i++) {
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            prixUnitaire: f(500),
+            quantite: const Quantite.unites(1),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        ],
+      );
+    }
+
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Tu vends souvent'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), "Sachet d'eau");
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Sachet d'eau"), findsOneWidget);
+    expect(find.textContaining('Tu vends souvent'), findsNothing);
+  });
+
+  testWidgets('le pavé numérique encaisse un montant libre', (tester) async {
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Montant\nlibre'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('7'));
+    await tester.pump();
+    await tester.tap(find.text('5'));
+    await tester.pump();
+    await tester.tap(find.text('00'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Encaisser').last);
+    await tester.pumpAndSettle();
+
+    final rapport = await depot.rapportDuJour();
+    expect(rapport.nombreVentes, 1);
+    expect(rapport.encaisse, f(7500));
   });
 }

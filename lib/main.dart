@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
 
+import 'donnees/depot.dart';
+import 'donnees/journal.dart';
+import 'donnees/ouverture.dart';
 import 'interface/ecrans/vente.dart';
 import 'interface/theme/theme.dart';
 
-void main() => runApp(const Application());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final base = await ouvrirBaseLocale();
+  final appareil = await identifiantAppareil();
+  final depot = Depot(base, Journal(base, appareil: appareil));
+
+  runApp(Application(depot: depot));
+}
 
 class Application extends StatelessWidget {
-  const Application({super.key});
+  final Depot depot;
+
+  const Application({super.key, required this.depot});
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -14,6 +27,6 @@ class Application extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: themeClair(),
         darkTheme: themeSombre(),
-        home: const EcranVente(),
+        home: EcranVente(depot: depot),
       );
 }

@@ -3,74 +3,179 @@
 /// Tout est conçu pour qu'une vente s'enregistre en moins de dix secondes :
 /// le total est toujours visible, les articles sont des cibles larges, et le
 /// bouton d'encaissement ne bouge jamais de place.
+///
+/// L'écran lit le catalogue depuis la base et écrit chaque vente dans le
+/// journal. Rien n'attend le réseau.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../domaine/montant.dart';
+import '../../domaine/references.dart';
+import '../../donnees/base.dart';
+import '../../donnees/depot.dart';
 import '../composants/montant_anime.dart';
 import '../composants/tuile_produit.dart';
 import '../theme/palette.dart';
 import 'feuille_paiement.dart';
-
-/// Un article du catalogue, tel qu'affiché à la caisse.
-class ArticleCaisse {
-  final String nom;
-  final Montant prix;
-  const ArticleCaisse(this.nom, this.prix);
-}
+import 'nommer_article.dart';
 
 class EcranVente extends StatefulWidget {
-  const EcranVente({super.key});
+  final Depot depot;
+
+  const EcranVente({super.key, required this.depot});
 
   @override
   State<EcranVente> createState() => _EcranVenteState();
 }
 
 class _EcranVenteState extends State<EcranVente> {
-  /// Catalogue de démonstration.
-  ///
-  /// En vrai, il se construit tout seul au fil des ventes : on ne demande
-  /// jamais au commerçant de saisir un inventaire pour démarrer.
-  static final _catalogue = <ArticleCaisse>[
-    ArticleCaisse('Riz 1 kg', Montant.depuisDecimal(650)),
-    ArticleCaisse('Huile 1 L', Montant.depuisDecimal(1200)),
-    ArticleCaisse('Sucre 1 kg', Montant.depuisDecimal(750)),
-    ArticleCaisse('Savon', Montant.depuisDecimal(300)),
-    ArticleCaisse('Lait concentré', Montant.depuisDecimal(500)),
-    ArticleCaisse('Thé Lipton', Montant.depuisDecimal(1500)),
-    ArticleCaisse('Pain', Montant.depuisDecimal(200)),
-    ArticleCaisse('Eau 1,5 L', Montant.depuisDecimal(400)),
-  ];
-
+  /// Le panier en cours : code d'article vers quantité.
   final _panier = <String, int>{};
+
+  List<LigneArticle> _catalogue = const [];
+  List<LigneArticle> _aNommer = const [];
+  bool _chargement = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _recharger();
+  }
+
+  Future<void> _recharger() async {
+    final catalogue = await widget.depot.catalogue();
+    final aNommer = await widget.depot.articlesANommer();
+    if (!mounted) return;
+    setState(() {
+      _catalogue = catalogue;
+      _aNommer = aNommer;
+      _chargement = false;
+    });
+  }
+
+  LigneArticle? _article(String code) {
+    for (final article in _catalogue) {
+      if (article.code == code) return article;
+    }
+    return null;
+  }
 
   Montant get _total {
     var total = const Montant.zero();
-    for (final entree in _panier.entries) {
-      final article = _catalogue.firstWhere((a) => a.nom == entree.key);
+    _panier.forEach((code, quantite) {
+      final article = _article(code);
+      if (article == null) return;
       total = total +
-          article.prix.multiplieParQuantite(Quantite.unites(entree.value));
-    }
+          Montant(article.prixCentimes)
+              .multiplieParQuantite(Quantite.unites(quantite));
+    });
     return total;
   }
 
   int get _nombreArticles =>
       _panier.values.fold(0, (somme, quantite) => somme + quantite);
 
-  void _ajouter(ArticleCaisse article) {
-    setState(() => _panier[article.nom] = (_panier[article.nom] ?? 0) + 1);
+  void _ajouter(LigneArticle article) {
+    setState(() => _panier[article.code] = (_panier[article.code] ?? 0) + 1);
   }
 
   void _viderPanier() => setState(_panier.clear);
 
-  void _encaisser() {
+  Future<void> _encaisser() async {
     if (_panier.isEmpty) return;
-    FeuillePaiement.presenter(
+
+    await FeuillePaiement.presenter(
       context,
       total: _total,
-      surPaiementTermine: _viderPanier,
+      surPaiementChoisi: (mode) => _enregistrer(mode),
     );
+  }
+
+  Future<void> _enregistrer(ModePaiement mode) async {
+    final lignes = <LigneAEnregistrer>[];
+    _panier.forEach((code, quantite) {
+      final article = _article(code);
+      if (article == null) return;
+      lignes.add(LigneAEnregistrer(
+        codeArticle: code,
+        designation: article.designation,
+        prixUnitaire: Montant(article.prixCentimes),
+        quantite: Quantite.unites(quantite),
+        groupeTaxation: GroupeTaxation.parEtiquette(article.groupeTaxation),
+      ));
+    });
+    if (lignes.isEmpty) return;
+
+    await widget.depot.enregistrerVente(
+      lignes: lignes,
+      paiements: [PaiementAEnregistrer(mode: mode, montant: _total)],
+    );
+
+    _panier.clear();
+    await _recharger();
+  }
+
+  /// Encaisse un montant libre : aucun article n'est choisi, seul le montant
+  /// compte. Le catalogue se construira tout seul si le montant revient.
+  Future<void> _montantLibre() async {
+    final montant = await _demanderMontant();
+    if (montant == null || !montant.estPositif) return;
+
+    await widget.depot.enregistrerVente(
+      lignes: [
+        LigneAEnregistrer(
+          prixUnitaire: montant,
+          quantite: const Quantite.unites(1),
+        )
+      ],
+      paiements: [
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: montant)
+      ],
+    );
+    await _recharger();
+  }
+
+  Future<Montant?> _demanderMontant() {
+    var saisie = '';
+    return showModalBottomSheet<Montant>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (contexte) => StatefulBuilder(
+        builder: (contexte, rafraichir) => _PaveNumerique(
+          saisie: saisie,
+          surTouche: (touche) => rafraichir(() {
+            if (touche == '<') {
+              if (saisie.isNotEmpty) {
+                saisie = saisie.substring(0, saisie.length - 1);
+              }
+            } else if (saisie.length < 9) {
+              if (!(saisie.isEmpty && touche == '0')) saisie += touche;
+            }
+          }),
+          surValidation: saisie.isEmpty
+              ? null
+              : () => Navigator.of(contexte)
+                  .pop(Montant.depuisDecimal(int.parse(saisie))),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proposerNommage() async {
+    if (_aNommer.isEmpty) return;
+    final article = _aNommer.first;
+
+    final nom = await NommerArticle.demander(
+      context,
+      prix: Montant(article.prixCentimes),
+      nombreVentes: article.nombreVentes,
+    );
+    if (nom == null || nom.trim().isEmpty) return;
+
+    await widget.depot.nommerArticle(article.code, nom.trim());
+    await _recharger();
   }
 
   @override
@@ -84,48 +189,52 @@ class _EcranVenteState extends State<EcranVente> {
         child: Column(
           children: [
             _EnTete(total: _total, nombreArticles: _nombreArticles),
-
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                    Espace.l, Espace.l, Espace.l, Espace.xxxl + Espace.xl),
-                gridDelegate:
-                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 190,
-                  mainAxisSpacing: Espace.m,
-                  crossAxisSpacing: Espace.m,
-                  // Tuiles légèrement plus larges que hautes : on en voit
-                  // davantage à l'écran, et le commerçant fait moins défiler.
-                  // La proportion changera quand les articles porteront une
-                  // photo, qui occupera la place aujourd'hui vide.
-                  childAspectRatio: 1.15,
-                ),
-                itemCount: _catalogue.length + 2,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return TuileAction(
-                      icone: Icons.dialpad_rounded,
-                      libelle: 'Montant\nlibre',
-                      onPressed: () {},
-                    );
-                  }
-                  if (index == 1) {
-                    return TuileAction(
-                      icone: Icons.qr_code_scanner_rounded,
-                      libelle: 'Scanner',
-                      onPressed: () {},
-                    );
-                  }
-
-                  final article = _catalogue[index - 2];
-                  return TuileProduit(
-                    nom: article.nom,
-                    prix: article.prix,
-                    quantiteAuPanier: _panier[article.nom] ?? 0,
-                    onPressed: () => _ajouter(article),
-                  );
-                },
+            if (_aNommer.isNotEmpty)
+              _BandeauNommage(
+                article: _aNommer.first,
+                onPressed: _proposerNommage,
               ),
+            Expanded(
+              child: _chargement
+                  ? const Center(child: CircularProgressIndicator())
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(Espace.l, Espace.l,
+                          Espace.l, Espace.xxxl + Espace.xl),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 190,
+                        mainAxisSpacing: Espace.m,
+                        crossAxisSpacing: Espace.m,
+                        // Tuiles légèrement plus larges que hautes : on en
+                        // voit davantage et le commerçant fait moins défiler.
+                        childAspectRatio: 1.15,
+                      ),
+                      itemCount: _catalogue.length + 2,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return TuileAction(
+                            icone: Icons.dialpad_rounded,
+                            libelle: 'Montant\nlibre',
+                            onPressed: _montantLibre,
+                          );
+                        }
+                        if (index == 1) {
+                          return TuileAction(
+                            icone: Icons.qr_code_scanner_rounded,
+                            libelle: 'Scanner',
+                            onPressed: () {},
+                          );
+                        }
+
+                        final article = _catalogue[index - 2];
+                        return TuileProduit(
+                          nom: article.designation,
+                          prix: Montant(article.prixCentimes),
+                          quantiteAuPanier: _panier[article.code] ?? 0,
+                          onPressed: () => _ajouter(article),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -181,9 +290,8 @@ class _EcranVenteState extends State<EcranVente> {
                       panierVide ? 'Choisir un article' : 'Encaisser',
                       style: textes.labelLarge?.copyWith(
                         fontSize: 17,
-                        color: panierVide
-                            ? Couleurs.encreLegere
-                            : Colors.white,
+                        color:
+                            panierVide ? Couleurs.encreLegere : Colors.white,
                       ),
                     ),
                     if (!panierVide) ...[
@@ -208,6 +316,164 @@ class _EcranVenteState extends State<EcranVente> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bandeau qui propose de nommer un article vendu souvent.
+///
+/// Il n'apparaît qu'après plusieurs ventes du même montant : on ne demande
+/// jamais rien au commerçant avant qu'il n'y ait une raison.
+class _BandeauNommage extends StatelessWidget {
+  final LigneArticle article;
+  final VoidCallback onPressed;
+
+  const _BandeauNommage({required this.article, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Material(
+      color: Couleurs.accentClair,
+      child: InkWell(
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Espace.l, vertical: Espace.m),
+          child: Row(
+            children: [
+              const Icon(Icons.lightbulb_outline_rounded,
+                  size: 20, color: Couleurs.accent),
+              const SizedBox(width: Espace.m),
+              Expanded(
+                child: Text(
+                  'Tu vends souvent à ${Montant(article.prixCentimes).enFrancs}. '
+                  "C'est quoi ?",
+                  style: textes.titleMedium,
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Couleurs.encreDouce),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pavé numérique pour la saisie d'un montant libre.
+///
+/// Gros chiffres, pas de clavier système : la saisie d'un montant est le seul
+/// endroit où l'on tape, et elle doit rester rapide debout.
+class _PaveNumerique extends StatelessWidget {
+  final String saisie;
+  final ValueChanged<String> surTouche;
+  final VoidCallback? surValidation;
+
+  const _PaveNumerique({
+    required this.saisie,
+    required this.surTouche,
+    required this.surValidation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    final montant =
+        saisie.isEmpty ? const Montant.zero() : Montant.depuisDecimal(int.parse(saisie));
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: Espace.l,
+        right: Espace.l,
+        bottom: Espace.l + MediaQuery.paddingOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Montant de la vente', style: textes.labelSmall),
+          const SizedBox(height: Espace.s),
+          MontantAnime(
+            montant,
+            style: textes.displayMedium,
+            couleur: saisie.isEmpty ? Couleurs.encreLegere : Couleurs.encre,
+          ),
+          const SizedBox(height: Espace.l),
+          for (final rangee in const [
+            ['1', '2', '3'],
+            ['4', '5', '6'],
+            ['7', '8', '9'],
+            ['00', '0', '<'],
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: Espace.s),
+              child: Row(
+                children: [
+                  for (final touche in rangee)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: _Touche(
+                          libelle: touche,
+                          onPressed: () => surTouche(touche),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: Espace.s),
+          FilledButton(
+            onPressed: surValidation,
+            style: FilledButton.styleFrom(
+              backgroundColor: Couleurs.primaire,
+              disabledBackgroundColor: Couleurs.bordure,
+            ),
+            child: Text(
+              'Encaisser',
+              style: textes.labelLarge?.copyWith(
+                fontSize: 17,
+                color: surValidation == null
+                    ? Couleurs.encreLegere
+                    : Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Touche extends StatelessWidget {
+  final String libelle;
+  final VoidCallback onPressed;
+
+  const _Touche({required this.libelle, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    final effacement = libelle == '<';
+
+    return Material(
+      color: effacement ? Couleurs.alerteClair : Couleurs.fond,
+      borderRadius: BorderRadius.circular(Rayon.m),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(Rayon.m),
+        child: SizedBox(
+          height: cibleTactile,
+          child: Center(
+            child: effacement
+                ? const Icon(Icons.backspace_outlined,
+                    size: 22, color: Couleurs.alerte)
+                : Text(libelle, style: textes.headlineMedium),
+          ),
         ),
       ),
     );
@@ -264,12 +530,12 @@ class _EnTete extends StatelessWidget {
               const Spacer(),
               // L'état hors-ligne est une information neutre, pas une alarme :
               // c'est le mode de fonctionnement normal.
-              Icon(Icons.cloud_off_rounded,
+              const Icon(Icons.cloud_off_rounded,
                   size: 18, color: Couleurs.encreLegere),
               const SizedBox(width: Espace.xs),
               Text('Hors ligne',
-                  style: textes.labelSmall
-                      ?.copyWith(color: Couleurs.encreLegere)),
+                  style:
+                      textes.labelSmall?.copyWith(color: Couleurs.encreLegere)),
             ],
           ),
           const SizedBox(height: Espace.l),

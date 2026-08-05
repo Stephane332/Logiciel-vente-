@@ -51,18 +51,20 @@ class OperateurMobile {
 
 class FeuillePaiement extends StatefulWidget {
   final Montant total;
-  final VoidCallback surPaiementTermine;
+
+  /// Appelé avec le mode retenu, une fois la vente validée.
+  final Future<void> Function(ModePaiement mode) surPaiementChoisi;
 
   const FeuillePaiement({
     super.key,
     required this.total,
-    required this.surPaiementTermine,
+    required this.surPaiementChoisi,
   });
 
   static Future<void> presenter(
     BuildContext context, {
     required Montant total,
-    required VoidCallback surPaiementTermine,
+    required Future<void> Function(ModePaiement mode) surPaiementChoisi,
   }) =>
       showModalBottomSheet(
         context: context,
@@ -70,7 +72,7 @@ class FeuillePaiement extends StatefulWidget {
         showDragHandle: true,
         builder: (_) => FeuillePaiement(
           total: total,
-          surPaiementTermine: surPaiementTermine,
+          surPaiementChoisi: surPaiementChoisi,
         ),
       );
 
@@ -168,9 +170,11 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
           FilledButton(
             onPressed: _mode == null
                 ? null
-                : () {
-                    Navigator.of(context).pop();
-                    widget.surPaiementTermine();
+                : () async {
+                    final mode = _mode!;
+                    final navigateur = Navigator.of(context);
+                    await widget.surPaiementChoisi(mode);
+                    navigateur.pop();
                   },
             style: FilledButton.styleFrom(
               backgroundColor: Couleurs.primaire,

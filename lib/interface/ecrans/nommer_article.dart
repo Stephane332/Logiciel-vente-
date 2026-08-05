@@ -11,6 +11,27 @@ import '../../domaine/montant.dart';
 import '../composants/montant_anime.dart';
 import '../theme/palette.dart';
 
+/// Ce que le commerçant répond quand on lui propose de nommer un article.
+enum ReponseNommage {
+  /// Il donne un nom. La réponse porte alors le nom saisi.
+  nomme,
+
+  /// Plus tard. La question reviendra.
+  plusTard,
+
+  /// Ce prix recouvre plusieurs produits différents : il n'y a pas de nom à
+  /// donner, et il ne faut plus le demander.
+  melange,
+}
+
+/// La réponse, avec le nom quand il y en a un.
+class ResultatNommage {
+  final ReponseNommage reponse;
+  final String? nom;
+
+  const ResultatNommage(this.reponse, [this.nom]);
+}
+
 class NommerArticle extends StatefulWidget {
   final Montant prix;
   final int nombreVentes;
@@ -21,13 +42,13 @@ class NommerArticle extends StatefulWidget {
     required this.nombreVentes,
   });
 
-  /// Demande un nom. Renvoie `null` si le commerçant préfère répondre plus tard.
-  static Future<String?> demander(
+  /// Demande un nom. Renvoie `null` si la feuille est refermée sans répondre.
+  static Future<ResultatNommage?> demander(
     BuildContext context, {
     required Montant prix,
     required int nombreVentes,
   }) =>
-      showModalBottomSheet<String>(
+      showModalBottomSheet<ResultatNommage>(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
@@ -88,7 +109,8 @@ class _NommerArticleState extends State<NommerArticle> {
             onChanged: (_) => setState(() {}),
             onSubmitted: (valeur) {
               if (valeur.trim().isNotEmpty) {
-                Navigator.of(context).pop(valeur.trim());
+                Navigator.of(context).pop(
+                    ResultatNommage(ReponseNommage.nomme, valeur.trim()));
               }
             },
             decoration: InputDecoration(
@@ -111,7 +133,8 @@ class _NommerArticleState extends State<NommerArticle> {
           FilledButton(
             onPressed: vide
                 ? null
-                : () => Navigator.of(context).pop(_controleur.text.trim()),
+                : () => Navigator.of(context).pop(ResultatNommage(
+                    ReponseNommage.nomme, _controleur.text.trim())),
             style: FilledButton.styleFrom(
               backgroundColor: Couleurs.primaire,
               disabledBackgroundColor: Couleurs.bordure,
@@ -125,8 +148,19 @@ class _NommerArticleState extends State<NommerArticle> {
             ),
           ),
           const SizedBox(height: Espace.s),
+          // La troisième réponse, celle qui manquait. Un article né d'un
+          // montant libre est reconnu à son prix : si deux produits partagent
+          // ce prix, il n'y a aucun nom juste à donner, et insister ferait
+          // fabriquer un faux article dont le stock mentirait.
+          OutlinedButton(
+            onPressed: () => Navigator.of(context)
+                .pop(const ResultatNommage(ReponseNommage.melange)),
+            child: const Text('Ce sont plusieurs choses différentes'),
+          ),
+          const SizedBox(height: Espace.s),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context)
+                .pop(const ResultatNommage(ReponseNommage.plusTard)),
             child: Text('Plus tard',
                 style: textes.labelLarge?.copyWith(color: Couleurs.encreDouce)),
           ),

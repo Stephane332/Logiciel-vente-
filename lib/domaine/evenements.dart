@@ -42,6 +42,10 @@ enum TypeEvenement {
   /// Le commerçant a répondu « plus tard » à la proposition de suivre le
   /// stock d'un article. Ça masque la proposition, jamais la possibilité.
   propositionSuiviReportee('proposition_suivi_reportee'),
+
+  /// Le commerçant a dit qu'un même prix recouvre plusieurs produits : il n'y
+  /// a pas de nom à donner, et il ne faut plus le demander.
+  nommageRefuse('nommage_refuse'),
   clientCree('client_cree'),
   consentementDonne('consentement_donne'),
   creditAccorde('credit_accorde'),

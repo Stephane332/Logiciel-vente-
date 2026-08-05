@@ -250,15 +250,42 @@ class EcranVenteState extends State<EcranVente> {
     if (_aNommer.isEmpty) return;
     final article = _aNommer.first;
 
-    final nom = await NommerArticle.demander(
+    final resultat = await NommerArticle.demander(
       context,
       prix: Montant(article.prixCentimes),
       nombreVentes: article.nombreVentes,
     );
-    if (nom == null || nom.trim().isEmpty) return;
+    if (resultat == null) return;
 
-    await widget.depot.nommerArticle(article.code, nom.trim());
+    switch (resultat.reponse) {
+      case ReponseNommage.nomme:
+        final nom = resultat.nom?.trim() ?? '';
+        if (nom.isEmpty) return;
+        await widget.depot.nommerArticle(article.code, nom);
+      case ReponseNommage.melange:
+        // Le commerçant vend plusieurs choses à ce prix-là. On arrête de
+        // demander, et on ne fabrique pas un article qui mentirait.
+        await widget.depot.refuserNommage(article.code);
+        _direQueCestNote(article);
+      case ReponseNommage.plusTard:
+        return;
+    }
     await recharger();
+  }
+
+  void _direQueCestNote(LigneArticle article) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+          "C'est noté. Crée tes articles depuis l'écran Stock quand tu veux "
+          'les distinguer.',
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+        duration: const Duration(seconds: 5),
+      ));
   }
 
   @override

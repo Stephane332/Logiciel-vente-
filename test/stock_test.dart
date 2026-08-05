@@ -513,4 +513,110 @@ void main() {
       expect((await article('RIZ')).prixCentimes, f(700).centimes);
     });
   });
+
+  group('Quand le prix ne suffit pas à identifier', () {
+    /// Une vente à montant libre : l'article est reconnu à son prix seul.
+    Future<void> vendreAuPave(num prix) => depot.enregistrerVente(
+          lignes: [
+            LigneAEnregistrer(
+              prixUnitaire: f(prix),
+              quantite: const Quantite.unites(1),
+            )
+          ],
+          paiements: [
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
+          ],
+        );
+
+    test('trois ventes du même montant déclenchent la proposition', () async {
+      await vendreAuPave(500);
+      await vendreAuPave(500);
+      expect(await depot.articlesANommer(), isEmpty);
+
+      await vendreAuPave(500);
+      final aNommer = await depot.articlesANommer();
+      expect(aNommer.single.nombreVentes, 3);
+    });
+
+    test('deux prix différents restent deux articles distincts', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+        await vendreAuPave(650);
+      }
+
+      final codes = (await depot.catalogue()).map((a) => a.code).toSet();
+      expect(codes, {'AUTO-50000', 'AUTO-65000'});
+    });
+
+    test('deux produits au même prix tombent dans le même article', () async {
+      // C'est la limite assumée du pari : le prix fait l'identité. Le test
+      // la fixe pour qu'elle reste un choix, pas une surprise.
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+
+      expect((await depot.catalogue()).single.nombreVentes, 3);
+    });
+
+    test('refuser le nommage arrête la proposition pour de bon', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.refuserNommage('AUTO-50000');
+
+      expect(await depot.articlesANommer(), isEmpty);
+
+      // Et elle ne revient pas aux ventes suivantes.
+      await vendreAuPave(500);
+      await vendreAuPave(500);
+      expect(await depot.articlesANommer(), isEmpty);
+    });
+
+    test('un article refusé ne peut pas prendre de stock par surprise',
+        () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.refuserNommage('AUTO-50000');
+
+      // Sans nom, il n'entre pas dans les propositions de suivi : un stock
+      // déclaré sur un fourre-tout mentirait à chaque vente de l'autre
+      // produit.
+      expect(await depot.articlesASuivre(), isEmpty);
+    });
+
+    test('nommer un article le retire des propositions', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+
+      expect(await depot.articlesANommer(), isEmpty);
+      expect((await depot.catalogue()).single.designation, "Sachet d'eau");
+    });
+
+    test('une vente au pavé après nommage garde le nom donné', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+      await vendreAuPave(500);
+
+      final article = (await depot.catalogue()).single;
+      expect(article.designation, "Sachet d'eau");
+      expect(article.nombreVentes, 4);
+      // Le nom ne se perd pas : on ne redemande pas ce qui est déjà répondu.
+      expect(await depot.articlesANommer(), isEmpty);
+    });
+
+    test('le refus se rejoue depuis le journal', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.refuserNommage('AUTO-50000');
+
+      await depot.reconstruireProjections();
+      expect(await depot.articlesANommer(), isEmpty);
+    });
+  });
 }

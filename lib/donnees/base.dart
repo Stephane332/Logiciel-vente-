@@ -75,6 +75,17 @@ class Articles extends Table {
   TextColumn get photo => text().nullable()();
   DateTimeColumn get derniereVente => dateTime().nullable()();
 
+  /// Quand le commerçant a répondu que ce prix recouvre plusieurs produits
+  /// différents.
+  ///
+  /// Un article né d'un montant libre est identifié par son prix seul. C'est
+  /// ce qui permet de démarrer sans rien saisir, mais c'est un pari : deux
+  /// produits vendus au même prix tomberaient dans le même article. Le
+  /// commerçant doit pouvoir refuser le pari — on cesse alors de lui proposer
+  /// un nom, et l'article reste un fourre-tout assumé plutôt qu'un faux
+  /// article dont le stock mentirait.
+  DateTimeColumn get nommageRefuseLe => dateTime().nullable()();
+
   /// Quand le commerçant a répondu « plus tard » à la proposition de suivre
   /// le stock de cet article.
   ///
@@ -298,7 +309,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -351,6 +362,9 @@ class BaseLocale extends _$BaseLocale {
           }
           if (depuis < 7) {
             await m.addColumn(articles, articles.propositionSuiviReporteeLe);
+          }
+          if (depuis < 8) {
+            await m.addColumn(articles, articles.nommageRefuseLe);
           }
         },
         beforeOpen: (details) async {

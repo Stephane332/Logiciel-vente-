@@ -195,3 +195,49 @@ application. Voir [`11-cote-client.md`](11-cote-client.md).
 
 Les deux premières sont peu coûteuses et touchent au cœur du métier. Elles méritent d'entrer
 dès la phase 1, avec le carnet.
+
+## Comment un article est reconnu
+
+C'est la mécanique la plus importante du produit, et celle qui porte tout le
+« zéro article à saisir ». Elle mérite d'être écrite noir sur blanc.
+
+Deux chemins mènent à une ligne de vente.
+
+**Le commerçant appuie sur une tuile du catalogue.** La ligne porte le vrai
+code de l'article. Aucune ambiguïté, aucune devinette.
+
+**Le commerçant tape un montant libre.** Il n'a rien saisi d'autre que le
+montant : l'application n'a aucune information sur ce qu'il a vendu. Elle
+fabrique alors un code à partir du prix — `AUTO-<centimes>`. **Le prix fait
+l'identité.**
+
+Chaque vente incrémente le compteur de ce code. Au bout de trois ventes du même
+montant, l'application propose un nom : trois fois, ce n'est plus un hasard.
+
+### Le pari, et sa limite
+
+Identifier un article par son prix est un pari. Il est faux dès que deux
+produits différents se vendent au même prix — des sachets d'eau et des beignets
+à 500 F tomberaient dans le même article.
+
+Les conséquences ne sont pas cosmétiques : les compteurs se mélangent, « ce qui
+rapporte » ment, et surtout, si un stock est déclaré sur cet article, chaque
+vente de l'un décrémente l'autre. Un stock faux est pire qu'une absence de
+stock, parce qu'on le croit.
+
+Je garde le pari, parce que c'est lui qui permet de démarrer sans rien saisir,
+et que l'alternative — demander à chaque vente ce qu'on vend — tue la vente en
+dix secondes. Mais **le commerçant doit pouvoir le refuser**. La feuille de
+nommage offre donc trois réponses :
+
+| Réponse | Effet |
+|---|---|
+| Un nom | L'article prend ce nom et sort du lot |
+| Plus tard | La question reviendra |
+| Ce sont plusieurs choses différentes | La question ne revient plus, et aucun faux article n'est fabriqué |
+
+Un article ainsi refusé reste un fourre-tout assumé : il n'est jamais proposé
+au suivi de stock, puisqu'il n'y a rien de cohérent à compter. Le commerçant
+qui veut distinguer ses produits crée ses articles par leur nom depuis l'écran
+de stock, et les vend en appuyant sur leur tuile — chemin où le prix ne sert
+plus d'identité.

@@ -710,11 +710,39 @@ class Depot {
     ));
   }
 
+  /// Le commerçant dit qu'un même prix recouvre plusieurs produits.
+  ///
+  /// Un article né d'un montant libre est identifié par son prix seul : c'est
+  /// ce qui permet de démarrer sans rien saisir, mais c'est un pari. Deux
+  /// produits vendus au même prix tombent dans le même article, et si un
+  /// stock y était déclaré il mentirait à chaque vente de l'autre produit.
+  ///
+  /// Refuser le pari arrête la proposition de nom. L'article reste un
+  /// fourre-tout assumé — ce qui est honnête — et le commerçant crée ses
+  /// vrais articles depuis l'écran de stock quand il le souhaite.
+  Future<void> refuserNommage(String code) async {
+    await base.transaction(() async {
+      final evenement =
+          await journal.ajouter(TypeEvenement.nommageRefuse, {'code': code});
+      await _appliquerRefusNommage(evenement);
+    });
+  }
+
+  Future<void> _appliquerRefusNommage(Evenement evenement) async {
+    await (base.update(base.articles)
+          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+        .write(ArticlesCompanion(
+      nommageRefuseLe: Value(evenement.horodatage),
+    ));
+  }
+
   /// Les articles vendus assez souvent pour mériter un nom.
   Future<List<LigneArticle>> articlesANommer() {
     final requete = base.select(base.articles)
       ..where((a) =>
-          a.nomme.equals(false) & a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage))
+          a.nomme.equals(false) &
+          a.nommageRefuseLe.isNull() &
+          a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage))
       ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
     return requete.get();
   }
@@ -1133,6 +1161,8 @@ class Depot {
             await _appliquerModeSuivi(evenement);
           case TypeEvenement.propositionSuiviReportee:
             await _appliquerReport(evenement);
+          case TypeEvenement.nommageRefuse:
+            await _appliquerRefusNommage(evenement);
           case TypeEvenement.articleCree:
             await _appliquerCreationArticle(evenement);
           case TypeEvenement.articlePrixModifie:

@@ -224,6 +224,35 @@ void main() {
     expect(find.textContaining('Tu vends souvent'), findsNothing);
   });
 
+  testWidgets("répondre « plusieurs choses » arrête la question", (tester) async {
+    for (var i = 0; i < 3; i++) {
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            prixUnitaire: f(500),
+            quantite: const Quantite.unites(1),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        ],
+      );
+    }
+
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Tu vends souvent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ce sont plusieurs choses différentes'));
+    await tester.pumpAndSettle();
+
+    // Aucun faux article n'a été fabriqué, et la question ne revient pas.
+    expect(find.textContaining('Tu vends souvent'), findsNothing);
+    expect(find.text('Article à 500 F'), findsOneWidget);
+    expect(await depot.articlesANommer(), isEmpty);
+  });
+
   testWidgets('le pavé numérique encaisse un montant libre', (tester) async {
     await tester.pumpWidget(application());
     await tester.pumpAndSettle();

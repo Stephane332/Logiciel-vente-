@@ -76,6 +76,66 @@ class Documents {
     );
   }
 
+  /// L'historique des achats d'un client **dans cette boutique**.
+  ///
+  /// Un commerçant ne voit jamais que ses propres ventes. Ce que le client
+  /// achète ailleurs ne le regarde pas, et la règle vaut aussi pour la
+  /// version inter-boutiques qui viendra avec le serveur : elle sera
+  /// consultable par le client, jamais par un commerçant.
+  Future<HistoriqueClient?> historique(
+    String clientId, {
+    DateTime? depuis,
+    DateTime? jusqua,
+  }) async {
+    final client = await (base.select(base.clients)
+          ..where((c) => c.id.equals(clientId)))
+        .getSingleOrNull();
+    if (client == null) return null;
+
+    final fin = jusqua ?? DateTime.now();
+    final debut = depuis ?? DateTime(fin.year, fin.month - 3, fin.day);
+
+    final ventes = await (base.select(base.ventes)
+          ..where((v) =>
+              v.clientId.equals(clientId) &
+              v.annulee.equals(false) &
+              v.horodatage.isBiggerOrEqualValue(debut) &
+              v.horodatage.isSmallerOrEqualValue(fin))
+          ..orderBy([(v) => drift.OrderingTerm.desc(v.horodatage)]))
+        .get();
+
+    final achats = <AchatResume>[];
+    for (final vente in ventes) {
+      final lignes = await (base.select(base.lignesVente)
+            ..where((l) => l.venteId.equals(vente.id)))
+          .get();
+
+      achats.add(AchatResume(
+        date: vente.horodatage,
+        montant: Montant(vente.totalCentimes),
+        resume: _resumer(lignes),
+      ));
+    }
+
+    return HistoriqueClient(
+      nomCommerce: nomCommerce,
+      nomClient: client.nom,
+      depuis: debut,
+      jusqua: fin,
+      achats: achats,
+      total: Montant(ventes.fold(0, (s, v) => s + v.totalCentimes)),
+      encours: Montant(client.encoursCentimes),
+    );
+  }
+
+  /// Abrège le contenu d'une vente : le premier article, puis le nombre des
+  /// autres. La liste entière ne tiendrait pas sur une ligne.
+  static String _resumer(List<LigneDeVente> lignes) {
+    if (lignes.isEmpty) return 'Achat';
+    if (lignes.length == 1) return lignes.single.designation;
+    return '${lignes.first.designation} +${lignes.length - 1}';
+  }
+
   /// L'ardoise d'un client : ce qu'il doit, et depuis quand.
   Future<Ardoise?> ardoise(String clientId, {DateTime? arreteeAu}) async {
     final client = await (base.select(base.clients)

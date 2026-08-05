@@ -180,6 +180,22 @@ class Clients extends Table {
   TextColumn get id => text()();
   TextColumn get nom => text()();
   TextColumn get telephone => text().nullable()();
+
+  /// Le numéro ramené à sa forme canonique : huit chiffres, sans indicatif
+  /// ni espaces.
+  ///
+  /// C'est la seule identité stable d'une personne ici. Elle permettra de
+  /// reconnaître le même client d'une boutique à l'autre — sous réserve de
+  /// son consentement, et sans qu'aucun commerçant ne voie jamais ce qu'il
+  /// achète ailleurs.
+  TextColumn get telephoneNormalise => text().nullable()();
+
+  /// Date à laquelle le client a accepté que son historique le suive d'une
+  /// boutique à l'autre. Nulle tant qu'il n'a rien accepté.
+  ///
+  /// Donner son numéro pour recevoir un reçu n'est pas consentir à un profil
+  /// permanent : ce sont deux choses distinctes, et elles le restent ici.
+  DateTimeColumn get consentementLe => dateTime().nullable()();
   TextColumn get typeClient => text().withDefault(const Constant('CC'))();
   TextColumn get ifu => text().nullable()();
 
@@ -225,7 +241,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -244,6 +260,10 @@ class BaseLocale extends _$BaseLocale {
             'CREATE INDEX IF NOT EXISTS idx_ventes_horodatage '
             'ON ventes (horodatage)',
           );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_clients_telephone '
+            'ON clients (telephone_normalise)',
+          );
         },
         onUpgrade: (m, depuis, vers) async {
           if (depuis < 2) {
@@ -253,6 +273,10 @@ class BaseLocale extends _$BaseLocale {
             await m.addColumn(ventes, ventes.etat);
             await m.addColumn(ventes, ventes.contenant);
             await m.addColumn(ventes, ventes.typeContenant);
+          }
+          if (depuis < 4) {
+            await m.addColumn(clients, clients.telephoneNormalise);
+            await m.addColumn(clients, clients.consentementLe);
           }
         },
         beforeOpen: (details) async {

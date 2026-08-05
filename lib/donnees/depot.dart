@@ -11,6 +11,7 @@ import 'package:drift/drift.dart';
 import '../domaine/evenements.dart';
 import '../domaine/montant.dart';
 import '../domaine/references.dart';
+import '../domaine/telephone.dart';
 import 'base.dart';
 import 'journal.dart';
 
@@ -631,6 +632,7 @@ class Depot {
       final evenement = await journal.ajouter(TypeEvenement.clientCree, {
         'nom': nom,
         'telephone': telephone,
+        'telephoneNormalise': normaliserTelephone(telephone),
         'type': type.etiquette,
         'ifu': ifu,
       });
@@ -645,6 +647,8 @@ class Depot {
             id: evenement.id,
             nom: evenement.charge['nom']! as String,
             telephone: Value(evenement.charge['telephone'] as String?),
+            telephoneNormalise:
+                Value(evenement.charge['telephoneNormalise'] as String?),
             typeClient: Value(evenement.charge['type'] as String? ?? 'CC'),
             ifu: Value(evenement.charge['ifu'] as String?),
             derniereActivite: Value(evenement.horodatage),
@@ -669,6 +673,38 @@ class Depot {
       -(evenement.charge['montant']! as int),
       evenement.horodatage,
     );
+  }
+
+  /// Retrouve un client par son numéro, quelle que soit la façon de l'écrire.
+  ///
+  /// Sert à reconnaître le payeur d'un SMS mobile money sans rien saisir, et
+  /// à ne pas créer deux fiches pour la même personne.
+  Future<LigneClient?> clientParTelephone(String telephone) async {
+    final normalise = normaliserTelephone(telephone);
+    if (normalise == null) return null;
+    return (base.select(base.clients)
+          ..where((c) => c.telephoneNormalise.equals(normalise)))
+        .getSingleOrNull();
+  }
+
+  /// Enregistre le consentement du client à ce que son historique le suive
+  /// d'une boutique à l'autre.
+  ///
+  /// Donner son numéro pour recevoir un reçu n'est pas consentir à cela :
+  /// c'est un accord distinct, et il est daté.
+  Future<void> enregistrerConsentement(String clientId) async {
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.consentementDonne, {
+        'clientId': clientId,
+      });
+      await _appliquerConsentement(evenement);
+    });
+  }
+
+  Future<void> _appliquerConsentement(Evenement evenement) async {
+    await (base.update(base.clients)
+          ..where((c) => c.id.equals(evenement.charge['clientId']! as String)))
+        .write(ClientsCompanion(consentementLe: Value(evenement.horodatage)));
   }
 
   /// Qui me doit combien, du plus ancien au plus récent.
@@ -780,6 +816,8 @@ class Depot {
             await _appliquerVente(evenement);
           case TypeEvenement.clientCree:
             await _appliquerCreationClient(evenement);
+          case TypeEvenement.consentementDonne:
+            await _appliquerConsentement(evenement);
           case TypeEvenement.articleNomme:
             await _appliquerNommage(evenement);
           case TypeEvenement.stockAjuste:

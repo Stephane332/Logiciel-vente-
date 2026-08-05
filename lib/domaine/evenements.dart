@@ -32,6 +32,7 @@ enum TypeEvenement {
   articlePrixModifie('article_prix_modifie'),
   stockAjuste('stock_ajuste'),
   clientCree('client_cree'),
+  consentementDonne('consentement_donne'),
   creditAccorde('credit_accorde'),
   creditRembourse('credit_rembourse'),
   caisseMouvement('caisse_mouvement'),

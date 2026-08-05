@@ -37,6 +37,7 @@ enum NatureDocument {
   recu('Reçu'),
   note('Note en cours'),
   ardoise('Ardoise'),
+  historique('Tes achats'),
   confirmation('Confirmation'),
   devis('Devis');
 
@@ -151,6 +152,7 @@ class DocumentClient {
         NatureDocument.note => 'Bon appétit.',
         NatureDocument.ardoise =>
           'Une question sur ce montant ? Réponds à ce message.',
+        NatureDocument.historique => 'Merci de ta fidélité.',
         NatureDocument.confirmation => 'À bientôt.',
         NatureDocument.devis => 'Ce devis reste valable 30 jours.',
       };
@@ -259,4 +261,104 @@ class Ardoise {
   static String _date(DateTime date) =>
       '${DocumentClient._deuxChiffres(date.day)}/'
       '${DocumentClient._deuxChiffres(date.month)}/${date.year}';
+}
+
+
+/// L'historique des achats d'un client dans une boutique.
+///
+/// C'est le premier pas vers un historique qui suivrait le client d'une
+/// boutique à l'autre. Le reste attend le serveur — et le consentement du
+/// client, qui est un accord distinct de celui de recevoir un reçu.
+class HistoriqueClient {
+  final String nomCommerce;
+  final String nomClient;
+  final DateTime depuis;
+  final DateTime jusqua;
+
+  /// Les achats, du plus récent au plus ancien.
+  final List<AchatResume> achats;
+
+  final Montant total;
+
+  /// Ce qui reste dû, s'il reste quelque chose.
+  final Montant encours;
+
+  const HistoriqueClient({
+    required this.nomCommerce,
+    required this.nomClient,
+    required this.depuis,
+    required this.jusqua,
+    required this.achats,
+    required this.total,
+    required this.encours,
+  });
+
+  String get texte {
+    final lignes = <String>[
+      nomCommerce.toUpperCase(),
+      'Tes achats · $nomClient',
+      'Du ${Ardoise._date(depuis)} au ${Ardoise._date(jusqua)}',
+      '',
+    ];
+
+    if (achats.isEmpty) {
+      lignes
+        ..add('Aucun achat sur cette période.')
+        ..add('');
+      return lignes.join('\n');
+    }
+
+    for (final achat in achats) {
+      lignes.add(achat.ligne);
+    }
+
+    lignes
+      ..add(DocumentClient._separateur)
+      ..add(_totalise('Total dépensé', total));
+
+    if (encours.centimes > 0) {
+      lignes.add(_totalise('Reste à payer', encours));
+    }
+
+    lignes
+      ..add('')
+      ..add('${achats.length} achat${achats.length > 1 ? 's' : ''}')
+      ..add('')
+      ..add('Merci de ta fidélité.');
+
+    return lignes.join('\n');
+  }
+
+  static String _totalise(String libelle, Montant montant) {
+    final valeur = montant.enFrancs;
+    final espaces = DocumentClient._largeur - libelle.length - valeur.length;
+    return '$libelle${' ' * (espaces < 1 ? 1 : espaces)}$valeur';
+  }
+}
+
+/// Un achat, résumé en une ligne.
+class AchatResume {
+  final DateTime date;
+  final Montant montant;
+
+  /// Ce qui a été acheté, en abrégé : le premier article, et le nombre des
+  /// autres. La liste complète tiendrait rarement sur une ligne.
+  final String resume;
+
+  const AchatResume({
+    required this.date,
+    required this.montant,
+    required this.resume,
+  });
+
+  String get ligne {
+    final quand = '${DocumentClient._deuxChiffres(date.day)}/'
+        '${DocumentClient._deuxChiffres(date.month)}';
+    final valeur = montant.enFrancs;
+    final gauche = '$quand  $resume';
+    final place = DocumentClient._largeur - valeur.length - 1;
+    final ajustee =
+        gauche.length > place ? '${gauche.substring(0, place - 1)}…' : gauche;
+    return '$ajustee${' ' * (DocumentClient._largeur - ajustee.length - valeur.length)}$valeur';
+  }
 }

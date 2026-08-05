@@ -81,3 +81,4 @@ schéma. Il faut donc lancer `build_runner` après un clone ou une modification 
 | [`docs/09-homologation.md`](docs/09-homologation.md) | Procédure d'homologation du SFE |
 | [`docs/10-parcours-de-vente.md`](docs/10-parcours-de-vente.md) | Parcours de vente et types de clients |
 | [`docs/11-cote-client.md`](docs/11-cote-client.md) | Ce que reçoit le client, par parcours |
+| [`docs/12-historique-et-donnees-personnelles.md`](docs/12-historique-et-donnees-personnelles.md) | Historique client, identité et confidentialité |

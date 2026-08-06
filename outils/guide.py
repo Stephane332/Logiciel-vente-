@@ -80,7 +80,7 @@ sections.append("""<header class="tete">
   <ul class="faits">
     <li><span>4</span> écrans, pas un de plus</li>
     <li><span>0</span> article à saisir pour démarrer</li>
-    <li><span>251</span> tests automatiques</li>
+    <li><span>261</span> tests automatiques</li>
     <li><span>&empty;</span> réseau nécessaire</li>
   </ul>
 </header>""")
@@ -312,6 +312,15 @@ sections.append("""<footer>
 </footer>""")
 
 STYLE = """
+  /* Le fichier s'ouvre seul, hors de tout gabarit : il porte sa propre
+     remise à zéro, sans quoi les marges par défaut du navigateur
+     s'ajouteraient aux nôtres — visible surtout à l'impression. */
+  *, *::before, *::after { box-sizing:border-box; }
+  body, h1, h2, h3, p, ul, ol, figure, pre, table, blockquote {
+    margin:0; padding:0;
+  }
+  img { max-width:100%; display:block; }
+
   @font-face { font-family:'Outfit'; src:url(REGULIER) format('truetype');
                font-weight:400; font-display:block; }
   @font-face { font-family:'Outfit'; src:url(GRAS) format('truetype');
@@ -413,6 +422,12 @@ STYLE = """
            box-shadow:var(--ombre); }
   @media (min-width:900px) {
     .etape { grid-template-columns:1fr 290px; align-items:center; }
+    /* Une étape sur deux met le téléphone à gauche. C'est la colonne qui
+       change de côté, pas seulement l'ordre : intervertir l'ordre seul
+       enverrait le texte dans la colonne étroite. */
+    .etape:nth-of-type(even) {
+      grid-template-columns:290px 1fr;
+    }
     .etape:nth-of-type(even) .etape-texte { order:2; }
   }
   .etape-texte { display:flex; flex-direction:column; gap:12px; }
@@ -456,7 +471,57 @@ STYLE = """
 
   a:focus-visible, li:focus-visible { outline:2px solid var(--vert);
                                       outline-offset:3px; }
-"""
+""" + '''
+  /* ------------------------------------------------------------ impression
+     Le guide sert autant sur papier qu'à l'écran : un commerçant le lit sur
+     un téléphone, un installateur l'imprime pour aller sur le terrain. */
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+
+  @media print {
+    /* Le papier n'a pas de thème sombre. */
+    :root {
+      --fond:#FFFFFF; --surface:#FFFFFF; --encre:#1A1815; --encre-douce:#4C473F;
+      --encre-legere:#7B7568; --bordure:#D8D3C9; --vert:#0E6B4A;
+      --vert-clair:#E8F3EE; --ambre:#C9820A; --ambre-clair:#FDF4E3;
+      --rouge:#B8382F;
+      --ombre:none; --ombre-tel:none;
+    }
+    body { background:#fff; font-size:10.5pt; line-height:1.5; }
+    main { max-width:none; padding:0; gap:20px; }
+
+    h1 { font-size:30pt; }
+    h2 { font-size:16pt; }
+    h3 { font-size:12pt; }
+    p, .liste { max-width:none; }
+
+    /* Un titre ne reste jamais seul en bas de page. */
+    h1, h2, h3 { break-after:avoid-page; }
+    .sur-titre { break-after:avoid-page; }
+
+    /* Une étape est une unité de lecture : elle ne se coupe pas. */
+    .etape { break-inside:avoid-page; border-radius:10px; page-break-inside:avoid; }
+    .etape { grid-template-columns:1fr 190px; align-items:center; }
+    .etape:nth-of-type(even) { grid-template-columns:190px 1fr; }
+    .etape:nth-of-type(even) .etape-texte { order:2; }
+    .tel, .doc, .faits li, tr, .note { break-inside:avoid-page; }
+
+    .tel { max-width:190px; }
+    .tel img { border-radius:12px; }
+    .galerie { gap:16px; }
+    .galerie .tel { flex:0 1 155px; }
+
+    /* La largeur minimale du tableau déborderait de la page. */
+    table { min-width:0; font-size:9.5pt; }
+    th, td { padding:8px 10px; }
+    .tableau-defile { overflow:visible; }
+
+    .doc pre { font-size:8.5pt; padding:12px; overflow:visible;
+               white-space:pre-wrap; }
+
+    footer { break-inside:avoid-page; }
+  }
+'''
+
 
 STYLE = STYLE.replace('REGULIER', REGULIER).replace('GRAS', GRAS)
 

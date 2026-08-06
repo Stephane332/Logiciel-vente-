@@ -18,6 +18,7 @@ import '../../domaine/references.dart';
 import '../../domaine/telephone.dart';
 import '../../donnees/base.dart';
 import '../composants/montant_anime.dart';
+import '../composants/partage.dart';
 import '../theme/palette.dart';
 
 /// Couleur d'accompagnement d'un opérateur, à sa charte.
@@ -32,6 +33,9 @@ class FeuillePaiement extends StatefulWidget {
 
   /// Les comptes sur lesquels le commerçant se fait payer.
   final ComptesMarchands comptes;
+
+  /// Nom de la boutique, tel qu'il apparaît dans le message envoyé au client.
+  final String nomCommerce;
 
   /// Les clients connus, pour retrouver celui à qui l'on fait crédit.
   final List<LigneClient> clients;
@@ -52,6 +56,7 @@ class FeuillePaiement extends StatefulWidget {
     required this.total,
     required this.surPaiementChoisi,
     this.comptes = const ComptesMarchands.aucun(),
+    this.nomCommerce = '',
     this.surConfiguration,
     this.clients = const [],
     this.surNouveauClient,
@@ -63,6 +68,7 @@ class FeuillePaiement extends StatefulWidget {
     required Future<void> Function(ModePaiement mode, String? clientId)
         surPaiementChoisi,
     ComptesMarchands comptes = const ComptesMarchands.aucun(),
+    String nomCommerce = '',
     VoidCallback? surConfiguration,
     List<LigneClient> clients = const [],
     Future<String> Function(String nom, String? telephone)? surNouveauClient,
@@ -74,6 +80,7 @@ class FeuillePaiement extends StatefulWidget {
         builder: (_) => FeuillePaiement(
           total: total,
           comptes: comptes,
+          nomCommerce: nomCommerce,
           surPaiementChoisi: surPaiementChoisi,
           surConfiguration: surConfiguration,
           clients: clients,
@@ -113,6 +120,38 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
         ModePaiement.credit => 'Noter la dette',
         _ => 'Valider la vente',
       };
+
+  /// Envoie le code de paiement au client, par WhatsApp ou par SMS.
+  ///
+  /// C'est le repli du code QR : un client dont le téléphone n'a pas
+  /// d'appareil photo, ou qui n'est pas devant le comptoir — une livraison,
+  /// une commande passée par message. Il reçoit le code, le compose sur
+  /// **son** téléphone, et paie.
+  ///
+  /// Le code part aussi en clair, parce qu'un lien `tel:` n'est pas toujours
+  /// cliquable selon la messagerie : au pire le client le recopie.
+  Future<void> _envoyerLeCode(OperateurMobile operateur) async {
+    final numero = widget.comptes.numeroDe(operateur)!;
+    final code = operateur.code(numero: numero, montant: widget.total);
+    final lien = operateur.lienComposeur(numero: numero, montant: widget.total);
+
+    final lignes = <String>[
+      if (widget.nomCommerce.isNotEmpty) widget.nomCommerce.toUpperCase(),
+      'À payer : ${widget.total.enFrancs}',
+      '',
+      'Compose ce code sur ton téléphone :',
+      code,
+      '',
+      lien,
+    ];
+
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'Envoyer le code',
+      texte: lignes.join('\n'),
+      telephone: _client?.telephoneNormalise,
+    );
+  }
 
   Future<void> _nouveauClient() async {
     final creer = widget.surNouveauClient;
@@ -223,6 +262,7 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
                   disponibles: disponibles,
                   surChangementOperateur: (o) =>
                       setState(() => _operateur = o),
+                  surEnvoi: () => _envoyerLeCode(operateur),
                 ),
               (ModePaiement.credit, _) => _VoletCredit(
                   clients: _clients,
@@ -317,12 +357,16 @@ class _VoletMobileMoney extends StatelessWidget {
 
   final ValueChanged<OperateurMobile> surChangementOperateur;
 
+  /// Envoie le code au client, quand il ne peut pas scanner.
+  final VoidCallback surEnvoi;
+
   const _VoletMobileMoney({
     required this.total,
     required this.numeroMarchand,
     required this.operateur,
     required this.disponibles,
     required this.surChangementOperateur,
+    required this.surEnvoi,
   });
 
   @override
@@ -429,6 +473,16 @@ class _VoletMobileMoney extends StatelessWidget {
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: Espace.m),
+        // Pour le client qui n'est pas devant le comptoir, ou dont le
+        // téléphone n'a pas d'appareil photo — et c'est encore le cas de
+        // beaucoup. Il compose le code sur son propre téléphone.
+        OutlinedButton.icon(
+          onPressed: surEnvoi,
+          icon: const Icon(Icons.send_rounded, size: 18),
+          label: const Text('Envoyer le code au client'),
         ),
 
         const SizedBox(height: Espace.m),

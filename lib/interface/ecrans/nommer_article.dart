@@ -19,17 +19,23 @@ enum ReponseNommage {
   /// Plus tard. La question reviendra.
   plusTard,
 
-  /// Ce prix recouvre plusieurs produits différents : il n'y a pas de nom à
-  /// donner, et il ne faut plus le demander.
+  /// Ce prix recouvre plusieurs produits. La réponse porte alors leurs noms :
+  /// on les crée sur-le-champ plutôt que de laisser le commerçant avec un
+  /// fourre-tout.
   melange,
 }
 
-/// La réponse, avec le nom quand il y en a un.
+/// La réponse, avec le ou les noms donnés.
 class ResultatNommage {
   final ReponseNommage reponse;
-  final String? nom;
 
-  const ResultatNommage(this.reponse, [this.nom]);
+  /// Un seul nom pour [ReponseNommage.nomme], plusieurs pour
+  /// [ReponseNommage.melange], aucun pour « plus tard ».
+  final List<String> noms;
+
+  const ResultatNommage(this.reponse, [this.noms = const []]);
+
+  String? get nom => noms.isEmpty ? null : noms.first;
 }
 
 class NommerArticle extends StatefulWidget {
@@ -63,10 +69,37 @@ class NommerArticle extends StatefulWidget {
 class _NommerArticleState extends State<NommerArticle> {
   final _controleur = TextEditingController();
 
+  /// Vrai une fois que le commerçant a dit qu'il vend plusieurs choses à ce
+  /// prix : la feuille passe alors en mode liste.
+  bool _plusieurs = false;
+
+  /// Les noms déjà ajoutés, en mode liste.
+  final _noms = <String>[];
+
   @override
   void dispose() {
     _controleur.dispose();
     super.dispose();
+  }
+
+  /// Combien de noms partiront à la création, en comptant celui en cours.
+  int get _aCreer =>
+      _noms.length + (_controleur.text.trim().isEmpty ? 0 : 1);
+
+  bool get _validable => _plusieurs
+      ? _aCreer >= 2
+      : _controleur.text.trim().isNotEmpty;
+
+  String get _libelleCreation =>
+      _aCreer < 2 ? 'Ajoute au moins deux noms' : 'Créer ces $_aCreer articles';
+
+  void _ajouterNom() {
+    final nom = _controleur.text.trim();
+    if (nom.isEmpty || _noms.contains(nom)) return;
+    setState(() {
+      _noms.add(nom);
+      _controleur.clear();
+    });
   }
 
   @override
@@ -96,25 +129,60 @@ class _NommerArticleState extends State<NommerArticle> {
           ),
           const SizedBox(height: Espace.l),
           Text(
-            "Donne-lui un nom pour le retrouver d'un geste la prochaine fois.",
+            _plusieurs
+                ? "Donne le nom de chacune. Je les crée toutes au même prix, "
+                    "et tu les vendras d'un appui."
+                : "Donne-lui un nom pour le retrouver d'un geste la prochaine "
+                    'fois.',
             textAlign: TextAlign.center,
             style: textes.bodyMedium,
           ),
+          if (_plusieurs && _noms.isNotEmpty) ...[
+            const SizedBox(height: Espace.m),
+            Wrap(
+              spacing: Espace.s,
+              runSpacing: Espace.s,
+              children: [
+                for (final nom in _noms)
+                  Chip(
+                    label: Text(nom),
+                    onDeleted: () => setState(() => _noms.remove(nom)),
+                    backgroundColor: Couleurs.primaireClair,
+                    side: BorderSide.none,
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: Espace.l),
           TextField(
             controller: _controleur,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
+            textInputAction:
+                _plusieurs ? TextInputAction.next : TextInputAction.done,
             style: textes.titleLarge,
             onChanged: (_) => setState(() {}),
             onSubmitted: (valeur) {
-              if (valeur.trim().isNotEmpty) {
-                Navigator.of(context).pop(
-                    ResultatNommage(ReponseNommage.nomme, valeur.trim()));
+              if (valeur.trim().isEmpty) return;
+              if (_plusieurs) {
+                _ajouterNom();
+                return;
               }
+              Navigator.of(context)
+                  .pop(ResultatNommage(ReponseNommage.nomme, [valeur.trim()]));
             },
             decoration: InputDecoration(
-              hintText: 'Sachet d\'eau, pain, savon…',
+              hintText: _plusieurs
+                  ? 'Ajoute un nom, puis un autre…'
+                  : 'Sachet d\'eau, pain, savon…',
+              suffixIcon: _plusieurs
+                  ? IconButton(
+                      onPressed: vide ? null : _ajouterNom,
+                      icon: const Icon(Icons.add_circle_rounded),
+                      color: Couleurs.primaire,
+                      tooltip: 'Ajouter',
+                    )
+                  : null,
               filled: true,
               fillColor: Couleurs.fond,
               contentPadding: const EdgeInsets.symmetric(
@@ -131,19 +199,28 @@ class _NommerArticleState extends State<NommerArticle> {
           ),
           const SizedBox(height: Espace.l),
           FilledButton(
-            onPressed: vide
-                ? null
-                : () => Navigator.of(context).pop(ResultatNommage(
-                    ReponseNommage.nomme, _controleur.text.trim())),
+            onPressed: _validable
+                ? () {
+                    if (!_plusieurs) {
+                      Navigator.of(context).pop(ResultatNommage(
+                          ReponseNommage.nomme, [_controleur.text.trim()]));
+                      return;
+                    }
+                    // Le dernier nom tapé compte même sans appuyer sur « + ».
+                    _ajouterNom();
+                    Navigator.of(context).pop(
+                        ResultatNommage(ReponseNommage.melange, [..._noms]));
+                  }
+                : null,
             style: FilledButton.styleFrom(
               backgroundColor: Couleurs.primaire,
               disabledBackgroundColor: Couleurs.bordure,
             ),
             child: Text(
-              'Enregistrer',
+              _plusieurs ? _libelleCreation : 'Enregistrer',
               style: textes.labelLarge?.copyWith(
                 fontSize: 17,
-                color: vide ? Couleurs.encreLegere : Colors.white,
+                color: _validable ? Colors.white : Couleurs.encreLegere,
               ),
             ),
           ),
@@ -153,8 +230,7 @@ class _NommerArticleState extends State<NommerArticle> {
           // ce prix, il n'y a aucun nom juste à donner, et insister ferait
           // fabriquer un faux article dont le stock mentirait.
           OutlinedButton(
-            onPressed: () => Navigator.of(context)
-                .pop(const ResultatNommage(ReponseNommage.melange)),
+            onPressed: () => setState(() => _plusieurs = true),
             child: const Text('Ce sont plusieurs choses différentes'),
           ),
           const SizedBox(height: Espace.s),

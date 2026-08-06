@@ -234,10 +234,21 @@ nommage offre donc trois réponses :
 |---|---|
 | Un nom | L'article prend ce nom et sort du lot |
 | Plus tard | La question reviendra |
-| Ce sont plusieurs choses différentes | La question ne revient plus, et aucun faux article n'est fabriqué |
+| Ce sont plusieurs choses | Le commerçant donne leurs noms, et l'application crée un article par nom au même prix |
 
-Un article ainsi refusé reste un fourre-tout assumé : il n'est jamais proposé
-au suivi de stock, puisqu'il n'y a rien de cohérent à compter. Le commerçant
-qui veut distinguer ses produits crée ses articles par leur nom depuis l'écran
-de stock, et les vend en appuyant sur leur tuile — chemin où le prix ne sert
-plus d'identité.
+La troisième réponse est la vraie sortie. Le moment où l'application demande
+« tu vends souvent à 500 F, c'est quoi ? » est précisément celui où le
+commerçant a la question en tête : c'est donc là qu'il faut lui permettre de
+répondre « du pain **et** du savon », pas plus tard dans un écran de réglages
+qu'il n'ouvrira pas.
+
+Deux noms suffisent à déclencher la création. À partir de là, il appuie sur les
+tuiles, et le prix ne sert plus jamais d'identité pour ces produits.
+
+Les ventes déjà faites restent sur l'ancien article. Le journal ne se réécrit
+pas, et personne — l'application moins que quiconque — ne saurait dire
+lesquelles des trois ventes à 500 F étaient du pain. Mieux vaut un passé flou
+mais honnête qu'un passé net et inventé.
+
+Le fourre-tout n'est ensuite jamais proposé au suivi de stock : il n'y a rien
+de cohérent à compter dedans.

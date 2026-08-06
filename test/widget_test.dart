@@ -247,10 +247,70 @@ void main() {
     await tester.tap(find.text('Ce sont plusieurs choses différentes'));
     await tester.pumpAndSettle();
 
-    // Aucun faux article n'a été fabriqué, et la question ne revient pas.
+    // Tant qu'il n'y a pas deux noms, on ne crée rien.
+    expect(find.text('Ajoute au moins deux noms'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), "Sachet d'eau");
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_circle_rounded));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Beignet');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Créer ces 2 articles'));
+    await tester.pumpAndSettle();
+
+    // Deux vrais articles existent maintenant, au même prix, et la question
+    // ne revient plus sur le fourre-tout.
+    final catalogue = await depot.catalogue();
+    final crees = catalogue.where((a) => !a.code.startsWith('AUTO-')).toList();
+    expect(crees.map((a) => a.designation).toSet(), {"Sachet d'eau", 'Beignet'});
+    expect(crees.every((a) => a.prixCentimes == f(500).centimes), isTrue);
+
     expect(find.textContaining('Tu vends souvent'), findsNothing);
-    expect(find.text('Article à 500 F'), findsOneWidget);
     expect(await depot.articlesANommer(), isEmpty);
+  });
+
+  testWidgets('les ventes déjà faites restent sur le fourre-tout',
+      (tester) async {
+    for (var i = 0; i < 3; i++) {
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            prixUnitaire: f(500),
+            quantite: const Quantite.unites(1),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        ],
+      );
+    }
+
+    await tester.pumpWidget(application());
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Tu vends souvent'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ce sont plusieurs choses différentes'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Pain');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_circle_rounded));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Savon');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Créer ces 2 articles'));
+    await tester.pumpAndSettle();
+
+    // Personne ne saurait dire lesquelles des trois ventes étaient du pain :
+    // le journal ne se réécrit pas, et on ne devine pas le passé.
+    final ancien = (await depot.catalogue())
+        .firstWhere((a) => a.code == 'AUTO-50000');
+    expect(ancien.nombreVentes, 3);
+
+    final rapport = await depot.rapportDuJour();
+    expect(rapport.encaisse, f(1500));
   });
 
   testWidgets('le pavé numérique encaisse un montant libre', (tester) async {

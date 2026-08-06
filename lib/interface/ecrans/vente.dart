@@ -150,6 +150,7 @@ class EcranVenteState extends State<EcranVente> {
       context,
       total: _total,
       comptes: widget.comptes,
+      nomCommerce: widget.documents.nomCommerce,
       surConfiguration: widget.surConfiguration,
       clients: _clients,
       surNouveauClient: (nom, telephone) =>
@@ -262,25 +263,39 @@ class EcranVenteState extends State<EcranVente> {
         final nom = resultat.nom?.trim() ?? '';
         if (nom.isEmpty) return;
         await widget.depot.nommerArticle(article.code, nom);
+
       case ReponseNommage.melange:
-        // Le commerçant vend plusieurs choses à ce prix-là. On arrête de
-        // demander, et on ne fabrique pas un article qui mentirait.
-        await widget.depot.refuserNommage(article.code);
-        _direQueCestNote(article);
+        // Le commerçant vend plusieurs choses à ce prix-là. Plutôt que de le
+        // laisser avec un fourre-tout, on crée ses articles maintenant :
+        // c'est le seul moment où il y pense déjà.
+        await _separer(article, resultat.noms);
+
       case ReponseNommage.plusTard:
         return;
     }
     await recharger();
   }
 
-  void _direQueCestNote(LigneArticle article) {
+  /// Crée un article par nom, au prix du fourre-tout, et cesse de demander.
+  ///
+  /// Les ventes déjà faites restent sur l'ancien article : le journal ne se
+  /// réécrit pas, et personne ne saurait dire lesquelles étaient quoi. À
+  /// partir de maintenant, le commerçant appuie sur les tuiles — chemin où le
+  /// prix ne sert plus d'identité.
+  Future<void> _separer(LigneArticle article, List<String> noms) async {
+    final prix = Montant(article.prixCentimes);
+    for (final nom in noms) {
+      await widget.depot.creerArticle(designation: nom, prix: prix);
+    }
+    await widget.depot.refuserNommage(article.code);
+
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(
-          "C'est noté. Crée tes articles depuis l'écran Stock quand tu veux "
-          'les distinguer.',
+          '${noms.length} articles créés à ${prix.enFrancs}. '
+          'Appuie dessus au lieu de taper le montant.',
         ),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),

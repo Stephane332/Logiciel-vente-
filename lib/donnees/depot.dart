@@ -12,6 +12,7 @@ import '../domaine/evenements.dart';
 import '../domaine/montant.dart';
 import '../domaine/references.dart';
 import '../domaine/telephone.dart';
+import '../domaine/texte.dart';
 import 'base.dart';
 import 'journal.dart';
 
@@ -833,17 +834,7 @@ class Depot {
   /// Les accents et la ponctuation sautent : le code voyagera un jour dans
   /// des échanges où ils poseraient problème.
   static String _codeDepuisNom(String nom) {
-    const accents = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
-    const sans = 'aaaaaaceeeeiiiinooooouuuuyy';
-
-    final tampon = StringBuffer();
-    for (final caractere in nom.toLowerCase().split('')) {
-      final index = accents.indexOf(caractere);
-      tampon.write(index >= 0 ? sans[index] : caractere);
-    }
-
-    final base = tampon
-        .toString()
+    final base = sansAccents(nom.toLowerCase())
         .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
 

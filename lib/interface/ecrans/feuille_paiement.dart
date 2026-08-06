@@ -16,6 +16,7 @@ import '../../domaine/mobile_money.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/references.dart';
 import '../../domaine/telephone.dart';
+import '../../domaine/texte.dart';
 import '../../donnees/base.dart';
 import '../composants/montant_anime.dart';
 import '../composants/partage.dart';
@@ -121,34 +122,53 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
         _ => 'Valider la vente',
       };
 
-  /// Envoie le code de paiement au client, par WhatsApp ou par SMS.
+  /// Envoie le lien de paiement au client, par WhatsApp ou par SMS.
   ///
   /// C'est le repli du code QR : un client dont le téléphone n'a pas
   /// d'appareil photo, ou qui n'est pas devant le comptoir — une livraison,
-  /// une commande passée par message. Il reçoit le code, le compose sur
-  /// **son** téléphone, et paie.
+  /// une commande passée par message.
   ///
-  /// Le code part aussi en clair, parce qu'un lien `tel:` n'est pas toujours
-  /// cliquable selon la messagerie : au pire le client le recopie.
+  /// Le lien `tel:` ouvre le composeur du client **déjà rempli** : il n'a plus
+  /// qu'à saisir son code secret. C'est le geste principal, donc il passe en
+  /// premier dans le message.
+  ///
+  /// Le code brut suit quand même, parce qu'un lien `tel:` n'est pas cliquable
+  /// dans toutes les messageries. Au pire le client recopie quelques
+  /// caractères : je préfère un repli qui marche partout à un lien élégant qui
+  /// échoue chez la moitié des gens.
   Future<void> _envoyerLeCode(OperateurMobile operateur) async {
     final numero = widget.comptes.numeroDe(operateur)!;
     final code = operateur.code(numero: numero, montant: widget.total);
     final lien = operateur.lienComposeur(numero: numero, montant: widget.total);
+    final montant = widget.total.enFrancs;
 
-    final lignes = <String>[
+    final complet = [
       if (widget.nomCommerce.isNotEmpty) widget.nomCommerce.toUpperCase(),
-      'À payer : ${widget.total.enFrancs}',
+      'À payer : $montant',
       '',
-      'Compose ce code sur ton téléphone :',
-      code,
-      '',
+      "Appuie sur ce lien : ton téléphone compose tout seul, tu n'as plus "
+          "qu'à saisir ton code secret.",
       lien,
-    ];
+      '',
+      "Si le lien ne s'ouvre pas, compose :",
+      code,
+    ].join('\n');
+
+    // Le SMS se paie à l'unité : on le veut court et sans accent, sinon la
+    // limite tombe de 160 à 70 caractères et le même message coûte trois fois
+    // plus cher au commerçant.
+    final court = sansAccents([
+      if (widget.nomCommerce.isNotEmpty) widget.nomCommerce.toUpperCase(),
+      'A payer: $montant',
+      'Appuie: $lien',
+      'Sinon compose: $code',
+    ].join('\n'));
 
     await FeuilleDocument.presenter(
       context,
-      titre: 'Envoyer le code',
-      texte: lignes.join('\n'),
+      titre: 'Envoyer au client',
+      texte: complet,
+      texteSms: court,
       telephone: _client?.telephoneNormalise,
     );
   }
@@ -482,7 +502,7 @@ class _VoletMobileMoney extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: surEnvoi,
           icon: const Icon(Icons.send_rounded, size: 18),
-          label: const Text('Envoyer le code au client'),
+          label: const Text('Envoyer le lien au client'),
         ),
 
         const SizedBox(height: Espace.m),

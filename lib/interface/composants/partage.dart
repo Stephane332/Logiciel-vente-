@@ -20,6 +20,13 @@ class FeuilleDocument extends StatelessWidget {
   final String titre;
   final String texte;
 
+  /// Version envoyée par SMS, quand elle diffère.
+  ///
+  /// Le SMS se paie à l'unité ici, et un seul caractère accentué fait tomber
+  /// la limite de 160 à 70 caractères : le même message peut coûter du simple
+  /// au triple. WhatsApp, lui, ne compte rien — il garde le texte complet.
+  final String? texteSms;
+
   /// Numéro du destinataire, au format national. Nul si on ne le connaît pas :
   /// le commerçant choisira le contact lui-même.
   final String? telephone;
@@ -28,6 +35,7 @@ class FeuilleDocument extends StatelessWidget {
     super.key,
     required this.titre,
     required this.texte,
+    this.texteSms,
     this.telephone,
   });
 
@@ -35,14 +43,19 @@ class FeuilleDocument extends StatelessWidget {
     BuildContext context, {
     required String titre,
     required String texte,
+    String? texteSms,
     String? telephone,
   }) =>
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
-        builder: (_) =>
-            FeuilleDocument(titre: titre, texte: texte, telephone: telephone),
+        builder: (_) => FeuilleDocument(
+          titre: titre,
+          texte: texte,
+          texteSms: texteSms,
+          telephone: telephone,
+        ),
       );
 
   Future<void> _ouvrir(String lien) =>
@@ -61,7 +74,7 @@ class FeuilleDocument extends StatelessWidget {
 
   /// Ouvre l'application SMS avec le message pré-rempli.
   Future<void> _versSms() => _ouvrir(
-      'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texte)}');
+      'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texteSms ?? texte)}');
 
   @override
   Widget build(BuildContext context) {

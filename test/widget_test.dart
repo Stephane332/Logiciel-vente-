@@ -432,4 +432,115 @@ void main() {
       semantique.dispose();
     });
   });
+
+  group('Rattraper une erreur', () {
+    testWidgets('la pastille retire une unité', (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Riz 1 kg'));
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('3 articles'), findsOneWidget);
+
+      // La tuile ajoute, la pastille enlève.
+      await tester.tap(find.text('3'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 articles'), findsOneWidget);
+    });
+
+    testWidgets("retirer le dernier vide l'article du panier", (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choisir un article'), findsOneWidget);
+    });
+
+    testWidgets('annuler une vente la retire du rapport', (tester) async {
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      expect((await depot.rapportDuJour()).nombreVentes, 3);
+
+      // Le bandeau de confirmation porte l'annulation : c'est le moment où
+      // l'erreur se voit.
+      await tester.tap(find.textContaining('Annuler'));
+      await tester.pumpAndSettle();
+
+      expect((await depot.rapportDuJour()).nombreVentes, 2);
+      expect(find.textContaining('Vente annulée'), findsOneWidget);
+    });
+
+    testWidgets('un montant énorme demande confirmation', (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Montant\nlibre'));
+      await tester.pumpAndSettle();
+      for (final touche in ['9', '9', '9', '9', '9', '9']) {
+        await tester.tap(find.widgetWithText(InkWell, touche));
+        await tester.pump();
+      }
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining("beaucoup plus que d'habitude"), findsOneWidget);
+
+      // Corriger : rien ne s'enregistre.
+      await tester.tap(find.text('Corriger'));
+      await tester.pumpAndSettle();
+      expect((await depot.rapportDuJour()).nombreVentes, 0);
+    });
+
+    testWidgets('un montant ordinaire ne dérange personne', (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Montant\nlibre'));
+      await tester.pumpAndSettle();
+      for (final touche in ['5', '0', '0']) {
+        await tester.tap(find.widgetWithText(InkWell, touche));
+        await tester.pump();
+      }
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining("beaucoup plus que d'habitude"), findsNothing);
+      expect((await depot.rapportDuJour()).nombreVentes, 1);
+    });
+
+    testWidgets('zéro franc ne peut pas être validé', (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Montant\nlibre'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(InkWell, '00'));
+      await tester.pumpAndSettle();
+
+      // Le bouton reste inerte au lieu de fermer la feuille sans rien dire.
+      final bouton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Encaisser'));
+      expect(bouton.onPressed, isNull);
+    });
+  });
 }

@@ -119,6 +119,19 @@ class EcranVenteState extends State<EcranVente> {
     setState(() => _panier[article.code] = (_panier[article.code] ?? 0) + 1);
   }
 
+  /// Retire une unité du panier, et l'article quand il n'en reste plus.
+  void _retirer(LigneArticle article) {
+    setState(() {
+      final reste = (_panier[article.code] ?? 0) - 1;
+      if (reste > 0) {
+        _panier[article.code] = reste;
+      } else {
+        _panier.remove(article.code);
+        _prixNegocies.remove(article.code);
+      }
+    });
+  }
+
   void _viderPanier() => setState(() {
         _panier.clear();
         _prixNegocies.clear();
@@ -141,6 +154,42 @@ class EcranVenteState extends State<EcranVente> {
       _prixNegocies[article.code] = montant;
       _panier[article.code] = _panier[article.code] ?? 1;
     });
+  }
+
+  /// Redemande quand le montant sort de ce que ce commerce encaisse.
+  ///
+  /// Pas un plafond fixe : ce qui est énorme pour une vendeuse de rue est
+  /// ordinaire pour un grossiste. Ce garde-fou vise le doigt resté appuyé sur
+  /// le zéro, pas le commerçant qui vend cher.
+  Future<bool> _montantConfirme(Montant montant) async {
+    if (!await widget.depot.montantInhabituel(montant)) return true;
+    if (!mounted) return false;
+
+    final habituel = await widget.depot.seuilDeVigilance();
+    if (!mounted) return false;
+
+    final reponse = await showDialog<bool>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text('${montant.enFrancs} ?'),
+        content: Text(
+          "C'est beaucoup plus que d'habitude — au-dessus de "
+          '${habituel.enFrancs}. Vérifie le montant avant de valider.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(false),
+            child: const Text('Corriger'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Couleurs.primaire),
+            child: const Text('Oui, encaisser'),
+          ),
+        ],
+      ),
+    );
+    return reponse ?? false;
   }
 
   Future<void> _encaisser() async {
@@ -177,6 +226,7 @@ class EcranVenteState extends State<EcranVente> {
       ));
     });
     if (lignes.isEmpty) return;
+    if (!await _montantConfirme(_total)) return;
 
     final venteId = await widget.depot.enregistrerVente(
       lignes: lignes,
@@ -208,7 +258,12 @@ class EcranVenteState extends State<EcranVente> {
     final messager = ScaffoldMessenger.of(context);
     messager.hideCurrentSnackBar();
     messager.showSnackBar(SnackBar(
-      content: Text('Vente enregistrée · ${total.enFrancs}'),
+      content: GestureDetector(
+        // Le bandeau entier annule : c'est le moment où l'erreur se voit, et
+        // le geste doit être plus large qu'un mot de six lettres.
+        onTap: () => _annuler(venteId),
+        child: Text('Vente enregistrée · ${total.enFrancs}   ·   Annuler'),
+      ),
       behavior: SnackBarBehavior.floating,
       // Le bandeau flotte au-dessus de la barre d'encaissement, jamais
       // dessus : au comptoir, la vente suivante commence dans la seconde,
@@ -217,6 +272,25 @@ class EcranVenteState extends State<EcranVente> {
       duration: const Duration(seconds: 3),
       action: SnackBarAction(label: 'Reçu', onPressed: () => _recu(venteId)),
     ));
+  }
+
+  /// Annule une vente et le dit.
+  ///
+  /// Dans un cahier, on rature. Sans ce geste, une erreur de saisie fausse la
+  /// journée pour toujours — et c'est ce qui fait refermer l'application.
+  Future<void> _annuler(String venteId) async {
+    await widget.depot.annulerVente(venteId);
+    await recharger();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Vente annulée. Le stock et la dette sont revenus.'),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+        duration: Duration(seconds: 3),
+      ));
   }
 
   Future<void> _recu(String venteId) async {
@@ -231,6 +305,7 @@ class EcranVenteState extends State<EcranVente> {
     final montant =
         await demanderMontant(context, titre: 'Montant de la vente');
     if (montant == null || !montant.estPositif) return;
+    if (!await _montantConfirme(montant)) return;
 
     final venteId = await widget.depot.enregistrerVente(
       lignes: [
@@ -359,6 +434,7 @@ class EcranVenteState extends State<EcranVente> {
                           quantiteAuPanier: _panier[article.code] ?? 0,
                           onPressed: () => _ajouter(article),
                           onLongPress: () => _negocier(article),
+                          onRetirer: () => _retirer(article),
                         );
                       },
                     ),

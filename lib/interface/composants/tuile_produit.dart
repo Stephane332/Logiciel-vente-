@@ -26,6 +26,13 @@ class TuileProduit extends StatefulWidget {
   /// Appui long : changer le prix pour cette vente seulement.
   final VoidCallback? onLongPress;
 
+  /// Retire une unité du panier.
+  ///
+  /// C'est la pastille de quantité qui porte ce geste : la tuile ajoute, la
+  /// pastille enlève. Sans lui, un appui de trop obligeait à vider tout le
+  /// panier et à recommencer devant le client.
+  final VoidCallback? onRetirer;
+
   const TuileProduit({
     super.key,
     required this.nom,
@@ -34,6 +41,7 @@ class TuileProduit extends StatefulWidget {
     this.quantiteAuPanier = 0,
     this.prixNegocie = false,
     this.onLongPress,
+    this.onRetirer,
   });
 
   @override
@@ -152,7 +160,12 @@ class _TuileProduitState extends State<TuileProduit>
                 ],
               ),
 
-              // Badge de quantité, qui apparaît en rebondissant.
+              // Badge de quantité, qui apparaît en rebondissant. C'est aussi
+              // le bouton pour retirer une unité : la tuile ajoute, la
+              // pastille enlève.
+              // Sans décalage négatif : la pile rogne ses enfants, et la
+              // pastille sortirait amputée. La zone tactile déborde par le
+              // rembourrage, pas par la position.
               Positioned(
                 top: 0,
                 right: 0,
@@ -160,21 +173,43 @@ class _TuileProduitState extends State<TuileProduit>
                   scale: auPanier ? 1 : 0,
                   duration: Duree.moyenne,
                   curve: Courbe.rebond,
-                  child: Container(
-                    constraints: const BoxConstraints(minWidth: 26),
-                    height: 26,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
-                    decoration: BoxDecoration(
-                      color: teinte,
-                      borderRadius: BorderRadius.circular(Rayon.rond),
-                    ),
-                    child: Text(
-                      '${widget.quantiteAuPanier}',
-                      style: textes.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
+                  child: GestureDetector(
+                    onTap: widget.onRetirer == null
+                        ? null
+                        : () {
+                            HapticFeedback.selectionClick();
+                            widget.onRetirer!();
+                          },
+                    // La cible tactile déborde la pastille : un doigt vise mal
+                    // un rond de vingt-six pixels.
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Container(
+                        height: 28,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.only(left: 5, right: 9),
+                        decoration: BoxDecoration(
+                          color: teinte,
+                          borderRadius: BorderRadius.circular(Rayon.rond),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.onRetirer != null)
+                              const Icon(Icons.remove_rounded,
+                                  size: 15, color: Colors.white),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${widget.quantiteAuPanier}',
+                              style: textes.labelSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

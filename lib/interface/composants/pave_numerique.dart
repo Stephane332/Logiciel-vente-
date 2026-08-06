@@ -56,7 +56,10 @@ Future<Montant?> demanderMontant(
                       () => saisie = (plafond.centimes ~/ 100).toString()),
                 ),
           surTouche: (touche) => rafraichir(() => saisie = _frappe(saisie, touche)),
-          surValidation: saisie.isEmpty || excessif
+          // Zéro ne valide pas. Sans ça, la touche « 00 » passait la garde du
+          // zéro initial, le bouton s'activait, et le commerçant croyait avoir
+          // encaissé alors que rien ne s'écrivait.
+          surValidation: saisie.isEmpty || excessif || montant.estNul
               ? null
               : () => Navigator.of(contexte).pop(montant),
         );

@@ -270,6 +270,144 @@ class Depot {
     }
   }
 
+  /// Annule une vente.
+  ///
+  /// Dans un cahier, on rature. Sans ce geste, une erreur de saisie fausse la
+  /// journée du commerçant pour toujours — et lui fait refermer l'application
+  /// pour de bon.
+  ///
+  /// Le passé ne se réécrit pas : la vente reste dans le journal, et un
+  /// événement d'annulation vient s'ajouter par-dessus. C'est aussi ce
+  /// qu'impose la DGI, qui traite les annulations par facture d'avoir
+  /// (§2.28). Les projections, elles, sont remises comme avant : le stock
+  /// revient, la dette du client redescend, les compteurs reculent.
+  Future<void> annulerVente(String venteId, {String? motif}) async {
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingleOrNull();
+
+    // Annuler deux fois ne doit pas rendre le stock deux fois.
+    if (vente == null || vente.annulee) return;
+
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(
+        TypeEvenement.venteAnnulee,
+        {'venteId': venteId, 'motif': motif},
+      );
+      await _appliquerAnnulation(evenement);
+    });
+  }
+
+  Future<void> _appliquerAnnulation(Evenement evenement) async {
+    final venteId = evenement.charge['venteId']! as String;
+
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingleOrNull();
+    if (vente == null || vente.annulee) return;
+
+    await (base.update(base.ventes)..where((v) => v.id.equals(venteId)))
+        .write(const VentesCompanion(annulee: Value(true)));
+
+    // Le stock revient et le compteur de ventes recule : sinon un article
+    // annulé continuerait de peser dans « ce qui rapporte » et de manquer à
+    // l'étagère.
+    final lignes = await (base.select(base.lignesVente)
+          ..where((l) => l.venteId.equals(venteId)))
+        .get();
+    for (final ligne in lignes) {
+      await _decrementerArticle(ligne.codeArticle, ligne.quantiteMilliemes);
+    }
+
+    // Une dette effacée doit disparaître du cahier, sinon le commerçant
+    // réclamerait de l'argent qu'on ne lui doit pas.
+    if (vente.clientId case final clientId?) {
+      final reglements = await (base.select(base.paiements)
+            ..where((p) => p.venteId.equals(venteId)))
+          .get();
+      final aCredit = reglements
+          .where((p) => p.mode == ModePaiement.credit.name)
+          .fold(0, (somme, p) => somme + p.montantCentimes);
+
+      if (aCredit > 0) {
+        await _ajusterEncours(clientId, -aCredit, evenement.horodatage);
+      }
+    }
+  }
+
+  Future<void> _decrementerArticle(String code, int quantiteMilliemes) async {
+    final article = await (base.select(base.articles)
+          ..where((a) => a.code.equals(code)))
+        .getSingleOrNull();
+    if (article == null) return;
+
+    final stock = article.stockMilliemes;
+    final suitLeStock =
+        article.suiviStock == SuiviStock.direct.cle && stock != null;
+
+    await (base.update(base.articles)..where((a) => a.code.equals(code)))
+        .write(ArticlesCompanion(
+      nombreVentes: Value(
+          article.nombreVentes > 0 ? article.nombreVentes - 1 : 0),
+      stockMilliemes:
+          suitLeStock ? Value(stock + quantiteMilliemes) : const Value.absent(),
+    ));
+  }
+
+  /// Les dernières ventes, pour pouvoir en annuler une.
+  ///
+  /// Les annulées restent dans la liste, barrées : le commerçant doit voir
+  /// que son geste a été pris en compte, pas voir la ligne disparaître.
+  Future<List<LigneVente>> dernieresVentes({int limite = 20}) {
+    final requete = base.select(base.ventes)
+      ..orderBy([(v) => OrderingTerm.desc(v.horodatage)])
+      ..limit(limite);
+    return requete.get();
+  }
+
+  /// Le montant au-delà duquel une vente mérite qu'on redemande.
+  ///
+  /// Pas un plafond fixe : ce qui est énorme pour une vendeuse de rue est
+  /// ordinaire pour un grossiste. On se cale sur ce que ce commerce encaisse
+  /// réellement — dix fois sa plus grosse vente du mois.
+  ///
+  /// Tant qu'on ne connaît pas encore la boutique, seul un plancher protège :
+  /// il vise le doigt resté appuyé sur le zéro, pas le commerçant qui vend
+  /// cher.
+  Future<Montant> seuilDeVigilance({DateTime? maintenant}) async {
+    final reference = maintenant ?? DateTime.now();
+    final depuis = reference.subtract(const Duration(days: 30));
+
+    final ventes = await (base.select(base.ventes)
+          ..where((v) =>
+              v.horodatage.isBiggerOrEqualValue(depuis) &
+              v.annulee.equals(false)))
+        .get();
+
+    if (ventes.length < ventesAvantDeJuger) return plancherDeVigilance;
+
+    final plusGrosse =
+        ventes.map((v) => v.totalCentimes).reduce((a, b) => a > b ? a : b);
+    final relatif = Montant(plusGrosse * 10);
+
+    return relatif.centimes > plancherDeVigilance.centimes
+        ? relatif
+        : plancherDeVigilance;
+  }
+
+  /// Vrai quand le montant mérite une confirmation avant d'être encaissé.
+  Future<bool> montantInhabituel(Montant montant,
+      {DateTime? maintenant}) async {
+    final seuil = await seuilDeVigilance(maintenant: maintenant);
+    return montant.centimes > seuil.centimes;
+  }
+
+  /// Nombre de ventes en deçà duquel on ne prétend pas connaître la boutique.
+  static const ventesAvantDeJuger = 5;
+
+  /// Le plancher, quand on n'a pas encore d'historique.
+  static const plancherDeVigilance = Montant(10000000);
+
   /// Crée l'article s'il n'existe pas, sinon incrémente son compteur.
   ///
   /// C'est le mécanisme du catalogue auto-construit : on ne demande jamais au
@@ -1171,6 +1309,7 @@ class Depot {
           case TypeEvenement.venteSoldee:
             await _appliquerSolde(evenement);
           case TypeEvenement.venteAnnulee:
+            await _appliquerAnnulation(evenement);
           case TypeEvenement.creditAccorde:
           case TypeEvenement.ventecertifiee:
             break;

@@ -75,6 +75,21 @@ class _AccueilState extends State<Accueil> {
     });
   }
 
+  /// Retient qui tient la caisse, pour de bon.
+  ///
+  /// Une équipe ne se redéclare pas chaque matin : le choix survit à la
+  /// fermeture de l'application, comme le reste des réglages.
+  Future<void> _changerVendeur(String nom) async {
+    await widget.parametres.definirVendeurActif(nom);
+    if (!mounted) return;
+    setState(() => _reglage = Reglage(
+          nomCommerce: _reglage.nomCommerce,
+          comptes: _reglage.comptes,
+          vendeurs: _reglage.vendeurs,
+          vendeurActif: nom,
+        ));
+  }
+
   /// Change d'écran et rafraîchit celui qu'on ouvre.
   ///
   /// La pile garde les écrans en vie, donc ils ne se reconstruisent pas tout
@@ -118,6 +133,9 @@ class _AccueilState extends State<Accueil> {
             documents: _documents,
             comptes: _reglage.comptes,
             surConfiguration: _ouvrirReglages,
+            vendeurs: _reglage.vendeurs,
+            vendeurActif: _reglage.vendeurActif,
+            surVendeur: _changerVendeur,
           ),
           _onglet(
             1,

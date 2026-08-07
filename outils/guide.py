@@ -21,6 +21,11 @@ for _nom in ['01-caisse-vide', '02-pave-montant-libre', '04-proposition-de-nom',
              '17-reglages', '18-mobile-money-qr']:
     ECRAN[_nom] = 'data:image/png;base64,' + b64(CAPTURES / (_nom + '.png'))
 
+for _nom in ['equipe-02-qui-encaisse', 'equipe-03-liste', 'equipe-05-rapport',
+             'equipe-07-semaine', 'equipe-09-recherche']:
+    ECRAN[_nom] = ('data:image/png;base64,'
+                   + b64(CAPTURES / 'equipe' / (_nom + '.png')))
+
 REGULIER = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Regular.ttf')
 GRAS = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Bold.ttf')
 
@@ -197,6 +202,38 @@ par là que l'argent d'un commerce disparaît sans qu'on sache jamais où.</p>
 """, [('14-creer-article', 'Saisir un article d&rsquo;avance, si on veut'),
       ('15-stock-suivi', 'Reçu &middot; Compté &middot; Perdu')]))
 
+sections.append(bloc('Retrouver un article quand la boutique grandit', """
+<p>Tant que la boutique compte une douzaine d'articles, ils tiennent tous à
+l'écran et il n'y a rien à chercher. Passé ce nombre, une barre de recherche
+apparaît d'elle-même au-dessus de la grille.</p>
+<p>Elle ne sert qu'à ça, et elle ne s'affiche pas avant : c'est le seul endroit
+de l'application où l'on tape des lettres, et je ne veux pas qu'on ouvre un
+clavier pour trouver ce qui est déjà sous les yeux.</p>
+<p>Tant qu'on cherche, le montant libre et le scanner s'effacent — ce ne sont
+pas des résultats. Dès que la vente est encaissée, la recherche se vide toute
+seule : le client suivant ne demande pas la même chose.</p>
+""", [('equipe-09-recherche', 'La recherche filtre la grille')]))
+
+sections.append(bloc("Quand on n'est pas seul derrière le comptoir", """
+<p>Un commerçant qui vend seul ne voit rien de cette partie, et n'a rien à
+régler. C'est le cas le plus fréquent, et il reste le plus simple.</p>
+<p>Dès qu'on emploie quelqu'un, on ajoute son nom dans les réglages. À partir
+de là, une pastille en tête de la caisse porte en permanence le nom de celui
+qui encaisse, et on en change d'un appui. Le nom reste après avoir fermé
+l'application : une équipe ne se redéclare pas chaque matin.</p>
+<p>Le rapport donne alors le compte de chacun : combien de ventes, combien
+encaissé, et <b>combien de remises accordées</b>. C'est ce dernier chiffre qui
+compte vraiment — celui qui lâche deux fois plus que les autres se voit tout
+de suite.</p>
+<p class="note">Si personne n'est choisi, la vente passe quand même : une
+caisse qui refuse de vendre est une caisse qu'on repose. Elle apparaît dans le
+rapport sous « Non attribué », et le trou se voit au lieu d'être réparti au
+hasard sur les autres. Un vendeur retiré de la liste cesse aussitôt de tenir
+la caisse — son nom ne doit pas continuer de s'écrire après son départ.</p>
+""", [('equipe-02-qui-encaisse', 'La caisse demande qui encaisse'),
+      ('equipe-03-liste', 'On change de vendeur en un appui'),
+      ('equipe-05-rapport', "Le compte de chacun, dans le rapport")]))
+
 sections.append(bloc('Le rapport du soir', """
 <p>C'est ce qui crée l'habitude. Le patron qui n'est pas au magasin voit son
 commerce : ce qui est rentré, ce qui a été promis, ce qu'il faut racheter demain,
@@ -205,9 +242,16 @@ et ce qui dort sur l'étagère.</p>
 « Ce qui dort » signale l'argent immobilisé — un commerçant remarque tout de
 suite ce qui se vend bien, presque jamais ce qui a cessé de se vendre. La valeur
 de ce qui est sorti sans être vendu s'affiche aussi, et seulement s'il y en a.</p>
-<p>Le résumé part au patron en un geste, par WhatsApp ou SMS.</p>
+<p><b>Quatre périodes</b> en tête de l'écran : aujourd'hui, hier, sept jours,
+trente jours. Le patron ne regarde pas toujours le soir même — il ouvre
+l'application le lendemain matin en levant son rideau, et sa journée de la
+veille ne doit pas avoir disparu à minuit une.</p>
+<p>Le résumé part au patron en un geste, par WhatsApp ou SMS. Il porte la
+période regardée : sans ça, on lirait « Journée du » suivi du jour où l'on
+appuie, et on croirait avoir encaissé ça aujourd'hui.</p>
 """, [('16-rapport-du-soir', 'Ce que le patron voit le soir'),
-      ('17-reglages', 'Les réglages : nom et numéros marchands')]))
+      ('equipe-07-semaine', 'La même chose sur sept jours'),
+      ('17-reglages', 'Les réglages : nom, numéros marchands, équipe')]))
 
 sections.append(bloc('Ce que reçoit le client', """
 <p>Le client n'installe rien. Personne n'installe une application pour un achat

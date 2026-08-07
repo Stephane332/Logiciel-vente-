@@ -369,6 +369,12 @@ class AchatResume {
   }
 }
 
+/// Ce qu'une personne a encaissé, tel qu'il s'imprime.
+///
+/// Le nom est déjà celui qui doit s'afficher : le document ne décide pas
+/// comment appeler une vente que personne n'a revendiquée.
+typedef PartEncaissee = ({String qui, Montant combien});
+
 /// Le rapport du soir, tel qu'il part au patron.
 ///
 /// Le seul document des sept qui ne s'adresse pas au client mais au
@@ -391,6 +397,14 @@ class RapportDuSoir {
   /// pas ici : l'écran et le message doivent dire exactement la même chose.
   final List<String> aRacheter;
 
+  /// Ce que chacun a encaissé. Vide chez un commerçant seul, et le message
+  /// n'en porte alors pas trace.
+  final List<PartEncaissee> parts;
+
+  /// Ce qui coiffe le message. Nul pour la journée du [date], qui reste le
+  /// cas ordinaire.
+  final String? intitule;
+
   const RapportDuSoir({
     required this.nomCommerce,
     required this.date,
@@ -400,12 +414,14 @@ class RapportDuSoir {
     required this.nombreVentes,
     this.perdu = const Montant.zero(),
     this.aRacheter = const [],
+    this.parts = const [],
+    this.intitule,
   });
 
   String get texte {
     final lignes = <String>[
       nomCommerce.toUpperCase(),
-      'Journée du ${_date(date)}',
+      intitule ?? 'Journée du ${_date(date)}',
       DocumentClient._separateur,
       DocumentClient.aligne('Encaissé', encaisse.enFrancs),
     ];
@@ -424,6 +440,14 @@ class RapportDuSoir {
       ..add(DocumentClient.aligne(
           'Ventes', '$nombreVentes'))
       ..add(DocumentClient._separateur);
+
+    if (parts.isNotEmpty) {
+      lignes.add('Par vendeur :');
+      for (final part in parts) {
+        lignes.add(DocumentClient.aligne(part.qui, part.combien.enFrancs));
+      }
+      lignes.add(DocumentClient._separateur);
+    }
 
     if (aRacheter.isEmpty) {
       lignes.add('Rien à racheter.');

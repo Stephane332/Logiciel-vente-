@@ -490,6 +490,31 @@ void main() {
       expect(find.textContaining('Vente annulée'), findsOneWidget);
     });
 
+    testWidgets("le reste du bandeau n'annule rien", (tester) async {
+      // Le bandeau flotte trois secondes au-dessus de la grille. En faire une
+      // cible d'annulation entière ferait annuler la vente précédente chaque
+      // fois qu'un doigt vise la tuile suivante — c'est arrivé en pilotant
+      // l'application pour de vrai.
+      await garnirCatalogue();
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Riz 1 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.textContaining('Vente enregistrée'));
+      await tester.pumpAndSettle();
+
+      expect((await depot.rapportDuJour()).nombreVentes, 3);
+      expect(find.textContaining('Vente annulée'), findsNothing);
+    });
+
     testWidgets('un montant énorme demande confirmation', (tester) async {
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();

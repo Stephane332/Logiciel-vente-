@@ -35,12 +35,26 @@ class EcranVente extends StatefulWidget {
   /// est encore renseigné.
   final VoidCallback? surConfiguration;
 
+  /// Qui peut tenir la caisse. Vide chez un commerçant seul, et dans ce cas
+  /// rien de tout ça n'apparaît à l'écran.
+  final List<String> vendeurs;
+
+  /// Qui la tient en ce moment.
+  final String? vendeurActif;
+
+  /// Appelé quand on change de vendeur, pour que le choix survive à la
+  /// fermeture de l'application — une équipe ne se redéclare pas chaque matin.
+  final ValueChanged<String>? surVendeur;
+
   const EcranVente({
     super.key,
     required this.depot,
     required this.documents,
     this.comptes = const ComptesMarchands.aucun(),
     this.surConfiguration,
+    this.vendeurs = const [],
+    this.vendeurActif,
+    this.surVendeur,
   });
 
   @override
@@ -63,10 +77,38 @@ class EcranVenteState extends State<EcranVente> {
   List<LigneClient> _clients = const [];
   bool _chargement = true;
 
+  /// Ce qui est tapé dans la barre de recherche.
+  final _recherche = TextEditingController();
+
+  /// Nombre total d'articles en base, ordre de grandeur seulement.
+  ///
+  /// La grille n'en affiche qu'une partie : sans ce compte, on ne saurait pas
+  /// s'il en existe d'autres au-delà, et donc s'il faut une recherche.
+  int _tailleCatalogue = 0;
+
+  /// Au-dessous, la grille suffit : chercher demanderait d'ouvrir un clavier
+  /// pour trouver ce qui est déjà à l'écran.
+  static const seuilDeRecherche = 12;
+
+  bool get _catalogueLong => _tailleCatalogue > seuilDeRecherche;
+
+  String get _terme => _recherche.text.trim();
+
+  /// Les deux tuiles de tête — montant libre et scanner — ne sont pas des
+  /// résultats : dès qu'on cherche, elles s'effacent et laissent la place à
+  /// ce qui a été trouvé.
+  int get _tuilesDAction => _terme.isEmpty ? 2 : 0;
+
   @override
   void initState() {
     super.initState();
     recharger();
+  }
+
+  @override
+  void dispose() {
+    _recherche.dispose();
+    super.dispose();
   }
 
   /// Relit le catalogue et les clients.
@@ -75,18 +117,73 @@ class EcranVenteState extends State<EcranVente> {
   /// créé depuis l'écran de stock doit être vendable tout de suite, sinon le
   /// commerçant croit que sa saisie n'a servi à rien.
   Future<void> recharger() async {
-    final (catalogue, aNommer, clients) = await (
-      widget.depot.catalogue(),
+    final (catalogue, aNommer, clients, taille) = await (
+      widget.depot.catalogue(recherche: _terme),
       widget.depot.articlesANommer(),
       widget.depot.clients(),
+      widget.depot.nombreDArticles(),
     ).wait;
     if (!mounted) return;
     setState(() {
       _catalogue = catalogue;
       _aNommer = aNommer;
       _clients = clients;
+      _tailleCatalogue = taille;
       _chargement = false;
     });
+  }
+
+  /// Relit la seule grille.
+  ///
+  /// Séparé de [recharger] parce qu'il tourne à chaque lettre tapée : relire
+  /// aussi les clients et les propositions de nommage ferait quatre requêtes
+  /// par caractère sur un téléphone d'entrée de gamme.
+  Future<void> _filtrer() async {
+    final catalogue = await widget.depot.catalogue(recherche: _terme);
+    if (!mounted) return;
+    setState(() => _catalogue = catalogue);
+  }
+
+  void _effacerRecherche() {
+    _recherche.clear();
+    _filtrer();
+  }
+
+  /// Ouvre la liste des vendeurs et retient celui qu'on désigne.
+  Future<void> _choisirVendeur() async {
+    final choisi = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (contexte) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Espace.l, 0, Espace.l, Espace.s),
+              child: Text('Qui tient la caisse ?',
+                  style: Theme.of(contexte).textTheme.titleLarge),
+            ),
+            for (final nom in widget.vendeurs)
+              ListTile(
+                leading: Icon(
+                  nom == widget.vendeurActif
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: nom == widget.vendeurActif
+                      ? Couleurs.primaire
+                      : Couleurs.encreLegere,
+                ),
+                title: Text(nom),
+                onTap: () => Navigator.of(contexte).pop(nom),
+              ),
+            const SizedBox(height: Espace.m),
+          ],
+        ),
+      ),
+    );
+    if (choisi == null) return;
+    widget.surVendeur?.call(choisi);
   }
 
   LigneArticle? _article(String code) {
@@ -234,11 +331,16 @@ class EcranVenteState extends State<EcranVente> {
       // Sans client, une vente à crédit n'entrerait jamais dans le cahier
       // de dettes : la feuille de paiement l'exige donc avant de valider.
       clientId: clientId,
+      operateur: widget.vendeurActif,
     );
 
     final encaisse = _total;
     _panier.clear();
     _prixNegocies.clear();
+    // La vente est finie : le client suivant ne demande pas la même chose, et
+    // une grille restée filtrée lui donnerait l'impression d'une boutique
+    // vide.
+    _recherche.clear();
     await recharger();
     _proposerRecu(venteId, encaisse);
   }
@@ -258,11 +360,25 @@ class EcranVenteState extends State<EcranVente> {
     final messager = ScaffoldMessenger.of(context);
     messager.hideCurrentSnackBar();
     messager.showSnackBar(SnackBar(
-      content: GestureDetector(
-        // Le bandeau entier annule : c'est le moment où l'erreur se voit, et
-        // le geste doit être plus large qu'un mot de six lettres.
-        onTap: () => _annuler(venteId),
-        child: Text('Vente enregistrée · ${total.enFrancs}   ·   Annuler'),
+      content: Row(
+        children: [
+          Expanded(child: Text('Vente enregistrée · ${total.enFrancs}')),
+          const SizedBox(width: Espace.s),
+          // Un bouton, et pas le bandeau entier. Le bandeau flotte trois
+          // secondes au-dessus de la grille : en faire une cible d'annulation
+          // ferait annuler la vente précédente à chaque fois qu'un doigt vise
+          // la tuile suivante. C'est arrivé en pilotant l'application.
+          TextButton(
+            onPressed: () => _annuler(venteId),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, cibleTactile),
+              padding: const EdgeInsets.symmetric(horizontal: Espace.m),
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white24),
+            ),
+            child: const Text('Annuler'),
+          ),
+        ],
       ),
       behavior: SnackBarBehavior.floating,
       // Le bandeau flotte au-dessus de la barre d'encaissement, jamais
@@ -317,6 +433,7 @@ class EcranVenteState extends State<EcranVente> {
       paiements: [
         PaiementAEnregistrer(mode: ModePaiement.especes, montant: montant)
       ],
+      operateur: widget.vendeurActif,
     );
     await recharger();
     _proposerRecu(venteId, montant);
@@ -388,56 +505,72 @@ class EcranVenteState extends State<EcranVente> {
       body: SafeArea(
         child: Column(
           children: [
-            _EnTete(total: _total, nombreArticles: _nombreArticles),
+            _EnTete(
+              total: _total,
+              nombreArticles: _nombreArticles,
+              vendeur: widget.vendeurActif,
+              onVendeur: widget.vendeurs.isEmpty ? null : _choisirVendeur,
+            ),
             if (_aNommer.isNotEmpty)
               _BandeauNommage(
                 article: _aNommer.first,
                 onPressed: _proposerNommage,
               ),
+            // La recherche n'apparaît que quand la grille cesse de suffire.
+            // Une boutique qui vend six choses n'a rien à chercher.
+            if (_catalogueLong)
+              _BarreRecherche(
+                controleur: _recherche,
+                onChange: (_) => _filtrer(),
+                onEffacer: _terme.isEmpty ? null : _effacerRecherche,
+              ),
             Expanded(
               child: _chargement
                   ? const Center(child: CircularProgressIndicator())
-                  : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(Espace.l, Espace.l,
-                          Espace.l, Espace.xxxl + Espace.xl),
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 190,
-                        mainAxisSpacing: Espace.m,
-                        crossAxisSpacing: Espace.m,
-                        // Tuiles légèrement plus larges que hautes : on en
-                        // voit davantage et le commerçant fait moins défiler.
-                        childAspectRatio: 1.15,
-                      ),
-                      itemCount: _catalogue.length + 2,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return TuileAction(
-                            icone: Icons.dialpad_rounded,
-                            libelle: 'Montant\nlibre',
-                            onPressed: _montantLibre,
-                          );
-                        }
-                        if (index == 1) {
-                          return TuileAction(
-                            icone: Icons.qr_code_scanner_rounded,
-                            libelle: 'Scanner',
-                            onPressed: () {},
-                          );
-                        }
+                  : _catalogue.isEmpty && _terme.isNotEmpty
+                      ? _RienTrouve(terme: _terme)
+                      : GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(Espace.l, Espace.l,
+                              Espace.l, Espace.xxxl + Espace.xl),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 190,
+                            mainAxisSpacing: Espace.m,
+                            crossAxisSpacing: Espace.m,
+                            // Tuiles légèrement plus larges que hautes : on en
+                            // voit davantage et le commerçant fait moins
+                            // défiler.
+                            childAspectRatio: 1.15,
+                          ),
+                          itemCount: _catalogue.length + _tuilesDAction,
+                          itemBuilder: (context, index) {
+                            if (index < _tuilesDAction) {
+                              return index == 0
+                                  ? TuileAction(
+                                      icone: Icons.dialpad_rounded,
+                                      libelle: 'Montant\nlibre',
+                                      onPressed: _montantLibre,
+                                    )
+                                  : TuileAction(
+                                      icone: Icons.qr_code_scanner_rounded,
+                                      libelle: 'Scanner',
+                                      onPressed: () {},
+                                    );
+                            }
 
-                        final article = _catalogue[index - 2];
-                        return TuileProduit(
-                          nom: article.designation,
-                          prix: _prixPratique(article),
-                          prixNegocie: _prixNegocies.containsKey(article.code),
-                          quantiteAuPanier: _panier[article.code] ?? 0,
-                          onPressed: () => _ajouter(article),
-                          onLongPress: () => _negocier(article),
-                          onRetirer: () => _retirer(article),
-                        );
-                      },
-                    ),
+                            final article = _catalogue[index - _tuilesDAction];
+                            return TuileProduit(
+                              nom: article.designation,
+                              prix: _prixPratique(article),
+                              prixNegocie:
+                                  _prixNegocies.containsKey(article.code),
+                              quantiteAuPanier: _panier[article.code] ?? 0,
+                              onPressed: () => _ajouter(article),
+                              onLongPress: () => _negocier(article),
+                              onRetirer: () => _retirer(article),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -568,15 +701,175 @@ class _BandeauNommage extends StatelessWidget {
   }
 }
 
-/// Pavé numérique pour la saisie d'un montant libre.
+/// Barre de recherche du catalogue.
 ///
-/// Gros chiffres, pas de clavier système : la saisie d'un montant est le seul
-/// endroit où l'on tape, et elle doit rester rapide debout.
+/// Elle n'existe que passé un certain nombre d'articles : en dessous, elle
+/// ferait taper pour trouver ce qui est déjà sous les yeux.
+class _BarreRecherche extends StatelessWidget {
+  final TextEditingController controleur;
+  final ValueChanged<String> onChange;
+
+  /// Nul quand le champ est vide : la croix ne doit apparaître que s'il y a
+  /// quelque chose à effacer.
+  final VoidCallback? onEffacer;
+
+  const _BarreRecherche({
+    required this.controleur,
+    required this.onChange,
+    this.onEffacer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Espace.l, Espace.m, Espace.l, 0),
+      child: TextField(
+        controller: controleur,
+        onChanged: onChange,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Chercher un article',
+          prefixIcon: const Icon(Icons.search_rounded, size: 22),
+          suffixIcon: onEffacer == null
+              ? null
+              : IconButton(
+                  onPressed: onEffacer,
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  tooltip: 'Effacer',
+                ),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+}
+
+/// Ce qui s'affiche quand la recherche ne ramène rien.
+///
+/// Un écran vide sans explication laisse croire que la boutique a perdu ses
+/// articles. Le mot cherché est rappelé pour que la faute de frappe saute
+/// aux yeux.
+class _RienTrouve extends StatelessWidget {
+  final String terme;
+
+  const _RienTrouve({required this.terme});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Espace.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off_rounded,
+                size: 40, color: Couleurs.encreLegere),
+            const SizedBox(height: Espace.m),
+            Text('Rien qui ressemble à « $terme »',
+                style: textes.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: Espace.xs),
+            Text(
+              "Efface la recherche pour retrouver toute la boutique.",
+              style: textes.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// La pastille de tête : l'état de la caisse, ou qui la tient.
+///
+/// Un seul emplacement pour les deux : chez un commerçant seul elle dit
+/// simplement que la caisse est ouverte, et dès qu'il y a une équipe elle
+/// porte le nom de celui qui encaisse. Le nom doit rester visible en
+/// permanence — c'est ce qui empêche d'encaisser toute une journée sous
+/// l'identité de quelqu'un d'autre.
+class _PastilleCaisse extends StatelessWidget {
+  final String? vendeur;
+
+  /// Nul quand aucune équipe n'est déclarée : la pastille n'est alors pas
+  /// tactile, et rien ne laisse croire qu'il y a quelque chose à régler.
+  final VoidCallback? onVendeur;
+
+  const _PastilleCaisse({this.vendeur, this.onVendeur});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    final equipe = onVendeur != null;
+
+    // Équipe déclarée mais personne de choisi : les ventes partiraient sans
+    // nom. On le signale sans bloquer — une caisse qui refuse de vendre est
+    // une caisse qu'on repose.
+    final orphelin = equipe && vendeur == null;
+    final teinte = orphelin ? Couleurs.alerte : Couleurs.primaire;
+    final fond = orphelin ? Couleurs.alerteClair : Couleurs.primaireClair;
+
+    final contenu = Container(
+      padding: const EdgeInsets.symmetric(horizontal: Espace.m, vertical: 6),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(Rayon.rond),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: orphelin ? Couleurs.alerte : Couleurs.primaireVif,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: Espace.s),
+          Text(
+            equipe ? (vendeur ?? 'Qui encaisse ?') : 'Caisse ouverte',
+            style: textes.labelSmall?.copyWith(color: teinte),
+          ),
+          if (equipe) ...[
+            const SizedBox(width: Espace.xs),
+            Icon(Icons.expand_more_rounded, size: 16, color: teinte),
+          ],
+        ],
+      ),
+    );
+
+    if (!equipe) return contenu;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(Rayon.rond),
+      child: InkWell(
+        onTap: onVendeur,
+        borderRadius: BorderRadius.circular(Rayon.rond),
+        child: contenu,
+      ),
+    );
+  }
+}
+
+/// L'en-tête de la caisse : qui encaisse, et combien.
+///
+/// Le total ne quitte jamais l'écran. C'est le seul chiffre que le
+/// commerçant regarde pendant qu'il sert.
 class _EnTete extends StatelessWidget {
   final Montant total;
   final int nombreArticles;
+  final String? vendeur;
+  final VoidCallback? onVendeur;
 
-  const _EnTete({required this.total, required this.nombreArticles});
+  const _EnTete({
+    required this.total,
+    required this.nombreArticles,
+    this.vendeur,
+    this.onVendeur,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -594,30 +887,8 @@ class _EnTete extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Espace.m, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Couleurs.primaireClair,
-                  borderRadius: BorderRadius.circular(Rayon.rond),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Couleurs.primaireVif,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: Espace.s),
-                    Text('Caisse ouverte',
-                        style: textes.labelSmall
-                            ?.copyWith(color: Couleurs.primaire)),
-                  ],
-                ),
+              Flexible(
+                child: _PastilleCaisse(vendeur: vendeur, onVendeur: onVendeur),
               ),
               const Spacer(),
               // L'état hors-ligne est une information neutre, pas une alarme :

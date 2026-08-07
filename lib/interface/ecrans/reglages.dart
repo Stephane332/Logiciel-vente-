@@ -51,13 +51,32 @@ class _EcranReglagesState extends State<EcranReglages> {
       ),
   };
 
+  /// L'équipe en cours d'édition. Copiée pour que « Annuler » veuille encore
+  /// dire quelque chose : rien n'est écrit avant l'appui sur Enregistrer.
+  late final _vendeurs = [...widget.reglage.vendeurs];
+
+  final _nouveauVendeur = TextEditingController();
+
   @override
   void dispose() {
     _nom.dispose();
+    _nouveauVendeur.dispose();
     for (final champ in _numeros.values) {
       champ.dispose();
     }
     super.dispose();
+  }
+
+  void _ajouterVendeur() {
+    final nom = _nouveauVendeur.text.trim();
+    if (nom.isEmpty || _vendeurs.contains(nom)) {
+      _nouveauVendeur.clear();
+      return;
+    }
+    setState(() {
+      _vendeurs.add(nom);
+      _nouveauVendeur.clear();
+    });
   }
 
   Future<void> _enregistrer() async {
@@ -69,6 +88,10 @@ class _EcranReglagesState extends State<EcranReglages> {
     for (final (operateur, champ) in _numeros.entries.map((e) => (e.key, e.value))) {
       await widget.parametres.definirNumeroMarchand(operateur, champ.text);
     }
+    // Un nom tapé mais pas encore ajouté d'un appui compte quand même :
+    // sinon il disparaît en silence et le commerçant croit l'avoir perdu.
+    _ajouterVendeur();
+    await widget.parametres.definirVendeurs(_vendeurs);
 
     final enregistre = await widget.parametres.tout();
     if (!mounted) return;
@@ -144,6 +167,60 @@ class _EcranReglagesState extends State<EcranReglages> {
                 ),
               ],
             ),
+          ),
+
+          const SizedBox(height: Espace.xxl),
+          Text('Qui tient la caisse', style: textes.titleLarge),
+          const SizedBox(height: 2),
+          Text(
+            "Laisse vide si tu vends seul. Dès que tu ajoutes quelqu'un, "
+            "chaque vente retient qui l'a encaissée, et le rapport te dit "
+            "qui a fait combien.",
+            style: textes.labelSmall,
+          ),
+          const SizedBox(height: Espace.m),
+
+          if (_vendeurs.isNotEmpty) ...[
+            Wrap(
+              spacing: Espace.s,
+              runSpacing: Espace.s,
+              children: [
+                for (final nom in _vendeurs)
+                  InputChip(
+                    label: Text(nom),
+                    onDeleted: () => setState(() => _vendeurs.remove(nom)),
+                    deleteIcon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+              ],
+            ),
+            const SizedBox(height: Espace.m),
+          ],
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _nouveauVendeur,
+                  textCapitalization: TextCapitalization.words,
+                  onSubmitted: (_) => _ajouterVendeur(),
+                  decoration: const InputDecoration(
+                    hintText: 'Nom du vendeur',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Espace.s),
+              IconButton.filledTonal(
+                onPressed: _ajouterVendeur,
+                icon: const Icon(Icons.add_rounded),
+                tooltip: 'Ajouter',
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(cibleTactile),
+                  backgroundColor: Couleurs.primaireClair,
+                  foregroundColor: Couleurs.primaire,
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: Espace.xl),

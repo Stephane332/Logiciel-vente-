@@ -23,14 +23,26 @@ def personne(nom, quoi, tient, douleur):
             + '</span></td><td>' + tient + '</td><td>' + douleur + '</td></tr>')
 
 
-def defaut(rang, gravite, titre, corps, preuve=''):
+def defaut(rang, gravite, titre, corps, preuve='', corrige=''):
+    """Une fiche de défaut.
+
+    L'audit est daté : je n'en réécris pas le constat quand je corrige. Le
+    correctif se pose par-dessus, pour qu'un lecteur d'aujourd'hui sache ce
+    qui tient encore et ce qui est bouché.
+    """
     visuel = ''
     if preuve:
         visuel = ('<figure class="preuve"><img src="' + IMG[preuve]
                   + '" alt="' + titre + '"></figure>')
-    return ('<article class="defaut ' + gravite + '">'
-            '<div class="defaut-texte"><p class="rang">' + rang
-            + '</p><h3>' + titre + '</h3>' + corps + '</div>'
+    marque = ''
+    reponse = ''
+    if corrige:
+        marque = '<span class="corrige">Corrigé</span>'
+        reponse = '<p class="reponse">' + corrige + '</p>'
+    return ('<article class="defaut ' + gravite
+            + (' est-corrige' if corrige else '') + '">'
+            '<div class="defaut-texte"><p class="rang">' + rang + marque
+            + '</p><h3>' + titre + '</h3>' + corps + reponse + '</div>'
             + visuel + '</article>')
 
 
@@ -118,7 +130,7 @@ déjà, l'événement <code>venteAnnulee</code> est déclaré — <b>mais rien n
 l'appelle jamais</b>. J'ai construit la moitié du mécanisme et oublié le
 bouton.</p>
 <p class="qui">Touche : tout le monde, tous les jours.</p>
-"""))
+""", corrige="""Le geste est sur le bandeau qui suit la vente, là où l'erreur se voit. Annuler rend le stock, fait redescendre la dette et recule les compteurs — mais n'efface rien du journal : la vente y reste et un événement d'annulation vient par-dessus, comme l'impose le <code>&sect;2.28</code>."""))
 
 sections.append(defaut('2', 'grave', 'Un montant absurde passe sans un mot', """
 <p>J'ai tapé neuf chiffres au pavé : <b>999 999 999 F</b>. Un milliard de
@@ -127,7 +139,7 @@ et l'a inscrit au rapport du jour.</p>
 <p>Un doigt qui reste appuyé sur le zéro suffit. Combiné au défaut précédent,
 le rapport du commerçant est détruit et il n'a aucun moyen de le réparer.</p>
 <p class="qui">Touche : tout le monde. Probabilité : certaine.</p>
-""", 'audit-01-montant-max'))
+""", 'audit-01-montant-max', corrige="""Le montant inhabituel se fait redemander. Pas un plafond fixe : dix fois la plus grosse vente des trente derniers jours, avec un plancher tant que la boutique n'est pas connue. Ça vise le doigt resté sur le zéro, pas le commerçant qui vend cher."""))
 
 sections.append(defaut('3', 'grave', 'On ne peut pas retirer un article du panier', """
 <p>Douze sachets d'eau, c'est douze appuis. Un de trop, et le seul recours est
@@ -137,7 +149,7 @@ de douze à onze.</p>
 client qui change d'avis sur un article oblige à refaire toute la vente devant
 lui.</p>
 <p class="qui">Touche : tout le monde, plusieurs fois par jour.</p>
-""", 'audit-07-douze-unites'))
+""", 'audit-07-douze-unites', corrige="""La pastille de quantité porte maintenant le geste inverse : la tuile ajoute, la pastille retire. Sa zone tactile déborde le rond, parce qu'un doigt vise mal vingt-six pixels."""))
 
 sections.append('</div>')
 
@@ -153,7 +165,7 @@ la « détection d'anomalies par vendeur » que j'ai écrite dans la feuille de
 route <b>ne peut pas exister</b> — il n'y a pas de vendeur.</p>
 <p class="qui">Touche : le patron employeur, qui est justement celui qui paie
 l'abonnement Pro.</p>
-"""))
+""", corrige="""Le patron déclare son équipe dans les réglages, et une pastille en tête de caisse porte en permanence le nom de qui encaisse. Le rapport donne le compte de chacun, remises comprises. Rien de tout cela n'apparaît chez un commerçant seul, et une vente que personne n'a revendiquée reste affichée comme telle plutôt que d'être répartie au hasard."""))
 
 sections.append(defaut('5', 'moyen', 'Le catalogue s\'arrête à soixante articles', """
 <p><code>catalogue()</code> demande les soixante plus vendus, et l'écran de
@@ -164,7 +176,7 @@ comptoir.</p>
 et il tapera le montant à la main — en refabriquant un fourre-tout au passage.</p>
 <p class="qui">Touche : toute boutique qui marche bien. Le succès déclenche le
 défaut.</p>
-"""))
+""", corrige="""Une barre de recherche apparaît passé une douzaine d'articles — pas avant, sinon elle ferait taper pour trouver ce qui est déjà sous les yeux. Dès qu'on cherche, le plafond de soixante saute."""))
 
 sections.append(defaut('6', 'moyen', "Le rapport ne connaît qu'aujourd'hui", """
 <p>L'écran appelle <code>rapportDuJour()</code> sans date. Il n'y a ni hier, ni
@@ -174,7 +186,7 @@ la semaine, ni le mois.</p>
 analyses savent pourtant travailler sur n'importe quelle période — c'est
 l'écran qui ne le demande pas.</p>
 <p class="qui">Touche : le patron absent, celui qui paie pour voir.</p>
-"""))
+""", corrige="""Quatre périodes en tête du rapport : aujourd'hui, hier, sept jours, trente jours. Le résumé envoyé porte la période regardée, sans quoi le patron lirait « Journée du » suivi du jour où il appuie."""))
 
 sections.append('</div>')
 
@@ -222,6 +234,28 @@ faut-il pouvoir répondre par une photo plutôt que par un mot.</p>
 
 sections.append('</div>')
 
+sections.append('<div class="serie"><p class="sur-titre">Trouvé depuis</p>'
+                "<h2>Ce que la correction a fait apparaître</h2>"
+                "<p>En repilotant l'application pour vérifier les six "
+                "correctifs, le script a annulé une vente sans que je le lui "
+                "demande. Le défaut n'existait pas au moment de l'audit : je "
+                "l'avais introduit en bouchant le premier.</p>")
+
+sections.append(defaut('13', 'grave', "Le bandeau de confirmation annulait tout seul", """
+<p>J'avais rendu <b>le bandeau entier</b> tactile pour annuler, en me disant
+qu'un geste de rattrapage doit être large. Mais ce bandeau flotte trois
+secondes au-dessus de la grille d'articles.</p>
+<p>Un commerçant qui enchaîne — et il enchaîne, c'est le geste le plus répété
+de sa journée — vise la tuile suivante, touche le bandeau, et <b>annule la
+vente qu'il vient d'encaisser</b>. Sans le vouloir, sans le voir.</p>
+<p class="qui">Touche : tout le monde, aux heures de pointe, c'est-à-dire
+exactement quand ça coûte le plus cher.</p>
+""", corrige="""Seul un bouton bordé annule, avec une cible de quarante-huit
+pixels. Le reste du bandeau ne répond plus. Un test vérifie maintenant les
+deux moitiés de la règle : le bouton annule, le texte non."""))
+
+sections.append('</div>')
+
 sections.append("""<section class="bloc">
   <p class="sur-titre">À surveiller</p>
   <h2>Ce que je ne peux pas trancher d'ici</h2>
@@ -262,6 +296,10 @@ sections.append("""<section class="bloc">
   </ol>
   <p class="note">Le reste peut attendre le terrain. Ces six-là, non : ils se
   produiront avant la fin de la première journée.</p>
+  <p><b>Les six sont faits.</b> Chacun porte sa réponse au-dessus, sous le
+  constat d'origine — que je n'ai pas réécrit : un audit se date, il ne se
+  repeint pas. Ce qui reste ouvert est plus bas, et attend le terrain plutôt
+  que du code.</p>
 </section>""")
 
 sections.append("""<footer>
@@ -358,6 +396,19 @@ STYLE = """
 
   .qui { font-size:14px; color:var(--encre-douce);
          border-top:1px solid var(--bordure); padding-top:10px; margin-top:2px; }
+
+  /* Un defaut bouche garde son constat : c'est un audit date. Le correctif
+     se pose par-dessus, pour qu'on sache ce qui tient encore. */
+  .defaut.est-corrige { border-left-color:var(--vert); }
+  .corrige { display:inline-block; margin-left:10px; padding:1px 9px;
+             border-radius:999px; background:var(--vert); color:#FFFFFF;
+             font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+             vertical-align:1px; }
+  .reponse { font-size:15px; background:var(--fond); border-radius:10px;
+             border-left:3px solid var(--vert); padding:12px 16px;
+             max-width:64ch; }
+  .reponse::before { content:'Corrigé depuis. '; font-weight:700;
+                     color:var(--vert); }
 
   .preuve { margin:0; }
   .preuve img { border-radius:14px; border:1px solid var(--bordure);

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
 import '../../domaine/montant.dart';
+import '../../domaine/periode.dart';
 import '../../donnees/documents.dart';
 import '../composants/montant_anime.dart';
 import '../composants/partage.dart';
@@ -44,7 +45,12 @@ class EcranRapportState extends State<EcranRapport> {
   List<AlerteStock> _alertes = const [];
   List<ArticleEndormi> _endormis = const [];
   List<PerformanceArticle> _meilleures = const [];
+  List<PartDeVendeur> _parVendeur = const [];
   Montant _perdu = const Montant.zero();
+
+  /// La tranche de temps regardée. La journée en cours par défaut : c'est la
+  /// question qu'on se pose neuf fois sur dix.
+  Periode _periode = Periode.jour;
 
   /// Ce qui apparaît sous « Ce qui dort ». Au-delà, le commerçant ne lit plus.
   static const _plafondEndormis = 5;
@@ -60,15 +66,18 @@ class EcranRapportState extends State<EcranRapport> {
   /// Publique : la coquille de navigation l'appelle à chaque retour sur
   /// l'écran, sinon le rapport afficherait l'état d'avant la dernière vente.
   Future<void> recharger() async {
-    // Les quatre lectures ne dépendent pas les unes des autres. Les enchaîner
-    // ferait quatre allers-retours au lieu d'un sur un téléphone d'entrée de
-    // gamme, à chaque ouverture de l'onglet.
-    final (rapport, alertes, endormis, meilleures, perdu) = await (
-      widget.depot.rapportDuJour(),
+    final (debut, fin) = _periode.bornes();
+
+    // Les lectures ne dépendent pas les unes des autres. Les enchaîner ferait
+    // six allers-retours au lieu d'un sur un téléphone d'entrée de gamme, à
+    // chaque ouverture de l'onglet.
+    final (rapport, alertes, endormis, meilleures, perdu, parVendeur) = await (
+      widget.depot.rapportSurPeriode(debut, fin),
       widget.analyses.aReapprovisionner(),
       widget.analyses.articlesQuiDorment(limite: _plafondEndormis),
       widget.analyses.meilleuresVentes(limite: 5),
-      widget.analyses.pertesEtEcarts(),
+      widget.analyses.pertesEtEcarts(debut: debut, fin: fin),
+      widget.depot.parVendeur(debut, fin),
     ).wait;
 
     if (!mounted) return;
@@ -78,7 +87,36 @@ class EcranRapportState extends State<EcranRapport> {
       _endormis = endormis;
       _meilleures = meilleures;
       _perdu = perdu;
+      _parVendeur = parVendeur;
     });
+  }
+
+  void _changerPeriode(Periode periode) {
+    if (periode == _periode) return;
+    setState(() => _periode = periode);
+    recharger();
+  }
+
+  /// Vrai quand la répartition par vendeur a quelque chose à dire.
+  ///
+  /// Chez un commerçant seul, tout est sur une seule ligne anonyme : afficher
+  /// « Non attribué : tout » n'apprendrait rien à personne.
+  bool get _partsUtiles =>
+      _parVendeur.length > 1 ||
+      (_parVendeur.length == 1 && !_parVendeur.first.estAnonyme);
+
+  /// Le détail sous le nom d'un vendeur : combien de ventes, et ce qu'il a
+  /// lâché en remises.
+  ///
+  /// La remise n'est mentionnée que si elle existe. C'est le chiffre qui
+  /// compte vraiment pour le patron — celui qui accorde deux fois plus de
+  /// remises que les autres se voit tout de suite — mais un « 0 F de
+  /// remises » affiché tous les jours finit par ne plus être lu.
+  String _detailVendeur(PartDeVendeur part) {
+    final ventes = '${part.nombreVentes} vente'
+        '${part.nombreVentes > 1 ? 's' : ''}';
+    if (part.remises.estNul) return ventes;
+    return '$ventes · ${part.remises.enFrancs} de remises';
   }
 
   /// Le résumé tel qu'il part au patron, le soir.
@@ -90,6 +128,16 @@ class EcranRapportState extends State<EcranRapport> {
         rapport: rapport,
         aRacheter: [for (final alerte in _alertes.take(5)) alerte.message],
         perdu: _perdu,
+        date: _periode.dateDeReference(),
+        intitule: _periode.intitule(),
+        // Le patron qui emploie quelqu'un veut le détail dans le message
+        // aussi : c'est souvent le seul écran qu'il regarde de la journée.
+        parts: [
+          if (_partsUtiles)
+            for (final part in _parVendeur)
+              (qui: part.estAnonyme ? 'Non attribué' : part.vendeur,
+                  combien: part.total),
+        ],
       )
       .texte;
 
@@ -110,8 +158,26 @@ class EcranRapportState extends State<EcranRapport> {
           children: [
             Row(
               children: [
-                Text("Aujourd'hui", style: textes.labelSmall),
-                const Spacer(),
+                // Le sélecteur défile : quatre pastilles ne tiennent pas côte
+                // à côte sur les écrans les plus étroits, et une pastille
+                // coupée en deux ne se tape pas.
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final periode in Periode.values) ...[
+                          _Pastille(
+                            libelle: periode.libelle,
+                            choisie: periode == _periode,
+                            onPressed: () => _changerPeriode(periode),
+                          ),
+                          const SizedBox(width: Espace.s),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
                 if (widget.surReglages != null)
                   IconButton(
                     onPressed: widget.surReglages,
@@ -122,7 +188,7 @@ class EcranRapportState extends State<EcranRapport> {
                   ),
               ],
             ),
-            const SizedBox(height: Espace.xs),
+            const SizedBox(height: Espace.m),
             MontantAnime(rapport.encaisse, style: textes.displayLarge),
             Text('encaissés', style: textes.bodyMedium),
 
@@ -162,6 +228,26 @@ class EcranRapportState extends State<EcranRapport> {
               '${rapport.nombreVentes > 1 ? 's' : ''}',
               style: textes.bodyMedium,
             ),
+
+            if (_partsUtiles) ...[
+              const SizedBox(height: Espace.xl),
+              _Section(
+                titre: 'Qui a encaissé',
+                sousTitre: _periode.libelle.toLowerCase(),
+                enfants: [
+                  for (final part in _parVendeur)
+                    _Ligne(
+                      libelle: part.estAnonyme ? 'Non attribué' : part.vendeur,
+                      detail: part.total.enFrancs,
+                      // Une part sans nom est un trou dans le compte : elle se
+                      // signale, sans accuser personne.
+                      pastille:
+                          part.estAnonyme ? Couleurs.alerte : Couleurs.primaire,
+                      sousLigne: _detailVendeur(part),
+                    ),
+                ],
+              ),
+            ],
 
             if (_alertes.isNotEmpty) ...[
               const SizedBox(height: Espace.xl),
@@ -219,7 +305,7 @@ class EcranRapportState extends State<EcranRapport> {
             FilledButton.icon(
               onPressed: () => FeuilleDocument.presenter(
                 context,
-                titre: 'Résumé du jour',
+                titre: 'Résumé · ${_periode.libelle}',
                 texte: _resume(rapport),
               ),
               icon: const Icon(Icons.send_rounded, size: 20),
@@ -282,12 +368,16 @@ class _Ligne extends StatelessWidget {
   /// Couleur du point de tête. Nulle quand la ligne n'en porte pas.
   final Color? pastille;
 
+  /// Précision affichée sous le libellé, en petit. Nulle le plus souvent.
+  final String? sousLigne;
+
   final bool urgent;
 
   const _Ligne({
     required this.libelle,
     required this.detail,
     this.pastille,
+    this.sousLigne,
     this.urgent = false,
   });
 
@@ -309,8 +399,16 @@ class _Ligne extends StatelessWidget {
             const SizedBox(width: Espace.m),
           ],
           Expanded(
-            child: Text(libelle,
-                style: textes.titleMedium, overflow: TextOverflow.ellipsis),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(libelle,
+                    style: textes.titleMedium, overflow: TextOverflow.ellipsis),
+                if (sousLigne != null)
+                  Text(sousLigne!,
+                      style: textes.labelSmall, overflow: TextOverflow.ellipsis),
+              ],
+            ),
           ),
           const SizedBox(width: Espace.s),
           Text(
@@ -320,6 +418,51 @@ class _Ligne extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Une pastille de choix de période.
+///
+/// Assez large pour un pouce, et la sélection se lit à la couleur autant
+/// qu'au contour : un contour seul ne se voit pas en plein soleil.
+class _Pastille extends StatelessWidget {
+  final String libelle;
+  final bool choisie;
+  final VoidCallback onPressed;
+
+  const _Pastille({
+    required this.libelle,
+    required this.choisie,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Material(
+      color: choisie ? Couleurs.primaire : Couleurs.surface,
+      borderRadius: BorderRadius.circular(Rayon.rond),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(Rayon.rond),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Espace.m, vertical: Espace.s),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Rayon.rond),
+            border: Border.all(
+                color: choisie ? Couleurs.primaire : Couleurs.bordure),
+          ),
+          child: Text(
+            libelle,
+            style: textes.labelSmall?.copyWith(
+              color: choisie ? Colors.white : Couleurs.encreDouce,
+            ),
+          ),
+        ),
       ),
     );
   }

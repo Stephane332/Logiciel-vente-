@@ -41,6 +41,8 @@ Six à dix semaines. L'objectif est d'être utile dès le premier jour, sans con
 - [x] Annuler une vente : le stock revient, la dette redescend, le journal garde tout
 - [x] Retirer une unité du panier sans tout vider
 - [x] Confirmation quand un montant sort de ce que le commerce encaisse
+- [x] Recherche au catalogue, qui fait sauter le plafond de soixante articles
+- [x] Hier, la semaine et le mois dans le rapport du soir
 - [ ] Impression Bluetooth ESC/POS en option
 
 **Jalon :** installer chez 10 commerçants et regarder par-dessus leur épaule.
@@ -58,6 +60,8 @@ Huit à douze semaines.
 - [x] Valeur de ce qui est parti sans être vendu, dans le rapport du soir
 - [x] Comptes marchands configurables, un numéro par opérateur
 - [x] Encaissement mobile money par code QR et USSD, sans aucune API payante
+- [x] Qui tient la caisse : chaque vente retient son vendeur, et le rapport
+      donne le compte de chacun, remises comprises
 - [ ] Capture des SMS de confirmation sur Android
 - [ ] Relais vers iOS
 - [ ] Synchronisation cloud

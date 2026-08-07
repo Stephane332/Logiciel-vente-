@@ -59,6 +59,26 @@ class PaiementAEnregistrer {
   });
 }
 
+/// Ce qu'un vendeur a encaissé sur une période.
+class PartDeVendeur {
+  /// Nom du vendeur. Vide quand la vente n'a été attribuée à personne — ce
+  /// qui est le cas normal d'un commerçant seul.
+  final String vendeur;
+
+  final int nombreVentes;
+  final Montant total;
+  final Montant remises;
+
+  const PartDeVendeur({
+    required this.vendeur,
+    required this.nombreVentes,
+    required this.total,
+    required this.remises,
+  });
+
+  bool get estAnonyme => vendeur.isEmpty;
+}
+
 /// Le résumé du jour, celui qui part le soir au patron.
 class RapportDuJour {
   final Montant encaisse;
@@ -352,6 +372,40 @@ class Depot {
       stockMilliemes:
           suitLeStock ? Value(stock + quantiteMilliemes) : const Value.absent(),
     ));
+  }
+
+  /// Ce que chacun a encaissé sur une période.
+  ///
+  /// Le patron qui emploie quelqu'un ne demande pas un tableau de bord : il
+  /// demande qui a vendu combien, et si quelqu'un accorde plus de remises que
+  /// les autres. C'est tout, et c'est déjà ce que le cahier ne dira jamais.
+  Future<List<PartDeVendeur>> parVendeur(DateTime debut, DateTime fin) async {
+    final lignes = await base.customSelect(
+      '''
+      SELECT COALESCE(v.operateur, '')     AS vendeur,
+             COUNT(*)                      AS ventes,
+             SUM(v.total_centimes)         AS total,
+             SUM(v.remise_centimes)        AS remises
+      FROM ventes v
+      WHERE v.annulee = 0
+        AND v.horodatage >= ?
+        AND v.horodatage <  ?
+      GROUP BY COALESCE(v.operateur, '')
+      ORDER BY total DESC
+      ''',
+      variables: [Variable<DateTime>(debut), Variable<DateTime>(fin)],
+      readsFrom: {base.ventes},
+    ).get();
+
+    return [
+      for (final ligne in lignes)
+        PartDeVendeur(
+          vendeur: ligne.read<String>('vendeur'),
+          nombreVentes: ligne.read<int>('ventes'),
+          total: Montant(ligne.read<int>('total')),
+          remises: Montant(ligne.read<int>('remises')),
+        )
+    ];
   }
 
   /// Les dernières ventes, pour pouvoir en annuler une.
@@ -1050,14 +1104,33 @@ class Depot {
   }
 
   /// Le catalogue tel qu'il s'affiche à la caisse : les plus vendus d'abord.
-  Future<List<LigneArticle>> catalogue({int limite = 60}) {
+  Future<List<LigneArticle>> catalogue({int limite = 60, String? recherche}) {
     final requete = base.select(base.articles)
       ..orderBy([
         (a) => OrderingTerm.desc(a.nombreVentes),
         (a) => OrderingTerm.desc(a.derniereVente),
-      ])
-      ..limit(limite);
+      ]);
+
+    final terme = recherche?.trim() ?? '';
+    if (terme.isEmpty) {
+      // Vue rapide : les plus vendus, ceux qu'on atteint d'un coup d'œil.
+      requete.limit(limite);
+    } else {
+      // Dès qu'on cherche, plus de plafond : au-delà de la limite, un article
+      // existait dans la base mais restait invisible au comptoir, et le
+      // commerçant le croyait perdu.
+      requete.where((a) => a.designation.lower().contains(terme.toLowerCase()));
+    }
     return requete.get();
+  }
+
+  /// Nombre d'articles au catalogue, pour savoir s'il faut une recherche.
+  Future<int> nombreDArticles() async {
+    final ligne = await base
+        .customSelect('SELECT COUNT(*) AS n FROM articles',
+            readsFrom: {base.articles})
+        .getSingle();
+    return ligne.read<int>('n');
   }
 
   // ----------------------------------------------------------------- crédit
@@ -1207,11 +1280,17 @@ class Depot {
   // ---------------------------------------------------------------- rapport
 
   /// Le résumé du jour, celui qui part le soir au patron.
-  Future<RapportDuJour> rapportDuJour([DateTime? jour]) async {
+  Future<RapportDuJour> rapportDuJour([DateTime? jour]) {
     final reference = jour ?? DateTime.now();
     final debut = DateTime(reference.year, reference.month, reference.day);
-    final fin = debut.add(const Duration(days: 1));
+    return rapportSurPeriode(debut, debut.add(const Duration(days: 1)));
+  }
 
+  /// Le même rapport, sur n'importe quelle période.
+  ///
+  /// Le patron absent regarde souvent le lendemain matin : à minuit une, sa
+  /// journée d'hier ne doit pas disparaître.
+  Future<RapportDuJour> rapportSurPeriode(DateTime debut, DateTime fin) async {
     final ventes = await (base.select(base.ventes)
           ..where((v) =>
               v.horodatage.isBiggerOrEqualValue(debut) &

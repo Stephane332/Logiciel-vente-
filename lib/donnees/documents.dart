@@ -194,6 +194,8 @@ class Documents {
     required RapportDuJour rapport,
     List<String> aRacheter = const [],
     Montant perdu = const Montant.zero(),
+    List<PartEncaissee> parts = const [],
+    String? intitule,
     DateTime? date,
   }) =>
       RapportDuSoir(
@@ -205,6 +207,8 @@ class Documents {
         remises: rapport.remisesAccordees,
         nombreVentes: rapport.nombreVentes,
         aRacheter: aRacheter,
+        parts: parts,
+        intitule: intitule,
       );
 
 }

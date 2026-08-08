@@ -7,6 +7,11 @@ construit l'application, lance l'analyse et les 410 tests, puis dépose les APK
 dans l'onglet **Actions** du dépôt. Un fichier qu'on ne peut refaire qu'à la
 main est un fichier qui finit périmé.
 
+Ceux qu'on installe pour de bon sont sur la **[page des
+versions](https://github.com/Stephane332/Logiciel-vente-/releases/latest)** :
+ils y restent, et portent un numéro qu'on peut mettre en face de celui
+qu'affiche un téléphone.
+
 Quatre fichiers sortent de chaque compilation :
 
 | Fichier | Pour qui |
@@ -103,11 +108,26 @@ l'APK suffit pour tester chez de vrais commerçants — qui est ce qui compte.
 
 ## Publier une version
 
-Étiqueter un commit crée une *release* avec ses APK attachés :
+Les artefacts d'une compilation ordinaire expirent au bout de trois mois. Une
+*release*, non — et c'est elle qu'on garde en face du téléphone d'un
+commerçant qui appelle. Deux façons de la créer :
+
+**Depuis l'onglet Actions.** Ouvrir le *workflow* **APK**, *Run workflow*, et
+cocher **publier**. Rien d'autre à préparer : l'étiquette se déduit du
+`pubspec`.
+
+**En étiquetant un commit**, quand je veux figer un point précis de
+l'historique :
 
 ```sh
 git tag v0.6.0 && git push origin v0.6.0
 ```
+
+Le `pubspec` porte `0.6.0+6` : un numéro de version, puis un numéro de
+construction. Le `+` n'a rien à faire dans une URL — il s'y encode en `%2B`,
+et un lien de téléchargement collé dans WhatsApp arrive cassé. L'étiquette et
+les noms de fichiers ne gardent donc que `0.6.0` ; le numéro de construction
+reste lisible dans le titre de la version.
 
 C'est la façon propre de figer ce qui a été installé chez qui — quand un
 commerçant appellera, la version affichée dans ses réglages désignera

@@ -1,11 +1,12 @@
 {
-    "name": "carnet",
-    "short_name": "carnet",
+    "name": "Carnet",
+    "short_name": "Carnet",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F5F1",
+    "theme_color": "#0E6B4A",
+    "description": "Le cahier du commerçant, en mieux. Ventes, dettes clients et rapport du soir, hors ligne d'abord.",
+    "lang": "fr",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -76,6 +76,13 @@ plus : le stockage local d'un navigateur n'accepte pas toujours d'écrire, et
 l'application prévient quand c'est le cas. Le composeur téléphonique, le
 partage WhatsApp et l'appareil photo n'y existent pas non plus.
 
+Une précision, parce que la page d'accueil promet que rien ne sort du
+navigateur : le moteur web de Flutter demande au démarrage une police de
+secours à `fonts.gstatic.com`. Aucune donnée de vente n'y passe, la requête
+échoue sans conséquence hors ligne, et il n'existe pas d'option pour la
+couper — mais elle existe, et autant le dire. Sur téléphone, rien de tel :
+les polices sont dans l'APK.
+
 ## Démarrer
 
 ```sh
@@ -88,8 +95,13 @@ Pour une démonstration sans rien installer, l'application se compile aussi pour
 navigateur — les données vivent alors dans le navigateur, pas sur un serveur :
 
 ```sh
-flutter build web --release --no-web-resources-cdn
+flutter build web --release --no-web-resources-cdn \
+  --base-href /Logiciel-vente-/app/ --output docs/app
 ```
+
+`--no-web-resources-cdn` embarque le moteur de rendu au lieu d'aller le
+chercher chez Google, et `--base-href` dit à la page qu'elle est servie depuis
+un sous-dossier : sans lui elle reste blanche, sans message.
 
 Le code généré par Drift (`*.g.dart`) n'est pas versionné : il se régénère à partir du
 schéma. Il faut donc lancer `build_runner` après un clone ou une modification des tables.

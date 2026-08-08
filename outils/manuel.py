@@ -431,9 +431,18 @@ sections.append("""<section class="bloc" id="installer">
   par Bluetooth ou par carte mémoire. Pas de compte Google, pas de carte
   bancaire : au Burkina c'est la norme, et c'est un avantage plus qu'un
   pis-aller.</p>
+  <p>Les fichiers sont sur la
+  <a href="https://github.com/Stephane332/Logiciel-vente-/releases/latest">page
+  des versions</a>. Il y en a quatre : <code>arm64-v8a</code> pour la
+  quasi-totalité des téléphones vendus depuis 2016,
+  <code>armeabi-v7a</code> pour les plus anciens, <code>x86_64</code> pour
+  les émulateurs, et <code>universel</code> qui marche partout au prix d'un
+  fichier trois fois plus lourd. On télécharge une fois, on redistribue
+  ensuite de la main à la main.</p>
   <ol class="gestes">
-    <li>Envoie le fichier <code>carnet-universel.apk</code> — celui-là marche
-    sur tous les téléphones.</li>
+    <li>Envoie le fichier <code>carnet-…-universel.apk</code> quand tu ne
+    sais pas quel téléphone est au bout du WhatsApp ; sinon
+    <code>arm64-v8a</code>, trois fois plus léger.</li>
     <li>Le commerçant ouvre le fichier. Android demande d'autoriser
     l'installation depuis cette source-là : c'est une case à cocher à ce
     moment-là, pas un réglage à aller chercher.</li>

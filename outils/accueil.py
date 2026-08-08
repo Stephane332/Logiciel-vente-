@@ -134,7 +134,10 @@ sections.append("""<header class="tete">
   <p class="chapeau">Le cahier du commerçant, en mieux. Aucun inventaire à
   saisir, aucun compte à créer, aucune connexion nécessaire.</p>
   <div class="actions">
-    <a class="bouton principal" href="app/">Essayer l'application</a>
+    <a class="bouton principal" href="app/">Essayer dans le navigateur</a>
+    <a class="bouton second"
+       href="https://github.com/Stephane332/Logiciel-vente-/releases">Télécharger
+       pour Android</a>
     <a class="bouton second" href="guide-utilisation.html">Lire le guide</a>
     <a class="bouton second" href="guide-utilisation.pdf">Guide en PDF</a>
   </div>
@@ -178,6 +181,29 @@ sections.append('<section><p class="sur-titre">Ce que ça remplace</p>'
           "tout, comme l'impose la DGI. Et le carnet se sauvegarde hors du "
           "téléphone."),
 ]) + '</div></section>')
+
+sections.append("""<section>
+  <p class="sur-titre">Sur téléphone</p>
+  <h2>Là où elle est faite pour vivre</h2>
+  <p>L'application s'installe par un fichier APK, envoyé par WhatsApp,
+  Bluetooth ou carte mémoire. Pas de compte Google, pas de carte bancaire —
+  c'est la norme ici, et c'est un avantage plus qu'un pis-aller.</p>
+  <p>Trois choses ne fonctionnent que là, et c'est pourquoi la démonstration
+  dans le navigateur ne remplace pas un vrai essai :</p>
+  <ul class="liste">
+    <li><b>Le lien de paiement ouvre le composeur du client</b>, déjà rempli
+    avec le code du commerçant et le montant. Il tape son code secret, c'est
+    payé.</li>
+    <li><b>Le reçu, l'ardoise et la sauvegarde partent</b> par WhatsApp, SMS
+    ou Bluetooth, par le menu de partage du téléphone.</li>
+    <li><b>Les données restent.</b> La base est un vrai fichier : rien ne se
+    perd quand on ferme.</li>
+  </ul>
+  <p class="note">Un APK signé avec une clé de test s'installe et fonctionne,
+  mais ne peut pas être mis à jour par une version signée autrement — Android
+  refuse de changer la signature d'une application installée. Pour un essai
+  chez un commerçant qu'on reverra, il faut la version signée.</p>
+</section>""")
 
 sections.append('<section><p class="sur-titre">À quoi ça ressemble</p>'
                 '<h2>Quatre écrans, pas un menu</h2>'

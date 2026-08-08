@@ -81,17 +81,41 @@ débogage. L'APK s'installe et fonctionne — c'est bon pour essayer. Mais il ne
 pourra jamais mettre à jour un APK signé avec la vraie clé, donc **il ne faut
 pas l'installer chez un commerçant qu'on reverra**.
 
-## Un lien de téléchargement public
+## Le dépôt est privé — ce que ça change
 
-Les APK déposés par la compilation ordinaire demandent un compte GitHub. Pour
-donner un lien à quelqu'un, il faut une version étiquetée :
+Deux choses, et il vaut mieux les décider en connaissance de cause.
+
+**Les APK des compilations ordinaires demandent un compte GitHub** ayant accès
+au dépôt. C'est parfait pour moi, inutilisable pour un commerçant.
+
+**GitHub Pages ne publie pas depuis un dépôt privé** sur le plan gratuit. Le
+site de démonstration — la page d'accueil, le guide, l'application dans le
+navigateur — attend donc l'une de ces trois décisions :
+
+| Option | Ce que ça coûte |
+|---|---|
+| Rendre le dépôt public | Ma note de cadrage, mes prix et ma stratégie deviennent lisibles par tout le monde, concurrents compris |
+| Passer sur un plan payant | Quelques euros par mois, et le dépôt reste fermé |
+| Un hébergement ailleurs | `docs/` est un site statique : il se dépose tel quel sur n'importe quel hébergeur |
+
+Je ne suis pas pressé de trancher. La démonstration web sert à montrer, et
+l'APK suffit pour tester chez de vrais commerçants — qui est ce qui compte.
+
+## Publier une version
+
+Étiqueter un commit crée une *release* avec ses APK attachés :
 
 ```sh
 git tag v0.6.0 && git push origin v0.6.0
 ```
 
-La compilation crée alors une *release*, avec des liens de téléchargement
-directs, sans compte.
+C'est la façon propre de figer ce qui a été installé chez qui — quand un
+commerçant appellera, la version affichée dans ses réglages désignera
+exactement ces fichiers-là.
+
+Attention : sur un dépôt privé, une *release* reste privée elle aussi. Le
+lien ne devient public qu'avec le dépôt. En attendant, l'APK se transmet
+comme le reste ici — par WhatsApp, et c'est très bien ainsi.
 
 ## Ce que le téléphone autorise, et qu'un navigateur non
 

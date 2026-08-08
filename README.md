@@ -48,6 +48,21 @@ un relais qui les rend disponibles côté Apple.
 En construction. La feuille de route détaillée se trouve dans
 [`docs/06-feuille-de-route.md`](docs/06-feuille-de-route.md).
 
+## Essayer l'application
+
+**Sur un téléphone Android.** Chaque poussée de code déclenche une compilation
+chez GitHub : analyse, tests, puis quatre APK déposés dans l'onglet
+**Actions**. Un fichier qu'on ne peut refaire qu'à la main est un fichier qui
+finit périmé. La marche à suivre, la clé de signature et ce qu'il ne faut pas
+perdre sont dans
+[`docs/13-installation-android.md`](docs/13-installation-android.md).
+
+**Dans un navigateur.** L'application se compile aussi pour le web, et
+`docs/app/` porte cette version prête à servir. Elle montre les gestes, pas
+plus : le stockage local d'un navigateur n'accepte pas toujours d'écrire, et
+l'application prévient quand c'est le cas. Le composeur téléphonique, le
+partage WhatsApp et l'appareil photo n'y existent pas non plus.
+
 ## Démarrer
 
 ```sh
@@ -82,3 +97,4 @@ schéma. Il faut donc lancer `build_runner` après un clone ou une modification 
 | [`docs/10-parcours-de-vente.md`](docs/10-parcours-de-vente.md) | Parcours de vente et types de clients |
 | [`docs/11-cote-client.md`](docs/11-cote-client.md) | Ce que reçoit le client, par parcours |
 | [`docs/12-historique-et-donnees-personnelles.md`](docs/12-historique-et-donnees-personnelles.md) | Historique client, identité et confidentialité |
+| [`docs/13-installation-android.md`](docs/13-installation-android.md) | Compiler, signer et installer sur un téléphone |

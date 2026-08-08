@@ -8,7 +8,7 @@ lire le guide, lire l'audit.
 import base64
 import pathlib
 
-RACINE = pathlib.Path('/home/user/Logiciel-vente-')
+RACINE = pathlib.Path(__file__).resolve().parent.parent
 POLICES = RACINE / 'assets' / 'polices'
 CAPTURES = RACINE / 'docs' / 'captures'
 SORTIE = RACINE / 'docs' / 'index.html'
@@ -138,8 +138,8 @@ sections.append("""<header class="tete">
     <a class="bouton second"
        href="https://github.com/Stephane332/Logiciel-vente-/releases">Télécharger
        pour Android</a>
-    <a class="bouton second" href="guide-utilisation.html">Lire le guide</a>
-    <a class="bouton second" href="guide-utilisation.pdf">Guide en PDF</a>
+    <a class="bouton second" href="manuel.html">Le manuel</a>
+    <a class="bouton second" href="guide-utilisation.html">Le guide</a>
   </div>
   <p class="note"><b>La démonstration tourne dans le navigateur, et rien
   n'en sort.</b> Aucune donnée ne part sur un serveur, aucune ne m'est
@@ -181,6 +181,23 @@ sections.append('<section><p class="sur-titre">Ce que ça remplace</p>'
           "tout, comme l'impose la DGI. Et le carnet se sauvegarde hors du "
           "téléphone."),
 ]) + '</div></section>')
+
+sections.append("""<section>
+  <p class="sur-titre">Pour s'en servir</p>
+  <h2>Deux documents, deux usages</h2>
+  <div class="grille">
+    <div class="carte"><h3><a href="manuel.html">Le manuel</a></h3>
+    <p>Rangé par métier, puis par situation. Boutique, équipe, vente de rue,
+    maquis, services, patron absent — chacun trouve son chapitre et ignore
+    les autres. Puis les situations telles qu'elles arrivent : le client
+    conteste sa dette, je me suis trompé, vendre un carton, changer de
+    téléphone. C'est celui qu'on ouvre devant quelqu'un.</p></div>
+    <div class="carte"><h3><a href="guide-utilisation.html">Le guide</a></h3>
+    <p>Rangé par fonction, dans l'ordre où l'application se découvre. C'est
+    celui qui explique comment elle est faite et pourquoi. Il existe aussi
+    <a href="guide-utilisation.pdf">en PDF</a>, pour être imprimé ou envoyé.</p></div>
+  </div>
+</section>""")
 
 sections.append("""<section>
   <p class="sur-titre">Sur téléphone</p>

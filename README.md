@@ -57,6 +57,13 @@ finit périmé. La marche à suivre, la clé de signature et ce qu'il ne faut pa
 perdre sont dans
 [`docs/13-installation-android.md`](docs/13-installation-android.md).
 
+**Les deux documents pour s'en servir.** `docs/manuel.html` est rangé par
+métier puis par situation — c'est celui qu'on ouvre devant un commerçant.
+`docs/guide-utilisation.html` est rangé par fonction, dans l'ordre où
+l'application se découvre, et existe aussi en PDF. Les deux sont autonomes :
+polices et captures embarquées, aucun appel au réseau, lisibles depuis une
+clé USB.
+
 **Dans un navigateur.** L'application se compile aussi pour le web, et
 `docs/app/` porte cette version prête à servir. Elle montre les gestes, pas
 plus : le stockage local d'un navigateur n'accepte pas toujours d'écrire, et
@@ -98,3 +105,4 @@ schéma. Il faut donc lancer `build_runner` après un clone ou une modification 
 | [`docs/11-cote-client.md`](docs/11-cote-client.md) | Ce que reçoit le client, par parcours |
 | [`docs/12-historique-et-donnees-personnelles.md`](docs/12-historique-et-donnees-personnelles.md) | Historique client, identité et confidentialité |
 | [`docs/13-installation-android.md`](docs/13-installation-android.md) | Compiler, signer et installer sur un téléphone |
+| [`docs/14-rendre-le-depot-public.md`](docs/14-rendre-le-depot-public.md) | Ce qu'ouvrir le dépôt exposerait, et par quelle route |

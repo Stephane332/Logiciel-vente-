@@ -3,7 +3,7 @@
 import base64
 import pathlib
 
-RACINE = pathlib.Path('/home/user/Logiciel-vente-')
+RACINE = pathlib.Path(__file__).resolve().parent.parent
 POLICES = RACINE / 'assets' / 'polices'
 PREUVES = RACINE / 'docs' / 'captures' / 'audit'
 SORTIE = RACINE / 'docs' / 'audit-usage.html'

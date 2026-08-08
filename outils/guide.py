@@ -3,7 +3,7 @@
 import base64
 import pathlib
 
-RACINE = pathlib.Path('/home/user/Logiciel-vente-')
+RACINE = pathlib.Path(__file__).resolve().parent.parent
 CAPTURES = RACINE / 'docs' / 'captures'
 POLICES = RACINE / 'assets' / 'polices'
 SORTIE = RACINE / 'docs' / 'guide-utilisation.html'
@@ -636,7 +636,7 @@ STYLE = """
 
 STYLE = STYLE.replace('REGULIER', REGULIER).replace('GRAS', GRAS)
 
-HTML = ('<title>Le carnet du commerçant — guide d\'utilisation</title>'
+HTML = ('<meta charset="utf-8">\n<title>Le carnet du commerçant — guide d\'utilisation</title>'
         '<style>' + STYLE + '</style><main>' + ''.join(sections) + '</main>')
 
 SORTIE.write_text(HTML, encoding='utf-8')

@@ -100,10 +100,18 @@ jobs:
       - name: APK par architecture
         run: flutter build apk --release --split-per-abi
 
+      # Le pubspec porte `0.6.0+6` : un numéro de version et un numéro de
+      # construction. Le `+` n'a rien à faire dans une URL — il s'y encode en
+      # `%2B` et un lien collé dans WhatsApp arrive cassé. Le nom des fichiers
+      # et l'étiquette ne gardent donc que `0.6.0` ; le numéro de construction
+      # part dans le titre de la version, où il reste lisible sans gêner.
       - name: Mettre de côté
         run: |
-          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          COMPLETE=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=${COMPLETE%%+*}
+          CONSTRUCTION=${COMPLETE#*+}
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "CONSTRUCTION=$CONSTRUCTION" >> "$GITHUB_ENV"
           mkdir -p apk
           for ABI in armeabi-v7a arm64-v8a x86_64; do
             SOURCE="build/app/outputs/flutter-apk/app-$ABI-release.apk"
@@ -137,11 +145,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
-          name: Carnet ${{ env.VERSION }}
+          name: Carnet ${{ env.VERSION }} — construction ${{ env.CONSTRUCTION }}
           files: apk/*.apk
           generate_release_notes: true
           body: |
             Le carnet du commerçant, prêt à installer.
+            Construction ${{ env.CONSTRUCTION }}.
 
             | Fichier | Pour qui |
             |---|---|
@@ -150,9 +159,18 @@ jobs:
             | `carnet-*-universel.apk` | Quand on ne sait pas quel téléphone est au bout du WhatsApp |
             | `carnet-*-x86_64.apk` | Les émulateurs, pas les téléphones |
 
-            Android demande d'autoriser l'installation depuis cette
-            source-là : c'est une case à cocher au moment d'ouvrir le
-            fichier.
+            **Installer**
+
+            1. Télécharger `carnet-${{ env.VERSION }}-arm64-v8a.apk` — c'est
+               le bon fichier dans la quasi-totalité des cas.
+            2. Ouvrir le fichier téléchargé. Android demande d'autoriser
+               l'installation depuis cette source-là : c'est une case à
+               cocher, une seule fois.
+            3. Ouvrir Carnet. Il n'y a ni compte à créer, ni configuration :
+               la première vente s'enregistre tout de suite.
+
+            Le mode d'emploi est dans `docs/manuel.html` — un chapitre par
+            métier, une recette par situation.
 
             Tant que les secrets de signature ne sont pas posés, ces APK
             sont signés avec la clé de débogage. Ils s'installent et

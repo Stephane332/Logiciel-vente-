@@ -14,7 +14,11 @@ import 'package:carnet/domaine/references.dart';
 import 'package:carnet/donnees/base.dart';
 import 'package:carnet/donnees/depot.dart';
 import 'package:carnet/donnees/documents.dart';
+import 'package:carnet/domaine/mobile_money.dart';
+import 'package:carnet/donnees/analyses.dart';
 import 'package:carnet/donnees/journal.dart';
+import 'package:carnet/donnees/parametres.dart';
+import 'package:carnet/interface/ecrans/accueil.dart';
 import 'package:carnet/interface/ecrans/vente.dart';
 import 'package:carnet/interface/theme/theme.dart';
 
@@ -22,11 +26,13 @@ void main() {
   late BaseLocale base;
   late Depot depot;
   late Documents documents;
+  late Analyses analyses;
 
   setUp(() {
     base = BaseLocale(NativeDatabase.memory());
     depot = Depot(base, Journal(base, appareil: 'CAISSE1'));
     documents = Documents(base, nomCommerce: 'Boutique Test');
+    analyses = Analyses(base);
   });
 
   tearDown(() => base.close());
@@ -572,6 +578,85 @@ void main() {
       final bouton = tester.widget<FilledButton>(
           find.widgetWithText(FilledButton, 'Encaisser'));
       expect(bouton.onPressed, isNull);
+    });
+  });
+
+  group('Le stockage se prouve, il ne se promet pas', () {
+    testWidgets('un stockage non démontré se signale', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: themeClair(),
+        home: Accueil(
+          depot: depot,
+          documents: documents,
+          analyses: analyses,
+          parametres: Parametres(base),
+          reglage: const Reglage(
+              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
+          stockageSur: false,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('peut ne pas être retrouvé'), findsOneWidget);
+    });
+
+    testWidgets("l'avertissement se ferme et ne revient pas", (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: themeClair(),
+        home: Accueil(
+          depot: depot,
+          documents: documents,
+          analyses: analyses,
+          parametres: Parametres(base),
+          reglage: const Reglage(
+              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
+          stockageSur: false,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip("J'ai compris"));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('peut ne pas être retrouvé'), findsNothing);
+    });
+
+    testWidgets('sur un téléphone, rien ne prévient de rien', (tester) async {
+      // La base y est un fichier : la question ne se pose pas, et un
+      // avertissement inutile use la confiance.
+      await tester.pumpWidget(MaterialApp(
+        theme: themeClair(),
+        home: Accueil(
+          depot: depot,
+          documents: documents,
+          analyses: analyses,
+          parametres: Parametres(base),
+          reglage: const Reglage(
+              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('peut ne pas être retrouvé'), findsNothing);
+    });
+  });
+
+  group('Le témoin de stockage', () {
+    test('absent la première fois, présent la suivante', () async {
+      final parametres = Parametres(base);
+
+      // Rien à retrouver au premier lancement : on ne peut rien affirmer.
+      expect(await parametres.temoinRetrouve(), isFalse);
+      // Au suivant, le témoin est là : la preuve est faite.
+      expect(await parametres.temoinRetrouve(), isTrue);
+    });
+
+    test("il ne compte pas comme un réglage du commerçant", () async {
+      final parametres = Parametres(base);
+      await parametres.temoinRetrouve();
+
+      final reglage = await parametres.tout();
+      expect(reglage.nomCommerce, Parametres.nomCommerceParDefaut);
+      expect(reglage.vendeurs, isEmpty);
     });
   });
 }

@@ -45,3 +45,11 @@ String nouvelIdentifiantAppareil() {
   }
   return tampon.toString();
 }
+
+/// Sur un téléphone, la base est un fichier : rien à prouver.
+///
+/// C'est le navigateur qui a besoin de se poser la question, et lui seul.
+const stockagePersistant = true;
+
+/// Faux uniquement dans le navigateur, où il faut d'abord le vérifier.
+const stockageADemontrer = false;

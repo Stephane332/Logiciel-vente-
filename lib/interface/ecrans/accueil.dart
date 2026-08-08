@@ -26,6 +26,13 @@ class Accueil extends StatefulWidget {
   /// L'état des réglages au démarrage, lu une fois avant l'affichage.
   final Reglage reglage;
 
+  /// Faux tant qu'on n'a pas la preuve que ce qui est saisi sera relu.
+  ///
+  /// C'est le cas de la démonstration dans un navigateur, au premier
+  /// lancement. Sur un téléphone, la base est un fichier et la question ne se
+  /// pose pas.
+  final bool stockageSur;
+
   const Accueil({
     super.key,
     required this.depot,
@@ -33,6 +40,7 @@ class Accueil extends StatefulWidget {
     required this.analyses,
     required this.parametres,
     required this.reglage,
+    this.stockageSur = true,
   });
 
   @override
@@ -55,6 +63,10 @@ class _AccueilState extends State<Accueil> {
   final _cleRapport = GlobalKey<EcranRapportState>();
 
   late Reglage _reglage = widget.reglage;
+
+  /// L'avertissement de démonstration se ferme, et ne revient pas de la
+  /// session. On prévient, on n'assiège pas.
+  bool _avertissementEcarte = false;
 
   /// Le nom du commerce s'imprime sur tous les documents : quand il change,
   /// la fabrique doit changer avec lui.
@@ -143,7 +155,11 @@ class _AccueilState extends State<Accueil> {
     return Scaffold(
       // Les écrans sont conservés en pile : revenir à la caisse ne doit pas
       // faire perdre le panier en cours.
-      body: IndexedStack(
+      body: Column(children: [
+        if (!widget.stockageSur && !_avertissementEcarte)
+          _BandeauDemonstration(onFermer: () =>
+              setState(() => _avertissementEcarte = true)),
+        Expanded(child: IndexedStack(
         index: _destination,
         children: [
           EcranVente(
@@ -176,7 +192,8 @@ class _AccueilState extends State<Accueil> {
             ),
           ),
         ],
-      ),
+        )),
+      ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _destination,
         height: 68,
@@ -205,6 +222,56 @@ class _AccueilState extends State<Accueil> {
             label: 'Rapport',
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Prévient que ce qui est saisi ne sera peut-être pas retrouvé.
+///
+/// Uniquement dans un navigateur, et seulement tant que la preuve du
+/// contraire n'a pas été faite. Un commerçant qui saisit sa journée et la
+/// retrouve vide n'ouvrira pas l'application une deuxième fois — autant le
+/// dire avant qu'il ne tape quoi que ce soit.
+class _BandeauDemonstration extends StatelessWidget {
+  final VoidCallback onFermer;
+
+  const _BandeauDemonstration({required this.onFermer});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Material(
+      color: Couleurs.alerteClair,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Espace.l, Espace.s, Espace.s,
+              Espace.s),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  size: 18, color: Couleurs.alerte),
+              const SizedBox(width: Espace.s),
+              Expanded(
+                child: Text(
+                  'Démonstration : selon ce navigateur, ce que tu saisis peut '
+                  "ne pas être retrouvé après fermeture. Sur téléphone, rien "
+                  'ne se perd.',
+                  style: textes.labelSmall,
+                ),
+              ),
+              IconButton(
+                onPressed: onFermer,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                tooltip: "J'ai compris",
+                color: Couleurs.encreDouce,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

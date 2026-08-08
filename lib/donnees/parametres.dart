@@ -22,6 +22,7 @@ class Parametres {
   static const _prefixeMarchand = 'marchand.';
   static const _vendeurs = 'vendeurs';
   static const _vendeurActif = 'vendeur.actif';
+  static const _temoin = 'stockage.temoin';
 
   /// Nom affiché en tête des documents, faute de fiche entreprise.
   static const nomCommerceParDefaut = 'Ma boutique';
@@ -117,6 +118,24 @@ class Parametres {
       return;
     }
     await _ecrire(cle, normalise);
+  }
+
+  /// Le témoin de stockage : la preuve qu'une session précédente a survécu.
+  ///
+  /// Il ne sert que dans un navigateur, où l'on ne peut pas savoir d'avance
+  /// si ce qu'on écrit sera relu. On dépose une marque au premier lancement ;
+  /// si on la retrouve au suivant, c'est que le stockage tient. Une promesse
+  /// du navigateur ne vaut rien — celle de drift disait « persistant » alors
+  /// que rien n'était écrit.
+  Future<bool> temoinRetrouve() async {
+    final ligne = await (base.select(base.reglages)
+          ..where((r) => r.cle.equals(_temoin)))
+        .getSingleOrNull();
+    if (ligne == null) {
+      await _ecrire(_temoin, DateTime.now().toIso8601String());
+      return false;
+    }
+    return true;
   }
 
   Future<void> _effacer(String cle) =>

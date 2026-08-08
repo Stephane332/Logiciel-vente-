@@ -20,12 +20,19 @@ Future<void> main() async {
   final parametres = Parametres(base);
   final reglage = await parametres.tout();
 
+  // Dans un navigateur, la persistance ne se promet pas : elle se constate.
+  // On dépose un témoin au premier lancement, et c'est de le retrouver au
+  // suivant qui prouve que ce qu'on écrit sera relu.
+  final stockageSur =
+      stockageADemontrer ? await parametres.temoinRetrouve() : true;
+
   runApp(Application(
     depot: Depot(base, Journal(base, appareil: appareil)),
     documents: Documents(base, nomCommerce: reglage.nomCommerce),
     analyses: Analyses(base),
     parametres: parametres,
     reglage: reglage,
+    stockageSur: stockageSur,
   ));
 }
 
@@ -36,6 +43,9 @@ class Application extends StatelessWidget {
   final Parametres parametres;
   final Reglage reglage;
 
+  /// Faux tant qu'on n'a pas la preuve que ce qui est saisi sera relu.
+  final bool stockageSur;
+
   const Application({
     super.key,
     required this.depot,
@@ -43,6 +53,7 @@ class Application extends StatelessWidget {
     required this.analyses,
     required this.parametres,
     required this.reglage,
+    this.stockageSur = true,
   });
 
   @override
@@ -57,6 +68,7 @@ class Application extends StatelessWidget {
           analyses: analyses,
           parametres: parametres,
           reglage: reglage,
+          stockageSur: stockageSur,
         ),
       );
 }

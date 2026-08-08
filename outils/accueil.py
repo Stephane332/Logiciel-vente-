@@ -138,12 +138,16 @@ sections.append("""<header class="tete">
     <a class="bouton second" href="guide-utilisation.html">Lire le guide</a>
     <a class="bouton second" href="guide-utilisation.pdf">Guide en PDF</a>
   </div>
-  <p class="note"><b>La démonstration tourne dans le navigateur.</b> Tout ce
-  qui est enregistré reste dans ce navigateur-là, sur cet appareil-là : rien ne
-  part sur un serveur, et rien n'est partagé avec moi. Sur téléphone,
-  l'application fait la même chose en mieux — l'appareil photo, le partage
-  WhatsApp et le composeur téléphonique n'existent pas dans un navigateur
-  d'ordinateur.</p>
+  <p class="note"><b>La démonstration tourne dans le navigateur, et rien
+  n'en sort.</b> Aucune donnée ne part sur un serveur, aucune ne m'est
+  transmise. En contrepartie, <b>ce que vous saisirez ne sera probablement pas
+  retrouvé après fermeture de l'onglet</b> : le stockage local d'un navigateur
+  n'accepte pas toujours d'écrire, et je préfère le dire avant plutôt que de
+  vous laisser perdre une journée de saisie. L'application vous préviendra
+  elle-même si c'est le cas. Sur téléphone, la base est un vrai fichier et
+  rien ne se perd — c'est là qu'elle est faite pour vivre, avec l'appareil
+  photo, le partage WhatsApp et le composeur, qui n'existent pas dans un
+  navigateur d'ordinateur.</p>
 </header>""")
 
 sections.append('<section><p class="sur-titre">Ce que ça remplace</p>'

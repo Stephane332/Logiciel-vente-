@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="carnet"
+        android:label="Carnet"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -31,12 +31,58 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <!--
+        Depuis Android 11, une application ne voit plus les autres à moins de
+        les déclarer ici. Sans ces lignes, l'application ne peut pas savoir
+        qu'un composeur, une messagerie ou un navigateur existe : elle croit
+        qu'aucune application ne sait ouvrir le lien, et le bouton ne fait
+        rien. Silencieusement — c'est le pire cas de figure, parce qu'on ne
+        s'en aperçoit qu'en le tenant en main.
+
+        C'est tout l'encaissement mobile money qui en dépend : le lien de
+        paiement ouvre le composeur du client, déjà rempli. Et c'est aussi le
+        reçu et l'ardoise, qui partent par WhatsApp ou par SMS.
+    -->
     <queries>
+        <!-- Le composeur, pour le code USSD de paiement marchand. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tel"/>
+        </intent>
+
+        <!-- La messagerie, pour le reçu et l'ardoise en SMS. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="sms"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="smsto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="sms"/>
+        </intent>
+
+        <!-- WhatsApp, atteint par un lien wa.me : c'est un lien web. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+
+        <!-- Le partage du fichier de sauvegarde, hors du téléphone. -->
+        <intent>
+            <action android:name="android.intent.action.SEND"/>
+            <data android:mimeType="*/*"/>
+        </intent>
+
+        <!-- Requis par le moteur Flutter, pour le menu de sélection de texte.
+             Voir https://developer.android.com/training/package-visibility -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

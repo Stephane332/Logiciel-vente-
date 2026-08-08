@@ -1,0 +1,126 @@
+# Compile l'application pour Android et publie l'APK.
+#
+# Je n'ai pas de machine à moi pour compiler du jour au lendemain, et un APK
+# qu'on ne peut refaire qu'à la main est un APK qui finit périmé. Celui-ci se
+# refait à chaque changement, et se télécharge depuis l'onglet Actions.
+#
+# La signature vient des secrets du dépôt quand ils existent. Sans eux,
+# l'APK est signé avec la clé de débogage : il s'installe et fonctionne, mais
+# il ne pourra pas mettre à jour un APK signé avec la vraie clé — Android
+# refuse de remplacer une application par une autre signature. C'est donc
+# bon pour essayer, pas pour installer chez un commerçant qu'on reverra.
+name: APK
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  construire:
+    name: Construire l'APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Code généré
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyse
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      # La clé n'est jamais dans le dépôt. Elle arrive par les secrets, et
+      # seulement si les quatre sont posés.
+      # Le test se fait dans le script et pas dans un `if:` : les variables
+      # d'une étape n'existent pas encore quand sa condition est évaluée, et
+      # la condition serait donc toujours fausse.
+      - name: Clé de signature
+        env:
+          MAGASIN: ${{ secrets.MAGASIN_ANDROID }}
+          MOT_DE_PASSE_MAGASIN: ${{ secrets.MOT_DE_PASSE_MAGASIN }}
+          ALIAS: ${{ secrets.ALIAS_CLE }}
+          MOT_DE_PASSE_CLE: ${{ secrets.MOT_DE_PASSE_CLE }}
+        run: |
+          if [ -z "$MAGASIN" ] || [ -z "$MOT_DE_PASSE_MAGASIN" ] \
+             || [ -z "$ALIAS" ] || [ -z "$MOT_DE_PASSE_CLE" ]; then
+            echo "Aucune clé fournie : l'APK sera signé en débogage."
+            exit 0
+          fi
+          echo "$MAGASIN" | base64 -d > android/app/carnet.jks
+          {
+            echo "storeFile=carnet.jks"
+            echo "storePassword=$MOT_DE_PASSE_MAGASIN"
+            echo "keyAlias=$ALIAS"
+            echo "keyPassword=$MOT_DE_PASSE_CLE"
+          } > android/key.properties
+          echo "Clé en place."
+
+      # Un APK par architecture pèse bien moins qu'un APK universel, et le
+      # débit compte ici. L'universel reste quand même, pour qui ne sait pas
+      # quel téléphone il a en face — c'est le cas le plus fréquent quand on
+      # envoie un fichier par WhatsApp.
+      - name: APK par architecture
+        run: flutter build apk --release --split-per-abi
+
+      - name: Mettre de côté
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p apk
+          for ABI in armeabi-v7a arm64-v8a x86_64; do
+            SOURCE="build/app/outputs/flutter-apk/app-$ABI-release.apk"
+            if [ -f "$SOURCE" ]; then cp "$SOURCE" "apk/carnet-$VERSION-$ABI.apk"; fi
+          done
+
+      - name: APK universel
+        run: flutter build apk --release
+
+      - name: Rassembler
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "apk/carnet-$VERSION-universel.apk"
+          ls -lh apk/
+
+      - name: Publier
+        uses: actions/upload-artifact@v4
+        with:
+          name: carnet-apk
+          path: apk/*.apk
+          retention-days: 90
+
+      # Sur une étiquette de version, l'APK devient téléchargeable sans
+      # compte GitHub : c'est le lien qu'on donne à un commerçant.
+      - name: Version publiée
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apk/*.apk
+          generate_release_notes: true

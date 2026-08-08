@@ -79,9 +79,23 @@ jobs:
           ALIAS: ${{ secrets.ALIAS_CLE }}
           MOT_DE_PASSE_CLE: ${{ secrets.MOT_DE_PASSE_CLE }}
         run: |
+          # `SIGNATURE` s'accole au titre de la version : la liste des
+          # versions doit dire d'un coup d'œil laquelle est installable chez
+          # un commerçant. L'espace initial est voulu.
           if [ -z "$MAGASIN" ] || [ -z "$MOT_DE_PASSE_MAGASIN" ] \
              || [ -z "$ALIAS" ] || [ -z "$MOT_DE_PASSE_CLE" ]; then
             echo "Aucune clé fournie : l'APK sera signé en débogage."
+            echo "SIGNATURE= (signature de débogage)" >> "$GITHUB_ENV"
+            {
+              echo "AVERTISSEMENT<<FIN_AVERTISSEMENT"
+              echo "**Ces APK sont signés avec la clé de débogage.** Ils"
+              echo "s'installent et fonctionnent, mais ne pourront jamais"
+              echo "être mis à jour par une version signée autrement —"
+              echo "Android refuse de remplacer une application par une"
+              echo "autre signature. Bon pour essayer, pas pour installer"
+              echo "chez un commerçant qu'on reverra."
+              echo "FIN_AVERTISSEMENT"
+            } >> "$GITHUB_ENV"
             exit 0
           fi
           echo "$MAGASIN" | base64 -d > android/app/carnet.jks
@@ -92,6 +106,8 @@ jobs:
             echo "keyPassword=$MOT_DE_PASSE_CLE"
           } > android/key.properties
           echo "Clé en place."
+          echo "SIGNATURE=" >> "$GITHUB_ENV"
+          echo "AVERTISSEMENT=" >> "$GITHUB_ENV"
 
       # Un APK par architecture pèse bien moins qu'un APK universel, et le
       # débit compte ici. L'universel reste quand même, pour qui ne sait pas
@@ -145,7 +161,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
-          name: Carnet ${{ env.VERSION }} — construction ${{ env.CONSTRUCTION }}
+          name: >-
+            Carnet ${{ env.VERSION }} — construction
+            ${{ env.CONSTRUCTION }}${{ env.SIGNATURE }}
           files: apk/*.apk
           generate_release_notes: true
           body: |
@@ -172,8 +190,4 @@ jobs:
             Le mode d'emploi est dans `docs/manuel.html` — un chapitre par
             métier, une recette par situation.
 
-            Tant que les secrets de signature ne sont pas posés, ces APK
-            sont signés avec la clé de débogage. Ils s'installent et
-            fonctionnent, mais ne pourront pas être mis à jour par une
-            version signée autrement — bon pour essayer, pas pour installer
-            chez un commerçant qu'on reverra.
+            ${{ env.AVERTISSEMENT }}

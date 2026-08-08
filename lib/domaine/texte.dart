@@ -48,3 +48,24 @@ bool tientEnUnSms(String message) => nombreDeSms(message) <= 1;
 final _gsm = RegExp(r"^[A-Za-z0-9 \r\n@£$¥èéùìòÇØøÅåΔ_ΦΓΛ"
     r"ΩΠΨΣΘΞÆæßÉ!\x22#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿"
     r'äöñüà]*$');
+
+/// Raccourcit un nom trop long en gardant ses deux bouts.
+///
+/// Deux articles d'une même famille ne diffèrent presque jamais par leur
+/// début : « Sac de riz parfumé 25 kg qualité supérieure » et « … qualité
+/// normale » commencent pareil. Rogner par la fin, comme le fait une tuile
+/// ordinaire, donne deux étiquettes identiques — et le commerçant vend l'un
+/// pour l'autre sans s'en apercevoir.
+///
+/// On coupe donc au milieu : le début situe le produit, la fin le distingue.
+String nomAbrege(String nom, {int maximum = 30}) {
+  final propre = nom.trim();
+  if (propre.length <= maximum) return propre;
+
+  // Un peu plus de place au début, qui porte le nom du produit ; la fin ne
+  // sert qu'à départager.
+  final tete = ((maximum - 1) * 0.6).round();
+  final queue = maximum - 1 - tete;
+  return '${propre.substring(0, tete).trimRight()}…'
+      '${propre.substring(propre.length - queue).trimLeft()}';
+}

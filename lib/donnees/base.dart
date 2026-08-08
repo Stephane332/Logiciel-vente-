@@ -94,6 +94,13 @@ class Articles extends Table {
   /// par erreur ne coûte donc rien.
   DateTimeColumn get propositionSuiviReporteeLe => dateTime().nullable()();
 
+  /// Quand l'article a été retiré du catalogue.
+  ///
+  /// Retiré, pas supprimé : ses ventes passées restent au journal et dans les
+  /// rapports, et le total de la journée ne bouge pas. Une faute de frappe
+  /// s'efface de la caisse sans effacer l'histoire.
+  DateTimeColumn get retireLe => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {code};
 }
@@ -309,7 +316,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -365,6 +372,9 @@ class BaseLocale extends _$BaseLocale {
           }
           if (depuis < 8) {
             await m.addColumn(articles, articles.nommageRefuseLe);
+          }
+          if (depuis < 9) {
+            await m.addColumn(articles, articles.retireLe);
           }
         },
         beforeOpen: (details) async {

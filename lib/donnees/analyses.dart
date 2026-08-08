@@ -227,6 +227,7 @@ class Analyses {
     // de cent articles pour n'en montrer que cinq.
     final requete = base.select(base.articles)
       ..where((a) =>
+          a.retireLe.isNull() &
           a.nombreVentes.isBiggerOrEqualValue(ventesMinimum) &
           a.derniereVente.isSmallerThanValue(seuil))
       ..orderBy([(a) => OrderingTerm.asc(a.derniereVente)]);
@@ -336,7 +337,9 @@ class Analyses {
     final debut = reference.subtract(Duration(days: fenetreObservation));
 
     final articles = await (base.select(base.articles)
-          ..where((a) => a.suiviStock.equals(SuiviStock.direct.cle)))
+          ..where((a) =>
+              a.retireLe.isNull() &
+              a.suiviStock.equals(SuiviStock.direct.cle)))
         .get();
     if (articles.isEmpty) return [];
 

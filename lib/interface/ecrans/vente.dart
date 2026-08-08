@@ -212,8 +212,31 @@ class EcranVenteState extends State<EcranVente> {
   int get _nombreArticles =>
       _panier.values.fold(0, (somme, quantite) => somme + quantite);
 
+  /// Combien de fois il faut taper la même tuile avant qu'on apprenne au
+  /// commerçant qu'il existe plus court.
+  static const tapesAvantConseil = 4;
+
+  /// Vrai une fois que le conseil a été donné : on ne le répète pas.
+  bool _conseilDonne = false;
+
   void _ajouter(LigneArticle article) {
-    setState(() => _panier[article.code] = (_panier[article.code] ?? 0) + 1);
+    final total = (_panier[article.code] ?? 0) + 1;
+    setState(() => _panier[article.code] = total);
+
+    // Un carton, c'est douze appuis. L'appui long les remplace, mais personne
+    // ne devine un appui long : on le dit au moment exact où il servirait.
+    if (total == tapesAvantConseil && !_conseilDonne) {
+      _conseilDonne = true;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('Appui long sur un article pour mettre la quantité '
+              "d'un coup."),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+          duration: Duration(seconds: 4),
+        ));
+    }
   }
 
   /// Retire une unité du panier, et l'article quand il n'en reste plus.
@@ -233,6 +256,64 @@ class EcranVenteState extends State<EcranVente> {
         _panier.clear();
         _prixNegocies.clear();
       });
+
+  /// Ce que fait un appui long sur une tuile.
+  ///
+  /// Deux besoins tombent au même endroit : vendre un carton d'un coup, et
+  /// discuter le prix. Les mettre tous les deux derrière le même geste vaut
+  /// mieux que d'inventer un second geste que personne ne trouvera.
+  Future<void> _ajuster(LigneArticle article) async {
+    final choix = await showModalBottomSheet<_Ajustement>(
+      context: context,
+      showDragHandle: true,
+      // Huit nombres et deux boutons ne tiennent pas dans la moitié basse
+      // d'un petit écran, encore moins couché.
+      isScrollControlled: true,
+      builder: (contexte) => _FeuilleAjustement(
+        article: article,
+        prixPratique: _prixPratique(article),
+        auPanier: _panier[article.code] ?? 0,
+      ),
+    );
+    if (choix == null || !mounted) return;
+
+    switch (choix.quoi) {
+      case _Quoi.quantite:
+        _fixerQuantite(article, choix.quantite!);
+      case _Quoi.autreQuantite:
+        await _demanderQuantite(article);
+      case _Quoi.prix:
+        await _negocier(article);
+    }
+  }
+
+  /// Pose d'un coup le nombre d'unités au panier.
+  void _fixerQuantite(LigneArticle article, int combien) {
+    setState(() {
+      if (combien <= 0) {
+        _panier.remove(article.code);
+        _prixNegocies.remove(article.code);
+      } else {
+        _panier[article.code] = combien;
+      }
+    });
+  }
+
+  Future<void> _demanderQuantite(LigneArticle article) async {
+    final saisi = await demanderMontant(
+      context,
+      titre: 'Combien de ${article.designation} ?',
+      indication: 'Le nombre, pas le montant',
+      valider: 'Mettre au panier',
+      // Un carton, une caisse, un sac : au-delà, c'est une faute de frappe.
+      plafond: Montant.depuisDecimal(999),
+    );
+    if (saisi == null || !saisi.estPositif || !mounted) return;
+
+    // Le pavé rend un montant en centimes ; ici les touches comptent des
+    // unités. Cent francs tapés valent cent unités.
+    _fixerQuantite(article, saisi.centimes ~/ 100);
+  }
 
   /// Change le prix d'un article pour cette vente seulement.
   ///
@@ -566,7 +647,7 @@ class EcranVenteState extends State<EcranVente> {
                                   _prixNegocies.containsKey(article.code),
                               quantiteAuPanier: _panier[article.code] ?? 0,
                               onPressed: () => _ajouter(article),
-                              onLongPress: () => _negocier(article),
+                              onLongPress: () => _ajuster(article),
                               onRetirer: () => _retirer(article),
                             );
                           },
@@ -694,6 +775,149 @@ class _BandeauNommage extends StatelessWidget {
               const Icon(Icons.chevron_right_rounded,
                   color: Couleurs.encreDouce),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ce que l'appui long permet de faire à un article.
+enum _Quoi { quantite, autreQuantite, prix }
+
+class _Ajustement {
+  final _Quoi quoi;
+  final int? quantite;
+
+  const _Ajustement.quantite(this.quantite) : quoi = _Quoi.quantite;
+  const _Ajustement.autreQuantite()
+      : quoi = _Quoi.autreQuantite,
+        quantite = null;
+  const _Ajustement.prix()
+      : quoi = _Quoi.prix,
+        quantite = null;
+}
+
+/// La feuille de l'appui long : combien, et à quel prix.
+///
+/// Les nombres proposés ne sont pas au hasard : ce sont les conditionnements
+/// qu'on vend ici — la demi-douzaine, la douzaine, le carton de vingt-quatre.
+class _FeuilleAjustement extends StatelessWidget {
+  final LigneArticle article;
+  final Montant prixPratique;
+  final int auPanier;
+
+  const _FeuilleAjustement({
+    required this.article,
+    required this.prixPratique,
+    required this.auPanier,
+  });
+
+  static const _courants = [2, 3, 5, 6, 10, 12, 24];
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Espace.l, 0, Espace.l, Espace.l),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          // Étirée : sans ça la colonne se règle sur son enfant le plus
+          // large, et la rangée de nombres se replie en une seule colonne.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(article.designation, style: textes.titleLarge),
+            Text(
+              auPanier == 0
+                  ? prixPratique.enFrancs
+                  : '$auPanier au panier · ${prixPratique.enFrancs} pièce',
+              style: textes.labelSmall,
+            ),
+            const SizedBox(height: Espace.l),
+
+            Text('Combien ?', style: textes.labelSmall),
+            const SizedBox(height: Espace.s),
+            Wrap(
+              spacing: Espace.s,
+              runSpacing: Espace.s,
+              children: [
+                for (final combien in _courants)
+                  _Nombre(
+                    combien: combien,
+                    choisi: combien == auPanier,
+                    onPressed: () => Navigator.of(context)
+                        .pop(_Ajustement.quantite(combien)),
+                  ),
+                _Nombre(
+                  libelle: 'Autre',
+                  onPressed: () =>
+                      Navigator.of(context).pop(const _Ajustement.autreQuantite()),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: Espace.l),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).pop(const _Ajustement.prix()),
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text('Changer le prix pour cette vente'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Un nombre proposé, assez large pour un pouce.
+class _Nombre extends StatelessWidget {
+  final int? combien;
+  final String? libelle;
+  final bool choisi;
+  final VoidCallback onPressed;
+
+  const _Nombre({
+    this.combien,
+    this.libelle,
+    this.choisi = false,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Material(
+      color: choisi ? Couleurs.primaire : Couleurs.surface,
+      borderRadius: BorderRadius.circular(Rayon.m),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(Rayon.m),
+        // Pas d'`alignment` sur le conteneur : il prendrait alors toute la
+        // largeur offerte, et chaque nombre occuperait une ligne entière au
+        // lieu de se ranger avec les autres.
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 62, minHeight: 52),
+          padding: const EdgeInsets.symmetric(horizontal: Espace.m),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Rayon.m),
+            border: Border.all(
+                color: choisi ? Couleurs.primaire : Couleurs.bordure),
+          ),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              libelle ?? '×$combien',
+              style: textes.titleMedium?.copyWith(
+                color: choisi ? Colors.white : Couleurs.encre,
+              ),
+            ),
           ),
         ),
       ),

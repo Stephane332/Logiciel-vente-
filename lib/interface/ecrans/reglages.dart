@@ -12,17 +12,24 @@ import 'package:flutter/material.dart';
 
 import '../../domaine/mobile_money.dart';
 import '../../domaine/telephone.dart';
+import '../../donnees/depot.dart';
 import '../../donnees/parametres.dart';
+import '../../donnees/version.dart';
 import '../theme/palette.dart';
+import 'sauvegardes.dart';
 
 class EcranReglages extends StatefulWidget {
   final Parametres parametres;
   final Reglage reglage;
 
+  /// Sert à la sauvegarde, qui a besoin du journal et de la base.
+  final Depot depot;
+
   const EcranReglages({
     super.key,
     required this.parametres,
     required this.reglage,
+    required this.depot,
   });
 
   /// Ouvre les réglages et rend l'état enregistré en sortant.
@@ -30,10 +37,14 @@ class EcranReglages extends StatefulWidget {
     BuildContext context, {
     required Parametres parametres,
     required Reglage reglage,
+    required Depot depot,
   }) =>
       Navigator.of(context).push<Reglage>(MaterialPageRoute(
-        builder: (_) =>
-            EcranReglages(parametres: parametres, reglage: reglage),
+        builder: (_) => EcranReglages(
+          parametres: parametres,
+          reglage: reglage,
+          depot: depot,
+        ),
       ));
 
   @override
@@ -79,7 +90,30 @@ class _EcranReglagesState extends State<EcranReglages> {
     });
   }
 
-  Future<void> _enregistrer() async {
+  /// Passe à la sauvegarde, en gardant d'abord ce qui est tapé ici.
+  ///
+  /// Sans ça, un nom d'équipe saisi mais pas encore enregistré ne serait pas
+  /// dans le fichier — et le commerçant croirait l'avoir sauvegardé.
+  Future<void> _ouvrirSauvegardes() async {
+    await _ecrireReglages();
+    if (!mounted) return;
+
+    final restaure = await EcranSauvegardes.ouvrir(
+      context,
+      depot: widget.depot,
+      nomCommerce: _nom.text.trim().isEmpty
+          ? Parametres.nomCommerceParDefaut
+          : _nom.text.trim(),
+    );
+    if (!restaure || !mounted) return;
+
+    // La restauration a remplacé les réglages : ce qui est à l'écran est
+    // périmé, et le garder écraserait ce qu'on vient de restaurer.
+    Navigator.of(context).pop(await widget.parametres.tout());
+  }
+
+  /// Écrit ce qui est à l'écran, sans quitter.
+  Future<void> _ecrireReglages() async {
     await widget.parametres.definirNomCommerce(
       _nom.text.trim().isEmpty
           ? Parametres.nomCommerceParDefaut
@@ -92,6 +126,10 @@ class _EcranReglagesState extends State<EcranReglages> {
     // sinon il disparaît en silence et le commerçant croit l'avoir perdu.
     _ajouterVendeur();
     await widget.parametres.definirVendeurs(_vendeurs);
+  }
+
+  Future<void> _enregistrer() async {
+    await _ecrireReglages();
 
     final enregistre = await widget.parametres.tout();
     if (!mounted) return;
@@ -223,6 +261,25 @@ class _EcranReglagesState extends State<EcranReglages> {
             ],
           ),
 
+          const SizedBox(height: Espace.xxl),
+          Text('Sauvegarde', style: textes.titleLarge),
+          const SizedBox(height: 2),
+          Text(
+            "Un téléphone se vole et se casse. Sans sauvegarde sortie de "
+            "l'appareil, tout part avec lui — les ventes, et surtout les "
+            "dettes que tes clients te doivent.",
+            style: textes.labelSmall,
+          ),
+          const SizedBox(height: Espace.m),
+          OutlinedButton.icon(
+            onPressed: _ouvrirSauvegardes,
+            icon: const Icon(Icons.backup_outlined, size: 20),
+            label: const Text('Sauvegarder ou restaurer'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          ),
+
           const SizedBox(height: Espace.xl),
           FilledButton(
             onPressed: _enregistrer,
@@ -231,6 +288,15 @@ class _EcranReglagesState extends State<EcranReglages> {
               minimumSize: const Size.fromHeight(52),
             ),
             child: const Text('Enregistrer'),
+          ),
+
+          const SizedBox(height: Espace.xl),
+          Center(
+            child: Text(
+              empreinteVersion,
+              style:
+                  textes.labelSmall?.copyWith(color: Couleurs.encreLegere),
+            ),
           ),
           const SizedBox(height: Espace.xxl),
         ],

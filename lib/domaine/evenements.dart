@@ -46,6 +46,17 @@ enum TypeEvenement {
   /// Le commerçant a dit qu'un même prix recouvre plusieurs produits : il n'y
   /// a pas de nom à donner, et il ne faut plus le demander.
   nommageRefuse('nommage_refuse'),
+
+  /// Un article a été retiré du catalogue.
+  ///
+  /// Retiré, pas supprimé : il disparaît de la caisse et du stock, mais ses
+  /// ventes passées restent au journal et dans les rapports. Effacer
+  /// l'histoire pour effacer une faute de frappe reviendrait à fausser la
+  /// journée — et le §2.23 l'interdit de toute façon.
+  articleRetire('article_retire'),
+
+  /// Un article retiré revient au catalogue.
+  articleRepris('article_repris'),
   clientCree('client_cree'),
   consentementDonne('consentement_donne'),
   creditAccorde('credit_accorde'),

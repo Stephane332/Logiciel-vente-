@@ -65,6 +65,31 @@ class EcranDettesState extends State<EcranDettes> {
     );
   }
 
+  /// Ouvre le détail : ce qui compose la dette, ligne par ligne.
+  ///
+  /// Le total seul ne règle aucune dispute. Quand le client conteste, il faut
+  /// pouvoir poser le téléphone entre eux deux et faire défiler.
+  Future<void> _detailler(LigneClient client) async {
+    final mouvements = await widget.depot.compteDe(client.id);
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (contexte) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        builder: (_, defilement) => _DetailDuCompte(
+          client: client,
+          mouvements: mouvements,
+          defilement: defilement,
+        ),
+      ),
+    );
+  }
+
   Future<void> _encaisser(LigneClient client) async {
     final du = Montant(client.encoursCentimes);
     final montant = await demanderMontant(
@@ -147,6 +172,7 @@ class EcranDettesState extends State<EcranDettes> {
                       maintenant: maintenant,
                       surEncaissement: () => _encaisser(_debiteurs[index]),
                       surEnvoi: () => _envoyerArdoise(_debiteurs[index]),
+                      surDetail: () => _detailler(_debiteurs[index]),
                     ),
                   ),
           ),
@@ -195,12 +221,14 @@ class _CarteDebiteur extends StatelessWidget {
 
   final VoidCallback surEncaissement;
   final VoidCallback surEnvoi;
+  final VoidCallback surDetail;
 
   const _CarteDebiteur({
     required this.client,
     required this.maintenant,
     required this.surEncaissement,
     required this.surEnvoi,
+    required this.surDetail,
   });
 
   @override
@@ -211,6 +239,8 @@ class _CarteDebiteur extends StatelessWidget {
     // Une dette qui dort depuis un mois n'est pas de même nature qu'une dette
     // d'hier : elle se signale.
     final ancienne = client.detteAncienne(maintenant);
+
+    final du = Montant(client.encoursCentimes);
 
     return Container(
       padding: const EdgeInsets.all(Espace.l),
@@ -225,30 +255,45 @@ class _CarteDebiteur extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(client.nom, style: textes.titleLarge),
-                    if (client.telephoneNormalise != null) ...[
-                      const SizedBox(height: 2),
-                      Text(presenterTelephone(client.telephoneNormalise),
-                          style: textes.bodyMedium),
-                    ],
-                  ],
-                ),
+          // Seule la tête de carte ouvre le détail, et elle porte sa propre
+          // étiquette. Rendre la carte entière tactile fusionnait tout ce
+          // qu'elle contient en un seul nœud : un lecteur d'écran n'entendait
+          // plus que « Envoyer Encaisser », sans le nom du client.
+          Semantics(
+            button: true,
+            label: '${client.nom}, doit ${du.enFrancs}, voir le détail',
+            child: InkWell(
+              onTap: surDetail,
+              borderRadius: BorderRadius.circular(Rayon.s),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(client.nom, style: textes.titleLarge),
+                        if (client.telephoneNormalise != null) ...[
+                          const SizedBox(height: 2),
+                          Text(presenterTelephone(client.telephoneNormalise),
+                              style: textes.bodyMedium),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Texte simple, pas de montant animé : dans une liste qui
+                  // défile, chaque chiffre animé coûte un contrôleur
+                  // d'animation pour une valeur qui ne bouge jamais.
+                  Text(
+                    du.enFrancs,
+                    style:
+                        textes.headlineMedium?.copyWith(color: Couleurs.alerte),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: Couleurs.encreLegere),
+                ],
               ),
-              // Texte simple, pas de montant animé : dans une liste qui
-              // défile, chaque chiffre animé coûte un contrôleur d'animation
-              // pour une valeur qui ne bouge jamais.
-              Text(
-                Montant(client.encoursCentimes).enFrancs,
-                style: textes.headlineMedium?.copyWith(color: Couleurs.alerte),
-              ),
-            ],
+            ),
           ),
           if (jours != null) ...[
             const SizedBox(height: Espace.s),
@@ -300,6 +345,142 @@ class _CarteDebiteur extends StatelessWidget {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ce qui compose une dette, du plus récent au plus ancien.
+///
+/// Le cahier n'affichait qu'un total, et le total ne règle aucune dispute.
+/// Ici le commerçant pose le téléphone entre lui et son client, et ils
+/// remontent ensemble.
+class _DetailDuCompte extends StatelessWidget {
+  final LigneClient client;
+  final List<MouvementDeCompte> mouvements;
+  final ScrollController defilement;
+
+  const _DetailDuCompte({
+    required this.client,
+    required this.mouvements,
+    required this.defilement,
+  });
+
+  static String _date(DateTime quand) =>
+      '${_d(quand.day)}/${_d(quand.month)}/${quand.year} · '
+      '${_d(quand.hour)}h${_d(quand.minute)}';
+
+  static String _d(int valeur) => valeur < 10 ? '0$valeur' : '$valeur';
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return ListView(
+      controller: defilement,
+      padding: const EdgeInsets.fromLTRB(Espace.l, 0, Espace.l, Espace.xxl),
+      children: [
+        Text(client.nom, style: textes.titleLarge),
+        Text(
+          'Doit ${Montant(client.encoursCentimes).enFrancs}',
+          style: textes.bodyMedium?.copyWith(color: Couleurs.alerte),
+        ),
+        const SizedBox(height: Espace.l),
+
+        if (mouvements.isEmpty)
+          Text(
+            "Rien à détailler : cette dette a été inscrite sans passer par une "
+            'vente.',
+            style: textes.bodyMedium,
+          ),
+
+        for (final mouvement in mouvements) ...[
+          _LigneDeCompte(
+            mouvement: mouvement,
+            quand: _date(mouvement.quand),
+          ),
+          const SizedBox(height: Espace.s),
+        ],
+      ],
+    );
+  }
+}
+
+class _LigneDeCompte extends StatelessWidget {
+  final MouvementDeCompte mouvement;
+  final String quand;
+
+  const _LigneDeCompte({required this.mouvement, required this.quand});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    final achat = mouvement.estAchat;
+
+    // Un achat annulé reste affiché, barré : le faire disparaître ferait
+    // croire au client qu'on lui a effacé une ligne dans le dos.
+    final teinte = mouvement.annule
+        ? Couleurs.encreLegere
+        : (achat ? Couleurs.alerte : Couleurs.primaire);
+
+    return Container(
+      padding: const EdgeInsets.all(Espace.m),
+      decoration: BoxDecoration(
+        color: Couleurs.surface,
+        borderRadius: BorderRadius.circular(Rayon.m),
+        border: Border.all(color: Couleurs.bordure),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                achat
+                    ? Icons.add_shopping_cart_rounded
+                    : Icons.payments_outlined,
+                size: 16,
+                color: teinte,
+              ),
+              const SizedBox(width: Espace.s),
+              Expanded(child: Text(quand, style: textes.labelSmall)),
+              Text(
+                '${achat ? '+' : '−'} ${mouvement.montant.enFrancs}',
+                style: textes.titleMedium?.copyWith(
+                  color: teinte,
+                  decoration:
+                      mouvement.annule ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ],
+          ),
+          if (mouvement.annule)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text('Annulée',
+                  style: textes.labelSmall
+                      ?.copyWith(color: Couleurs.encreLegere)),
+            ),
+          for (final detail in mouvement.detail)
+            Padding(
+              padding: const EdgeInsets.only(top: Espace.s, left: Espace.l),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      detail.quantite == const Quantite.unites(1)
+                          ? detail.designation
+                          : '${detail.designation}  ×${detail.quantite}',
+                      style: textes.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: Espace.s),
+                  Text(detail.total.enFrancs, style: textes.labelSmall),
+                ],
+              ),
+            ),
         ],
       ),
     );

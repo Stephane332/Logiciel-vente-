@@ -205,24 +205,24 @@ sections.append(defaut('8', 'leger', 'Deux articles longs deviennent le même', 
 « Sac de riz parfumé importé 25 kg quali… ». La variante « qualité normale »
 donnerait exactement la même tuile.</p>
 <p>Le commerçant vendra l'un pour l'autre sans s'en apercevoir.</p>
-"""))
+""", corrige="""Le nom se rogne maintenant par le milieu : le début situe le produit, la fin le distingue. Et la tuile porte une étiquette d'accessibilité avec son nom entier — sans elle, un commerçant qui voit mal n'avait plus de caisse du tout."""))
 
 sections.append(defaut('9', 'leger', "Une dette ne se détaille pas", """
 <p>Le cahier affiche ce que le client doit, jamais ce qui compose ce montant.
 Quand le client conteste — et il conteste toujours — le commerçant n'a rien à
 lui montrer, alors que les ventes sont toutes dans la base.</p>
 <p>C'est précisément la dispute que l'ardoise devait éteindre.</p>
-"""))
+""", corrige="""Un appui sur la tête de carte ouvre le détail : chaque achat avec ce qu'il contenait, chaque remboursement, du plus récent au plus ancien. Un achat annulé y reste, barré — le faire disparaître ferait croire au client qu'on lui a effacé une ligne dans le dos."""))
 
 sections.append(defaut('10', 'leger', 'Une quantité se compte un appui à la fois', """
 <p>Pas de « × 12 ». Vendre un carton entier se fait à la main, appui par appui,
 pendant que le client regarde.</p>
-"""))
+""", corrige="""Un appui long ouvre les conditionnements courants — la demi-douzaine, la douzaine, le carton de vingt-quatre — et « Autre » pour le reste. Personne ne devine un appui long : l'application le dit d'elle-même au quatrième appui sur la même tuile, une fois."""))
 
 sections.append(defaut('11', 'leger', "Un article créé par erreur reste à vie", """
 <p>On crée un article, on ne le supprime jamais. Une faute de frappe dans un nom
 reste dans le catalogue pour toujours — on peut la corriger, pas l'effacer.</p>
-"""))
+""", corrige="""L'article se retire du catalogue depuis sa fiche. Retiré, pas supprimé : il quitte la caisse, le stock et les propositions, mais ses ventes restent comptées — la journée ne bouge pas. Et il se remet d'un geste."""))
 
 sections.append(defaut('12', 'leger', "Nommer demande de savoir écrire", """
 <p>C'est le seul moment où l'application exige du texte. Pour une vendeuse qui
@@ -265,13 +265,20 @@ sections.append("""<section class="bloc">
     reconnu par toutes les messageries. Si WhatsApp ne le transforme pas en
     lien bleu, la fonction ne sert à rien — et il faudra un lien
     <code>https://</code> qui redirige, donc un serveur.</li>
-    <li><b>Rien n'est sauvegardé hors du téléphone.</b> Téléphone volé, cassé,
-    reformaté : tout est perdu. Les téléphones sont volés ici. Une sauvegarde
-    exportable doit venir avant le serveur.</li>
+    <li><b class="fait">Rien n'est sauvegardé hors du téléphone.</b>
+    <i>Fait.</i> Le carnet se sauvegarde en un fichier et part par le partage
+    du système — WhatsApp, Bluetooth, carte mémoire. C'est le journal qui est
+    sauvegardé, pas les écrans : les tables d'affichage se reconstruisent à
+    partir de lui, et le fichier reste lisible même quand le schéma aura
+    changé. Une restauration vérifie la chaîne d'empreintes <b>avant</b>
+    d'écrire quoi que ce soit — sinon on détruirait des données en place pour
+    découvrir que le fichier est abîmé. Reste à l'éprouver sur deux téléphones
+    réels, ce qui ne se fait pas d'ici.</li>
     <li><b>Trois ventes, est-ce le bon seuil ?</b> Chez quelqu'un qui fait cent
     ventes par jour, la question de nommage arrivera peut-être trop souvent.</li>
-    <li><b>Aucune version affichée dans l'application.</b> Quand un commerçant
-    appellera pour un chiffre faux, je ne saurai pas ce qu'il a installé.</li>
+    <li><b class="fait">Aucune version affichée dans l'application.</b>
+    <i>Fait.</i> Elle est en pied de réglages, et elle voyage dans chaque
+    sauvegarde.</li>
   </ul>
 </section>""")
 
@@ -409,6 +416,7 @@ STYLE = """
              max-width:64ch; }
   .reponse::before { content:'Corrigé depuis. '; font-weight:700;
                      color:var(--vert); }
+  .fait { color:var(--vert); }
 
   .preuve { margin:0; }
   .preuve img { border-radius:14px; border:1px solid var(--bordure);

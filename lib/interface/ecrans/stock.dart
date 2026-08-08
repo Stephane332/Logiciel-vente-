@@ -82,6 +82,13 @@ class EcranStockState extends State<EcranStock> {
     final saisie = await FicheArticle.modifier(context, article);
     if (saisie == null) return;
 
+    if (saisie.retirer) {
+      await widget.depot.retirerArticle(article.code);
+      await recharger();
+      _annoncerRetrait(article);
+      return;
+    }
+
     if (saisie.nom != article.designation) {
       await widget.depot.nommerArticle(article.code, saisie.nom);
     }
@@ -89,6 +96,29 @@ class EcranStockState extends State<EcranStock> {
       await widget.depot.modifierPrix(article.code, saisie.prix);
     }
     await recharger();
+  }
+
+  /// Dit ce qui vient d'être retiré, et propose de revenir en arrière.
+  ///
+  /// Un retrait est réversible : le dire tout de suite est ce qui permet
+  /// d'oser le geste.
+  void _annoncerRetrait(LigneArticle article) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('${article.designation} retiré du catalogue'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Remettre',
+          onPressed: () async {
+            await widget.depot
+                .retirerArticle(article.code, retire: false);
+            await recharger();
+          },
+        ),
+      ));
   }
 
   /// Demande une quantité en unités entières.
@@ -580,7 +610,24 @@ class SaisieArticle {
   /// Stock de départ. Nul quand on ne fait que renommer.
   final Quantite? stock;
 
-  const SaisieArticle({required this.nom, required this.prix, this.stock});
+  /// Vrai quand le commerçant demande à sortir l'article du catalogue.
+  ///
+  /// Le nom et le prix sont alors sans objet : c'est le seul cas où la fiche
+  /// rend autre chose qu'une correction.
+  final bool retirer;
+
+  const SaisieArticle({
+    required this.nom,
+    required this.prix,
+    this.stock,
+    this.retirer = false,
+  });
+
+  const SaisieArticle.retrait()
+      : nom = '',
+        prix = const Montant.zero(),
+        stock = null,
+        retirer = true;
 }
 
 /// La fiche d'un article : son nom, son prix, et sa quantité de départ.
@@ -594,12 +641,16 @@ class FicheArticle extends StatefulWidget {
   final Montant? prix;
   final bool avecStock;
 
+  /// Vrai quand l'article existe déjà et peut donc être retiré.
+  final bool retirable;
+
   const FicheArticle({
     super.key,
     required this.titre,
     this.nom,
     this.prix,
     this.avecStock = false,
+    this.retirable = false,
   });
 
   static Future<SaisieArticle?> creer(BuildContext context) =>
@@ -616,6 +667,9 @@ class FicheArticle extends StatefulWidget {
           titre: "Fiche de l'article",
           nom: article.nomme ? article.designation : null,
           prix: Montant(article.prixCentimes),
+          // Un article créé par erreur restait à vie : une faute de frappe
+          // se corrigeait, jamais ne s'effaçait.
+          retirable: true,
         ),
       );
 
@@ -722,8 +776,51 @@ class _FicheArticleState extends State<FicheArticle> {
             ),
             child: const Text('Enregistrer'),
           ),
+          if (widget.retirable) ...[
+            const SizedBox(height: Espace.s),
+            TextButton.icon(
+              onPressed: _retirer,
+              icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
+              label: const Text('Retirer du catalogue'),
+              style: TextButton.styleFrom(
+                foregroundColor: Couleurs.alerte,
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Sort l'article de la caisse, après confirmation.
+  ///
+  /// La confirmation dit ce qui ne bougera pas : les ventes déjà faites
+  /// restent comptées. Sans ça, le commerçant hésitera à retirer quoi que ce
+  /// soit de peur de fausser sa journée.
+  Future<void> _retirer() async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: const Text('Retirer du catalogue ?'),
+        content: const Text(
+          "Il disparaît de la caisse et du stock. Les ventes déjà faites "
+          "restent comptées — ta journée ne bouge pas.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(false),
+            child: const Text('Garder'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Couleurs.alerte),
+            child: const Text('Retirer'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    Navigator.of(context).pop(const SaisieArticle.retrait());
   }
 }

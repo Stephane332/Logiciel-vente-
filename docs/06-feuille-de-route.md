@@ -43,9 +43,18 @@ Six à dix semaines. L'objectif est d'être utile dès le premier jour, sans con
 - [x] Confirmation quand un montant sort de ce que le commerce encaisse
 - [x] Recherche au catalogue, qui fait sauter le plafond de soixante articles
 - [x] Hier, la semaine et le mois dans le rapport du soir
+- [x] Vendre un carton d'un geste, sans compter les appuis
+- [x] Détail d'une dette : ce qui la compose, achat par achat
+- [x] Retirer un article du catalogue sans effacer ses ventes
+- [x] Sauvegarde du carnet, sortie du téléphone et restaurable
+- [x] Version affichée dans l'application
 - [ ] Impression Bluetooth ESC/POS en option
 
 **Jalon :** installer chez 10 commerçants et regarder par-dessus leur épaule.
+
+**Préalable non négociable :** vérifier la sauvegarde sur deux téléphones réels
+avant la première installation. Un commerçant qui perd son cahier numérique perd
+ses créances, et il ne me le pardonnera pas.
 
 **Critère de passage :** au moins 6 des 10 utilisent encore l'application trois semaines
 après l'installation. En dessous, je corrige le produit avant d'en installer d'autres.
@@ -105,5 +114,7 @@ La validation se fait sur le terrain, pas en test unitaire.
 | Hors-ligne | Mode avion pendant une journée entière d'utilisation réelle. Aucune fonction ne se dégrade. Réseau rallumé : tout remonte, sans doublon ni perte. |
 | Paiements | Code QR et capture du SMS sur deux téléphones réels, dont un double SIM, avec un vrai compte marchand et de vrais montants. |
 | Impression | Imprimante Bluetooth 58 mm, batterie faible, à un mètre. |
+| Sauvegarde | Sauvegarder sur un téléphone, envoyer le fichier par WhatsApp, restaurer sur un second téléphone vierge, et vérifier que les dettes clients sont revenues au franc près. À faire avant la première installation, pas après. |
+| Accessibilité | Activer le lecteur d'écran et faire une vente entière sans regarder l'écran. Chaque tuile doit annoncer son article et son prix. |
 | Calculs fiscaux | Jeu de tests sur les 16 groupes de taxation, les modes HT et TTC, la taxe spécifique et le PSVB, avec vérification de l'égalité montant imposable + taxe = montant total, arrondi supérieur compris. |
 | Rétention | La seule métrique qui compte en phase 1 : combien des 10 premiers commerçants utilisent encore l'application trois semaines après l'installation. |

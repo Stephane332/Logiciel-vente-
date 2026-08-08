@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domaine/montant.dart';
+import '../../domaine/texte.dart';
 import '../theme/palette.dart';
 
 class TuileProduit extends StatefulWidget {
@@ -78,18 +79,28 @@ class _TuileProduitState extends State<TuileProduit>
     final textes = Theme.of(context).textTheme;
     final auPanier = widget.quantiteAuPanier > 0;
 
-    return GestureDetector(
-      onTapDown: (_) => _controleur.forward(),
-      onTapUp: (_) => _controleur.reverse(),
-      onTapCancel: () => _controleur.reverse(),
-      onTap: _appuyer,
-      onLongPress: widget.onLongPress == null
-          ? null
-          : () {
-              HapticFeedback.mediumImpact();
-              widget.onLongPress!();
-            },
-      child: ScaleTransition(
+    // La tuile est peinte, pas construite avec des boutons : sans étiquette
+    // explicite, elle n'existe pas pour un lecteur d'écran, et le commerçant
+    // qui voit mal n'a plus de caisse du tout. L'étiquette porte le nom
+    // entier, pas sa version rognée.
+    return Semantics(
+      button: true,
+      label: widget.quantiteAuPanier > 0
+          ? '${widget.nom}, ${widget.prix.enFrancs}, '
+              '${widget.quantiteAuPanier} au panier'
+          : '${widget.nom}, ${widget.prix.enFrancs}',
+      child: GestureDetector(
+        onTapDown: (_) => _controleur.forward(),
+        onTapUp: (_) => _controleur.reverse(),
+        onTapCancel: () => _controleur.reverse(),
+        onTap: _appuyer,
+        onLongPress: widget.onLongPress == null
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                widget.onLongPress!();
+              },
+        child: ScaleTransition(
         scale: _echelle,
         child: AnimatedContainer(
           duration: Duree.rapide,
@@ -128,8 +139,12 @@ class _TuileProduitState extends State<TuileProduit>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Rogné par le milieu, pas par la fin. « Sac de riz
+                      // 25 kg qualité supérieure » et « … qualité normale »
+                      // donnaient deux tuiles identiques : c'est la fin du
+                      // nom qui les distingue, et c'est elle qu'on coupait.
                       Text(
-                        widget.nom,
+                        nomAbrege(widget.nom),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: textes.titleMedium,
@@ -214,8 +229,9 @@ class _TuileProduitState extends State<TuileProduit>
                     ),
                   ),
                 ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

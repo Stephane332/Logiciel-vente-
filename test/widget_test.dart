@@ -337,8 +337,14 @@ void main() {
 
   group('Prix négocié', () {
     /// Ouvre le pavé de négociation sur un article et y saisit un prix.
+    ///
+    /// L'appui long ouvre d'abord la feuille d'ajustement — la quantité et le
+    /// prix y tombent au même endroit, plutôt que d'inventer un second geste
+    /// que personne ne trouverait.
     Future<void> negocier(WidgetTester tester, String nom, String saisie) async {
       await tester.longPress(find.text(nom));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Changer le prix pour cette vente'));
       await tester.pumpAndSettle();
 
       // On vise l'InkWell de la touche : le montant affiché au-dessus du

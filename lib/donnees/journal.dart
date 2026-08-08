@@ -127,13 +127,50 @@ class Journal {
     return requete.getSingleOrNull();
   }
 
-  /// Relit tous les événements de cet appareil, dans l'ordre.
+  /// Tous les événements en base, dans l'ordre où il faut les rejouer.
+  ///
+  /// Tous, et pas seulement ceux de cet appareil : une sauvegarde restaurée
+  /// sur un autre téléphone porte l'identifiant du premier, et un filtre par
+  /// appareil rendrait le passé entièrement invisible — le commerçant
+  /// restaurerait sa sauvegarde et retrouverait une boutique vide.
+  ///
+  /// L'ordre est chronologique, la séquence ne départageant que deux
+  /// événements du même appareil arrivés dans la même seconde. C'est l'ordre
+  /// des faits, et c'est celui dans lequel les projections doivent se
+  /// reconstruire.
   Future<List<Evenement>> tous() async {
     final requete = _base.select(_base.evenements)
-      ..where((e) => e.appareil.equals(appareil))
+      ..orderBy([
+        (e) => OrderingTerm.asc(e.horodatage),
+        (e) => OrderingTerm.asc(e.appareil),
+        (e) => OrderingTerm.asc(e.sequence),
+      ]);
+    final lignes = await requete.get();
+    return lignes.map(_versEvenement).toList();
+  }
+
+  /// La chaîne d'un appareil, dans l'ordre de ses séquences.
+  ///
+  /// C'est l'unité d'intégrité : les empreintes se chaînent par appareil, pas
+  /// à travers tout le journal — deux caisses qui écrivent en même temps hors
+  /// ligne ne peuvent pas se chaîner l'une à l'autre.
+  Future<List<Evenement>> chaine([String? lequel]) async {
+    final requete = _base.select(_base.evenements)
+      ..where((e) => e.appareil.equals(lequel ?? appareil))
       ..orderBy([(e) => OrderingTerm.asc(e.sequence)]);
     final lignes = await requete.get();
     return lignes.map(_versEvenement).toList();
+  }
+
+  /// Les appareils qui ont écrit dans ce journal.
+  Future<List<String>> appareils() async {
+    final lignes = await _base
+        .customSelect(
+          'SELECT DISTINCT appareil FROM evenements ORDER BY appareil',
+          readsFrom: {_base.evenements},
+        )
+        .get();
+    return [for (final ligne in lignes) ligne.read<String>('appareil')];
   }
 
   /// Les événements pas encore remontés au serveur, dans l'ordre.
@@ -157,13 +194,45 @@ class Journal {
         .write(const EvenementsCompanion(synchronise: Value(true)));
   }
 
-  /// Vérifie l'intégrité de la chaîne.
+  /// Vérifie l'intégrité du journal, chaîne par chaîne.
   ///
-  /// À lancer au démarrage et avant toute remontée au serveur. Contrôle la
-  /// continuité des séquences, le chaînage des empreintes, et recalcule
-  /// chaque empreinte à partir du contenu.
+  /// À lancer au démarrage, avant toute remontée au serveur, et avant de
+  /// restaurer une sauvegarde. Contrôle la continuité des séquences, le
+  /// chaînage des empreintes, et recalcule chaque empreinte à partir du
+  /// contenu.
+  ///
+  /// Chaque appareil a sa propre chaîne : un journal qui en porte plusieurs —
+  /// après une restauration, ou plus tard avec deux caisses — est intact si
+  /// toutes le sont.
   Future<VerificationJournal> verifier() async {
-    final evenements = await tous();
+    final lesquels = await appareils();
+    if (lesquels.isEmpty) {
+      return const VerificationJournal(intact: true, nombreEvenements: 0);
+    }
+
+    var total = 0;
+    for (final lequel in lesquels) {
+      final resultat = verifierChaine(await chaine(lequel));
+      total += resultat.nombreEvenements;
+      if (!resultat.intact) {
+        return VerificationJournal(
+          intact: false,
+          nombreEvenements: total,
+          premierFautif: resultat.premierFautif,
+          motif: resultat.motif,
+        );
+      }
+    }
+    return VerificationJournal(intact: true, nombreEvenements: total);
+  }
+
+  /// Vérifie une chaîne déjà en main.
+  ///
+  /// Statique et sans base : c'est ce qui permet de contrôler une sauvegarde
+  /// **avant** de l'écrire. Restaurer d'abord et vérifier ensuite reviendrait
+  /// à détruire les données en place pour découvrir que le fichier est
+  /// abîmé.
+  static VerificationJournal verifierChaine(List<Evenement> evenements) {
     if (evenements.isEmpty) {
       return const VerificationJournal(intact: true, nombreEvenements: 0);
     }

@@ -93,6 +93,53 @@ void main() {
     expect(retires, 0);
   });
 
+  testWidgets("la tuile s'annonce à un lecteur d'écran", (tester) async {
+    // Elle est peinte, pas construite avec des boutons : sans étiquette
+    // explicite elle n'existe pas pour un lecteur d'écran, et le commerçant
+    // qui voit mal n'a plus de caisse du tout.
+    final semantique = tester.ensureSemantics();
+    await tester.pumpWidget(tuile());
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel(RegExp('^Riz 1 kg, 650')), findsOneWidget);
+    semantique.dispose();
+  });
+
+  testWidgets("l'étiquette dit ce qui est déjà au panier", (tester) async {
+    final semantique = tester.ensureSemantics();
+    await tester.pumpWidget(tuile(quantite: 3, onRetirer: () {}));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel(RegExp('3 au panier')), findsOneWidget);
+    semantique.dispose();
+  });
+
+  testWidgets("l'étiquette garde le nom entier, pas sa version rognée",
+      (tester) async {
+    const long = 'Sac de riz parfumé importé 25 kg qualité supérieure';
+    final semantique = tester.ensureSemantics();
+    await tester.pumpWidget(MaterialApp(
+      theme: themeClair(),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 180,
+            height: 180,
+            child: TuileProduit(
+              nom: long,
+              prix: Montant.depuisDecimal(18500),
+              onPressed: () {},
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel(RegExp(RegExp.escape(long))), findsOneWidget);
+    semantique.dispose();
+  });
+
   testWidgets('le moins ne paraît que si le geste existe', (tester) async {
     await tester.pumpWidget(tuile(quantite: 2));
     await tester.pumpAndSettle();

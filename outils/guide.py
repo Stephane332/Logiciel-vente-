@@ -26,6 +26,11 @@ for _nom in ['equipe-02-qui-encaisse', 'equipe-03-liste', 'equipe-05-rapport',
     ECRAN[_nom] = ('data:image/png;base64,'
                    + b64(CAPTURES / 'equipe' / (_nom + '.png')))
 
+for _nom in ['carnet-01-quantite', 'carnet-02-carton', 'carnet-03-detail-dette',
+             'carnet-04-fiche', 'carnet-07-sauvegarde']:
+    ECRAN[_nom] = ('data:image/png;base64,'
+                   + b64(CAPTURES / 'carnet' / (_nom + '.png')))
+
 REGULIER = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Regular.ttf')
 GRAS = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Bold.ttf')
 
@@ -181,6 +186,67 @@ avec un raccourci « Tout », parce que solder est le cas fréquent.</p>
       ('11-credit-client-choisi', 'Ce que le client doit déjà'),
       ('12-cahier-dettes', 'Le cahier, les plus anciens en tête')]))
 
+sections.append(bloc('Sauvegarder, et surtout sortir la sauvegarde', """
+<p>C'est la seule panne dont un commerçant ne se relève pas. Un téléphone se
+vole, se casse, se reformate — et avec lui partent les dettes que ses clients
+lui doivent. Personne ne rembourse une ardoise que plus personne ne peut
+montrer.</p>
+<p>L'écran de sauvegarde dit donc deux choses et pas une : faire la sauvegarde,
+et <b>l'envoyer ailleurs</b>. WhatsApp, Bluetooth, carte mémoire — peu importe,
+pourvu qu'elle ne reste pas sur l'appareil. Un fichier qui reste sur le
+téléphone disparaît avec lui.</p>
+<p>Ce qui est sauvegardé, c'est le <b>journal</b> : la suite des écritures, pas
+les écrans. Tout le reste — le catalogue, les dettes, les rapports — se
+reconstruit à partir de lui. Le fichier est donc plus petit qu'une copie de la
+base, plus fidèle, et il restera lisible même quand l'application aura
+changé.</p>
+<p>Restaurer remplace tout ce qui est là. L'application le dit avant, en
+comptant ce qui va disparaître, et elle <b>vérifie le fichier avant d'écrire
+quoi que ce soit</b> : effacer un carnet pour découvrir ensuite que la
+sauvegarde était abîmée serait la pire façon de perdre des données. Un fichier
+retouché est refusé — la chaîne d'empreintes ne suit plus.</p>
+<p class="note">Je ne considérerai pas cette fonction comme terminée tant que je
+ne l'aurai pas éprouvée sur deux vrais téléphones : sauvegarder sur l'un,
+envoyer par WhatsApp, restaurer sur l'autre, et retrouver les dettes au franc
+près. C'est écrit dans mon protocole de vérification, avant la première
+installation.</p>
+""", [('carnet-07-sauvegarde', "Sauvegarder, et sortir le fichier")]))
+
+sections.append(bloc('Vendre un carton sans compter les appuis', """
+<p>Douze sachets d'eau, c'était douze appuis, pendant que le client regarde.</p>
+<p>Un <b>appui long</b> sur un article ouvre les conditionnements courants — la
+demi-douzaine, la douzaine, le carton de vingt-quatre — et « Autre » pour tout
+le reste. C'est aussi là qu'on change le prix pour cette vente-là : deux
+besoins qui tombent au même endroit valent mieux qu'un second geste que
+personne ne trouverait.</p>
+<p class="note">Personne ne devine un appui long. L'application le dit
+d'elle-même au quatrième appui sur la même tuile, une fois, au moment exact où
+ça sert.</p>
+""", [('carnet-01-quantite', "L'appui long ouvre les quantités"),
+      ('carnet-02-carton', 'Le carton entier en deux gestes')]))
+
+sections.append(bloc("Quand le client conteste sa dette", """
+<p>Un total ne règle aucune dispute. Le cahier disait « Salif doit 600 F », et
+Salif répondait qu'il avait déjà payé.</p>
+<p>Un appui sur la carte du client ouvre le détail : chaque achat avec ce qu'il
+contenait, chaque remboursement, du plus récent au plus ancien. Le commerçant
+pose le téléphone entre eux deux et ils remontent ensemble.</p>
+<p>Un achat annulé y reste, barré. Le faire disparaître ferait croire au client
+qu'on lui a effacé une ligne dans le dos — et c'est exactement la méfiance
+qu'on cherche à éteindre.</p>
+""", [('carnet-03-detail-dette', "Ce qui compose la dette, ligne par ligne")]))
+
+sections.append(bloc("Corriger une erreur de catalogue", """
+<p>Un article créé par erreur restait à vie : on pouvait corriger une faute de
+frappe, jamais l'effacer.</p>
+<p>Sa fiche permet maintenant de le <b>retirer du catalogue</b>. Retiré, pas
+supprimé : il quitte la caisse, le stock et les propositions, mais ses ventes
+passées restent comptées — la journée ne bouge pas d'un franc. C'est ce qui
+permet d'oser le geste, et c'est aussi ce que la DGI impose : on ne réécrit
+pas le journal.</p>
+<p>Et il se remet en place d'un seul appui.</p>
+""", [('carnet-04-fiche', "La fiche d'un article")]))
+
 sections.append(bloc('Le stock, seulement si on en veut', """
 <p>Aucun inventaire à saisir. Un article n'entre dans le stock que lorsqu'il est
 nommé et vendu assez souvent pour que la question ait un sens — alors seulement
@@ -321,7 +387,8 @@ sections.append(bloc("Ce qui n'existe pas encore", """
   <li><b>L'impression Bluetooth.</b> Il faut une imprimante 58 mm en main pour
   l'écrire : le jeu de caractères se vérifie sur du papier, pas dans un test.</li>
   <li><b>La synchronisation et la console du patron à distance.</b> Tout vit sur
-  le téléphone. Une sauvegarde exportable viendra avant le serveur.</li>
+  le téléphone. La sauvegarde exportable est là, le serveur non — et c'était
+  bien l'ordre à tenir.</li>
   <li><b>La facturation certifiée.</b> Le modèle de données suit déjà le
   vocabulaire de la DGI, mais le dialogue avec le module de contrôle n'est pas
   écrit — et le protocole reste à obtenir.</li>

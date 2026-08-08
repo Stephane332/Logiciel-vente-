@@ -59,6 +59,48 @@ class PaiementAEnregistrer {
   });
 }
 
+/// Ce qui a fait monter ou descendre l'ardoise d'un client.
+enum SensDeCompte { achat, remboursement }
+
+/// Une ligne d'un achat à crédit, telle qu'on la montre au client.
+class DetailDAchat {
+  final String designation;
+  final Quantite quantite;
+  final Montant total;
+
+  const DetailDAchat({
+    required this.designation,
+    required this.quantite,
+    required this.total,
+  });
+}
+
+/// Un mouvement du compte d'un client.
+class MouvementDeCompte {
+  final DateTime quand;
+  final Montant montant;
+  final SensDeCompte sens;
+
+  /// Ce qui composait l'achat. Vide pour un remboursement, et vide aussi
+  /// pour un achat au montant libre — dans ce cas il n'y a rien à détailler,
+  /// et prétendre le contraire serait pire que de se taire.
+  final List<DetailDAchat> detail;
+
+  /// Une vente annulée reste affichée, barrée. La faire disparaître ferait
+  /// croire au client qu'on lui a effacé une ligne dans le dos.
+  final bool annule;
+
+  const MouvementDeCompte({
+    required this.quand,
+    required this.montant,
+    required this.sens,
+    this.detail = const [],
+    this.annule = false,
+  });
+
+  bool get estAchat => sens == SensDeCompte.achat;
+}
+
 /// Ce qu'un vendeur a encaissé sur une période.
 class PartDeVendeur {
   /// Nom du vendeur. Vide quand la vente n'a été attribuée à personne — ce
@@ -913,6 +955,33 @@ class Depot {
   /// Refuser le pari arrête la proposition de nom. L'article reste un
   /// fourre-tout assumé — ce qui est honnête — et le commerçant crée ses
   /// vrais articles depuis l'écran de stock quand il le souhaite.
+  /// Retire un article du catalogue, ou l'y remet.
+  ///
+  /// Retiré, pas supprimé. Ses ventes passées restent au journal et dans les
+  /// rapports : effacer l'histoire pour effacer une faute de frappe fausserait
+  /// la journée, et le §2.23 l'interdit de toute façon. L'article disparaît de
+  /// la caisse et du stock, c'est tout — et il revient d'un geste.
+  Future<void> retirerArticle(String code, {bool retire = true}) async {
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(
+        retire ? TypeEvenement.articleRetire : TypeEvenement.articleRepris,
+        {'code': code},
+      );
+      await _appliquerRetrait(evenement, retire: retire);
+    });
+  }
+
+  Future<void> _appliquerRetrait(
+    Evenement evenement, {
+    required bool retire,
+  }) async {
+    await (base.update(base.articles)
+          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
+        .write(ArticlesCompanion(
+      retireLe: Value(retire ? evenement.horodatage : null),
+    ));
+  }
+
   Future<void> refuserNommage(String code) async {
     await base.transaction(() async {
       final evenement =
@@ -933,6 +1002,7 @@ class Depot {
   Future<List<LigneArticle>> articlesANommer() {
     final requete = base.select(base.articles)
       ..where((a) =>
+          a.retireLe.isNull() &
           a.nomme.equals(false) &
           a.nommageRefuseLe.isNull() &
           a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage))
@@ -1071,6 +1141,7 @@ class Depot {
   Future<List<LigneArticle>> articlesASuivre() {
     final requete = base.select(base.articles)
       ..where((a) =>
+          a.retireLe.isNull() &
           a.nomme.equals(true) &
           a.suiviStock.equals(SuiviStock.aucun.cle) &
           a.propositionSuiviReporteeLe.isNull() &
@@ -1086,7 +1157,8 @@ class Depot {
   /// suivi. Rien n'est jamais définitif.
   Future<List<LigneArticle>> articlesSansSuivi({int limite = 60}) {
     final requete = base.select(base.articles)
-      ..where((a) => a.suiviStock.equals(SuiviStock.aucun.cle))
+      ..where(
+          (a) => a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.aucun.cle))
       ..orderBy([
         (a) => OrderingTerm.desc(a.nombreVentes),
         (a) => OrderingTerm.desc(a.derniereVente),
@@ -1098,7 +1170,8 @@ class Depot {
   /// Les articles dont le stock est réellement suivi, les plus bas d'abord.
   Future<List<LigneArticle>> articlesEnStock() {
     final requete = base.select(base.articles)
-      ..where((a) => a.suiviStock.equals(SuiviStock.direct.cle))
+      ..where((a) =>
+          a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.direct.cle))
       ..orderBy([(a) => OrderingTerm.asc(a.stockMilliemes)]);
     return requete.get();
   }
@@ -1106,6 +1179,7 @@ class Depot {
   /// Le catalogue tel qu'il s'affiche à la caisse : les plus vendus d'abord.
   Future<List<LigneArticle>> catalogue({int limite = 60, String? recherche}) {
     final requete = base.select(base.articles)
+      ..where((a) => a.retireLe.isNull())
       ..orderBy([
         (a) => OrderingTerm.desc(a.nombreVentes),
         (a) => OrderingTerm.desc(a.derniereVente),
@@ -1127,7 +1201,7 @@ class Depot {
   /// Nombre d'articles au catalogue, pour savoir s'il faut une recherche.
   Future<int> nombreDArticles() async {
     final ligne = await base
-        .customSelect('SELECT COUNT(*) AS n FROM articles',
+        .customSelect('SELECT COUNT(*) AS n FROM articles WHERE retire_le IS NULL',
             readsFrom: {base.articles})
         .getSingle();
     return ligne.read<int>('n');
@@ -1245,6 +1319,93 @@ class Depot {
     return requete.get();
   }
 
+  /// Le détail de ce qu'un client doit : chaque achat, chaque remboursement.
+  ///
+  /// Le cahier n'affichait qu'un total. Quand le client conteste — et il
+  /// conteste toujours — le commerçant n'avait rien à lui montrer, alors que
+  /// tout est en base. C'est précisément la dispute que l'ardoise devait
+  /// éteindre.
+  ///
+  /// Les lignes sortent du plus récent au plus ancien : la contestation porte
+  /// presque toujours sur le dernier achat.
+  Future<List<MouvementDeCompte>> compteDe(String clientId) async {
+    final ventes = await (base.select(base.ventes)
+          ..where((v) => v.clientId.equals(clientId))
+          ..orderBy([(v) => OrderingTerm.desc(v.horodatage)]))
+        .get();
+
+    final identifiants = [for (final vente in ventes) vente.id];
+    final lignes = identifiants.isEmpty
+        ? <LigneDeVente>[]
+        : await (base.select(base.lignesVente)
+              ..where((l) => l.venteId.isIn(identifiants)))
+            .get();
+    final aCredit = identifiants.isEmpty
+        ? <LignePaiement>[]
+        : await (base.select(base.paiements)
+              ..where((p) =>
+                  p.venteId.isIn(identifiants) &
+                  p.mode.equals(ModePaiement.credit.name)))
+            .get();
+
+    final mouvements = <MouvementDeCompte>[];
+
+    for (final vente in ventes) {
+      final part = aCredit
+          .where((p) => p.venteId == vente.id)
+          .fold(0, (somme, p) => somme + p.montantCentimes);
+      // Une vente payée comptant n'a rien à faire dans une ardoise.
+      if (part == 0) continue;
+
+      // Les identifiants de ligne sont séquentiels dans une vente : les
+      // trier rend l'ordre de saisie, celui que le client a vu se composer.
+      final siennes = lignes.where((l) => l.venteId == vente.id).toList()
+        ..sort((a, b) => a.id.compareTo(b.id));
+
+      mouvements.add(MouvementDeCompte(
+        quand: vente.horodatage,
+        montant: Montant(part),
+        sens: SensDeCompte.achat,
+        annule: vente.annulee,
+        detail: [
+          for (final ligne in siennes)
+            DetailDAchat(
+              designation: ligne.designation,
+              quantite: Quantite(ligne.quantiteMilliemes),
+              total: Montant(ligne.montantCentimes),
+            )
+        ],
+      ));
+    }
+
+    // Les remboursements ne sont pas des ventes : ils ne vivent que dans le
+    // journal, et c'est là qu'il faut aller les chercher.
+    final remboursements = await (base.select(base.evenements)
+          ..where((e) => e.type.equals(TypeEvenement.creditRembourse.cle)))
+        .get();
+
+    for (final ligne in remboursements) {
+      final charge = Evenement.chargeDepuisJson(ligne.charge);
+      if (charge['clientId'] != clientId) continue;
+      mouvements.add(MouvementDeCompte(
+        quand: ligne.horodatage,
+        montant: Montant(charge['montant']! as int),
+        sens: SensDeCompte.remboursement,
+      ));
+    }
+
+    // Le journal arrondit à la seconde : un remboursement encaissé juste
+    // après un achat porte souvent le même horodatage. À égalité, c'est le
+    // remboursement qui vient en dernier — on ne rembourse pas avant
+    // d'acheter, et l'ordre affiché doit rester celui des faits.
+    mouvements.sort((a, b) {
+      final parDate = b.quand.compareTo(a.quand);
+      if (parDate != 0) return parDate;
+      return a.estAchat == b.estAchat ? 0 : (a.estAchat ? 1 : -1);
+    });
+    return mouvements;
+  }
+
   // ----------------------------------------------------------------- caisse
 
   Future<void> mouvementCaisse({
@@ -1317,6 +1478,7 @@ class Depot {
 
     final ruptures = await (base.select(base.articles)
           ..where((a) =>
+              a.retireLe.isNull() &
               a.suiviStock.equals(SuiviStock.direct.cle) &
               a.stockMilliemes.isSmallerOrEqualValue(0)))
         .get();
@@ -1371,6 +1533,10 @@ class Depot {
             await _appliquerReport(evenement);
           case TypeEvenement.nommageRefuse:
             await _appliquerRefusNommage(evenement);
+          case TypeEvenement.articleRetire:
+            await _appliquerRetrait(evenement, retire: true);
+          case TypeEvenement.articleRepris:
+            await _appliquerRetrait(evenement, retire: false);
           case TypeEvenement.articleCree:
             await _appliquerCreationArticle(evenement);
           case TypeEvenement.articlePrixModifie:

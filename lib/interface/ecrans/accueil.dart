@@ -65,6 +65,7 @@ class _AccueilState extends State<Accueil> {
       context,
       parametres: widget.parametres,
       reglage: _reglage,
+      depot: widget.depot,
     );
     if (maj == null || !mounted) return;
 
@@ -73,6 +74,24 @@ class _AccueilState extends State<Accueil> {
       _documents =
           Documents(widget.documents.base, nomCommerce: maj.nomCommerce);
     });
+
+    // Une restauration a pu remplacer tout le carnet pendant qu'on était
+    // dans les réglages. Les écrans déjà montés garderaient sinon les
+    // chiffres de la boutique d'avant.
+    for (final ecran in [_cleCaisse, _cleDettes, _cleStock, _cleRapport]) {
+      switch (ecran.currentState) {
+        case final EcranVenteState etat:
+          etat.recharger();
+        case final EcranDettesState etat:
+          etat.recharger();
+        case final EcranStockState etat:
+          etat.recharger();
+        case final EcranRapportState etat:
+          etat.recharger();
+        default:
+          break;
+      }
+    }
   }
 
   /// Retient qui tient la caisse, pour de bon.

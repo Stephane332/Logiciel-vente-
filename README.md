@@ -50,11 +50,17 @@ En construction. La feuille de route détaillée se trouve dans
 
 ## Essayer l'application
 
-**Sur un téléphone Android.** Chaque poussée de code déclenche une compilation
-chez GitHub : analyse, tests, puis quatre APK déposés dans l'onglet
-**Actions**. Un fichier qu'on ne peut refaire qu'à la main est un fichier qui
-finit périmé. La marche à suivre, la clé de signature et ce qu'il ne faut pas
-perdre sont dans
+**Sur un téléphone Android.** Les APK prêts à installer sont sur la
+[page des versions](https://github.com/Stephane332/Logiciel-vente-/releases/latest) :
+`arm64-v8a` pour la quasi-totalité des téléphones vendus depuis 2016,
+`universel` quand on ne sait pas quel téléphone est au bout du WhatsApp. On
+ouvre le fichier, Android demande d'autoriser l'installation depuis cette
+source-là, et l'application s'ouvre sur la caisse — rien à configurer.
+
+Chaque poussée de code déclenche par ailleurs une compilation chez GitHub :
+analyse, tests, puis les mêmes quatre APK dans l'onglet **Actions**. Un
+fichier qu'on ne peut refaire qu'à la main est un fichier qui finit périmé. La
+marche à suivre, la clé de signature et ce qu'il ne faut pas perdre sont dans
 [`docs/13-installation-android.md`](docs/13-installation-android.md).
 
 **Les deux documents pour s'en servir.** `docs/manuel.html` est rangé par

@@ -20,6 +20,15 @@ on:
       - 'outils/**'
       - '**.md'
   workflow_dispatch:
+    inputs:
+      publier:
+        description: >
+          Créer une version téléchargeable, étiquetée d'après le numéro du
+          pubspec. Les artefacts de compilation expirent au bout de trois
+          mois ; une version, non — et c'est elle qu'on garde en face du
+          téléphone d'un commerçant qui appelle.
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -117,11 +126,36 @@ jobs:
           path: apk/*.apk
           retention-days: 90
 
-      # Sur une étiquette de version, l'APK devient téléchargeable sans
-      # compte GitHub : c'est le lien qu'on donne à un commerçant.
+      # Une version publiée survit à l'expiration des artefacts, et porte un
+      # numéro qu'on peut mettre en face de celui qu'affiche le téléphone
+      # d'un commerçant qui appelle. Déclenchée par une étiquette, ou à la
+      # demande depuis l'onglet Actions.
       - name: Version publiée
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: >
+          startsWith(github.ref, 'refs/tags/v')
+          || inputs.publier
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
+          name: Carnet ${{ env.VERSION }}
           files: apk/*.apk
           generate_release_notes: true
+          body: |
+            Le carnet du commerçant, prêt à installer.
+
+            | Fichier | Pour qui |
+            |---|---|
+            | `carnet-*-arm64-v8a.apk` | La quasi-totalité des téléphones vendus depuis 2016 |
+            | `carnet-*-armeabi-v7a.apk` | Les téléphones d'entrée de gamme plus anciens |
+            | `carnet-*-universel.apk` | Quand on ne sait pas quel téléphone est au bout du WhatsApp |
+            | `carnet-*-x86_64.apk` | Les émulateurs, pas les téléphones |
+
+            Android demande d'autoriser l'installation depuis cette
+            source-là : c'est une case à cocher au moment d'ouvrir le
+            fichier.
+
+            Tant que les secrets de signature ne sont pas posés, ces APK
+            sont signés avec la clé de débogage. Ils s'installent et
+            fonctionnent, mais ne pourront pas être mis à jour par une
+            version signée autrement — bon pour essayer, pas pour installer
+            chez un commerçant qu'on reverra.

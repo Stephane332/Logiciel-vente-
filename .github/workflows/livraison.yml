@@ -1,0 +1,60 @@
+# Dépose un APK de version sur une branche, le temps de le récupérer.
+#
+# Une version publiée sur un dépôt privé ne se télécharge qu'avec un compte
+# GitHub qui y a accès : sur un téléphone qui n'est pas connecté, le lien
+# renvoie une page « introuvable » et rien n'explique pourquoi. Cette branche
+# est la porte de sortie : elle porte le fichier, se récupère avec git, et se
+# supprime aussitôt après.
+#
+# Ce n'est pas un canal de distribution. C'est un dépannage.
+name: Livraison
+
+on:
+  workflow_dispatch:
+    inputs:
+      etiquette:
+        description: "Étiquette de la version à déposer, par exemple v0.6.0"
+        required: true
+        default: v0.6.0
+      motif:
+        description: "Quel APK déposer"
+        type: choice
+        default: arm64-v8a
+        options: [arm64-v8a, armeabi-v7a, universel, x86_64]
+
+permissions:
+  contents: write
+
+jobs:
+  deposer:
+    name: Déposer l'APK sur la branche livraison
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Récupérer l'APK de la version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/livraison
+          gh release download "${{ inputs.etiquette }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir /tmp/livraison \
+            --pattern "*${{ inputs.motif }}.apk"
+          ls -lh /tmp/livraison/
+
+      - name: Déposer sur la branche
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ATELIER=$(mktemp -d)
+          cp /tmp/livraison/*.apk "$ATELIER/"
+          cd "$ATELIER"
+          git init -q -b livraison
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "APK ${{ inputs.etiquette }} (${{ inputs.motif }}), déposé pour récupération"
+          git push -q --force \
+            "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" livraison
+          echo "Déposé sur la branche livraison."

@@ -18,6 +18,15 @@ APK signé avec la clé de débogage s'installe et fonctionne, mais ne pourra
 jamais être mis à jour par un APK signé avec la vraie clé : il faudra
 désinstaller chez le commerçant, donc lui faire perdre son carnet.
 
+**Pire, et vérifié sur le certificat :** la machine qui compile n'a pas de clé
+de débogage, elle en fabrique une neuve à chaque exécution. Le certificat de la
+0.6.1 est valide « à partir de » deux minutes avant la fin de sa compilation.
+Donc **deux versions d'essai successives n'ont pas la même signature non plus** :
+installer l'une par-dessus l'autre échoue sur « application non installée », et
+il faut désinstaller avant. Ne jamais promettre à quelqu'un que ses données
+survivront à une mise à jour tant que les secrets ne sont pas posés — le
+vérifier avant de l'écrire.
+
 Avant toute installation chez quelqu'un qu'on reverra, vérifier que les
 quatre secrets sont posés (`MAGASIN_ANDROID`, `MOT_DE_PASSE_MAGASIN`,
 `ALIAS_CLE`, `MOT_DE_PASSE_CLE`) — marche à suivre dans

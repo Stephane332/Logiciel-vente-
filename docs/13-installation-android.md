@@ -86,6 +86,29 @@ débogage. L'APK s'installe et fonctionne — c'est bon pour essayer. Mais il ne
 pourra jamais mettre à jour un APK signé avec la vraie clé, donc **il ne faut
 pas l'installer chez un commerçant qu'on reverra**.
 
+### Ce que j'ai vérifié, et qui est pire que je ne le croyais
+
+J'ai extrait le certificat de l'APK de la version 0.6.1 :
+
+```
+Owner: C=US, O=Android, CN=Android Debug
+Valid from: Fri Aug 14 21:47:54 UTC 2026
+```
+
+**Valide à partir de deux minutes avant la fin de la compilation.** La clé de
+débogage n'est pas une clé fixe qu'on retrouverait d'une fois sur l'autre :
+la machine qui compile n'en a pas, elle en fabrique une neuve, et elle la jette
+avec la machine.
+
+Conséquence : **deux versions d'essai successives n'ont pas la même
+signature**. Installer la nouvelle par-dessus l'ancienne échoue — « application
+non installée », sans autre explication. Il faut désinstaller avant, et tout ce
+qui a été saisi pour l'essai part avec.
+
+Cela vaut pour mes propres essais autant que pour ceux d'un commerçant.
+Poser les quatre secrets est donc la première chose à faire avant la
+deuxième installation, pas avant la centième.
+
 ## Le dépôt est privé — ce que ça change
 
 Deux choses, et il vaut mieux les décider en connaissance de cause.

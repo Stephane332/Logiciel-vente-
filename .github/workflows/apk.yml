@@ -29,6 +29,17 @@ on:
           téléphone d'un commerçant qui appelle.
         type: boolean
         default: false
+      livrer:
+        description: >
+          Déposer l'APK de la dernière version sur la branche `livraison`,
+          sans rien recompiler. Une version publiée sur un dépôt privé ne se
+          télécharge qu'avec un compte GitHub qui y a accès : sur un
+          téléphone qui n'est pas connecté, le lien renvoie une page
+          « introuvable » et rien n'explique pourquoi. La branche est la
+          porte de sortie — on récupère le fichier avec git, puis on la
+          supprime. Ce n'est pas un canal de distribution, c'est un dépannage.
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,6 +49,7 @@ jobs:
     name: Construire l'APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: ${{ !inputs.livrer }}
 
     steps:
       - uses: actions/checkout@v4
@@ -191,3 +203,36 @@ jobs:
             métier, une recette par situation.
 
             ${{ env.AVERTISSEMENT }}
+
+  livrer:
+    name: Déposer l'APK sur la branche livraison
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ inputs.livrer }}
+
+    steps:
+      - name: Récupérer l'APK de la dernière version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/livraison
+          gh release download --repo "$GITHUB_REPOSITORY" \
+            --dir /tmp/livraison --pattern '*arm64-v8a.apk'
+          ls -lh /tmp/livraison/
+
+      - name: Déposer sur la branche
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ATELIER=$(mktemp -d)
+          cp /tmp/livraison/*.apk "$ATELIER/"
+          cd "$ATELIER"
+          git init -q -b livraison
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "APK déposé pour récupération hors du dépôt"
+          git push -q --force \
+            "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" livraison
+          echo "Déposé. À supprimer une fois récupéré :"
+          echo "  git push origin --delete livraison"

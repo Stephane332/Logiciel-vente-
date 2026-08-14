@@ -1,8 +1,12 @@
 // Pilote l'application réelle et capture chaque parcours.
 // Rien n'est simulé : ce sont de vraies ventes écrites dans la vraie base.
 const { chromium } = require('playwright');
+const path = require('path');
 
-const SORTIE = '/home/user/Logiciel-vente-/docs/captures';
+// Le chemin se déduit de l'emplacement du script : un chemin en dur ne
+// survit pas au premier clone ailleurs.
+const RACINE = path.resolve(__dirname, '..');
+const SORTIE = path.join(RACINE, 'docs', 'captures');
 const TEL = { width: 420, height: 900 };
 
 const pause = (page, ms = 600) => page.waitForTimeout(ms);

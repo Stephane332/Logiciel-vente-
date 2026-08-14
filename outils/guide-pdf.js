@@ -1,5 +1,12 @@
 // Rend le guide en PDF depuis exactement le même HTML.
 const { chromium } = require('playwright');
+const path = require('path');
+
+// Le chemin se déduit de l'emplacement du script : un chemin en dur ne
+// survit pas au premier clone ailleurs.
+const RACINE = path.resolve(__dirname, '..');
+const SOURCE = path.join(RACINE, 'docs', 'guide-utilisation.html');
+const SORTIE = path.join(RACINE, 'docs', 'guide-utilisation.pdf');
 
 (async () => {
   const navigateur = await chromium.launch({
@@ -8,7 +15,7 @@ const { chromium } = require('playwright');
   const page = await navigateur.newPage();
 
   await page.emulateMedia({ media: 'print', colorScheme: 'light' });
-  await page.goto('file:///home/user/Logiciel-vente-/docs/guide-utilisation.html', {
+  await page.goto('file://' + SOURCE, {
     waitUntil: 'load',
   });
   // Les polices sont embarquées : on attend qu'elles soient prêtes, sans quoi
@@ -17,7 +24,7 @@ const { chromium } = require('playwright');
   await page.waitForTimeout(1500);
 
   await page.pdf({
-    path: '/home/user/Logiciel-vente-/docs/guide-utilisation.pdf',
+    path: SORTIE,
     printBackground: true,
     preferCSSPageSize: true,
     displayHeaderFooter: true,

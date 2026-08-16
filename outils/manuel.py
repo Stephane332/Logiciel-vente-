@@ -513,7 +513,7 @@ sections.append("""<section class="bloc" id="pas-encore">
 </section>""")
 
 sections.append("""<footer>
-  <p>Carnet 0.6.1 &middot; application développée pour les commerçants du
+  <p>Carnet 0.7.0 &middot; application développée pour les commerçants du
   Burkina Faso. Hors ligne d'abord. Les numéros et les noms figurant sur les
   captures sont fictifs.</p>
 </footer>""")

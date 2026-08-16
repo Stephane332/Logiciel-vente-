@@ -10,6 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../domaine/facture.dart';
+import '../../domaine/fiche_entreprise.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/references.dart';
 import '../../donnees/base.dart';
@@ -499,8 +501,57 @@ class EcranVenteState extends State<EcranVente> {
   Future<void> _recu(String venteId) async {
     final recu = await widget.documents.pourVente(venteId);
     if (recu == null || !mounted) return;
-    await FeuilleDocument.presenter(context, titre: 'Reçu', texte: recu.texte);
+
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'Reçu',
+      texte: recu.texte,
+      // Proposée seulement à qui a rempli sa fiche entreprise. Une boutique
+      // de quartier n'a rien à faire d'un bouton « facture » : sans IFU ni
+      // adresse, la facture qui sortirait ne porterait aucune des mentions
+      // qu'un client professionnel vient précisément chercher.
+      actionSecondaire: _peutFacturer ? 'Faire une facture' : null,
+      surActionSecondaire: _peutFacturer ? () => _facturer(venteId) : null,
+    );
   }
+
+  bool get _peutFacturer => widget.documents.fiche?.renseignee ?? false;
+
+  /// Émet la facture d'une vente déjà encaissée.
+  ///
+  /// C'est ici que le client la réclame — au comptoir, juste après avoir
+  /// payé — et pas dans un écran qu'il faudrait aller chercher.
+  Future<void> _facturer(String venteId) async {
+    final client = await _demanderClient();
+    if (client == null || !mounted) return;
+
+    final reference = await widget.depot.emettreFacture(venteId);
+    if (!mounted) return;
+
+    final facture = await widget.documents
+        .composerFacture(venteId, reference: reference, client: client);
+    if (facture == null || !mounted) return;
+
+    // La feuille du reçu est encore ouverte : la fermer d'abord, sinon la
+    // facture s'empile dessus et le commerçant doit reculer deux fois pour
+    // revenir à sa caisse.
+    Navigator.of(context).pop();
+    if (!mounted) return;
+
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'Facture ${reference.texte}',
+      texte: facture.texte,
+    );
+  }
+
+  Future<ClientFacture?> _demanderClient() =>
+      showModalBottomSheet<ClientFacture>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => const _FeuilleClient(),
+      );
 
   /// Ouvre l'appareil photo, puis traite le code lu.
   Future<void> _scanner() async {
@@ -1236,6 +1287,148 @@ class _EnTete extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Qui est le client, quand on lui fait une facture.
+///
+/// Trois champs au plus, et deux seulement dans le cas courant. La note de
+/// service classe les clients en quatre types (§2.14) et n'exige un nom et un
+/// IFU que pour certains : demander les deux à tout le monde ferait perdre du
+/// temps au comptoir pour rien.
+class _FeuilleClient extends StatefulWidget {
+  const _FeuilleClient();
+
+  @override
+  State<_FeuilleClient> createState() => _FeuilleClientState();
+}
+
+class _FeuilleClientState extends State<_FeuilleClient> {
+  // Une entreprise qui réclame une facture est presque toujours une personne
+  // morale : c'est le cas par défaut, et le plus fréquent de loin.
+  TypeClient _type = TypeClient.personneMorale;
+
+  final _nom = TextEditingController();
+  final _ifu = TextEditingController();
+
+  String? _defaut;
+
+  @override
+  void dispose() {
+    _nom.dispose();
+    _ifu.dispose();
+    super.dispose();
+  }
+
+  ClientFacture get _client => ClientFacture(
+        type: _type,
+        nom: _nom.text.trim(),
+        ifu: Ifu.normaliser(_ifu.text),
+      );
+
+  void _valider() {
+    final defaut = _client.defaut;
+    if (defaut != null) {
+      setState(() => _defaut = defaut);
+      return;
+    }
+    Navigator.of(context).pop(_client);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: Espace.l,
+        right: Espace.l,
+        bottom: Espace.l + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: Text('À qui ?', style: textes.titleLarge)),
+            const SizedBox(height: 2),
+            Center(
+              child: Text(
+                'Une facture doit nommer son destinataire.',
+                style: textes.labelSmall,
+              ),
+            ),
+            const SizedBox(height: Espace.l),
+
+            RadioGroup<TypeClient>(
+              groupValue: _type,
+              onChanged: (choisi) => setState(() {
+                _type = choisi ?? _type;
+                _defaut = null;
+              }),
+              child: Column(
+                children: [
+                  for (final type in TypeClient.values)
+                    RadioListTile<TypeClient>(
+                      value: type,
+                      title: Text(type.libelle),
+                      subtitle: Text(
+                        [
+                          if (type.nomRequis) 'nom' else 'rien à déclarer',
+                          if (type.ifuRequis) 'IFU',
+                        ].join(' et '),
+                        style: textes.labelSmall,
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                ],
+              ),
+            ),
+
+            if (_type.nomRequis) ...[
+              const SizedBox(height: Espace.s),
+              TextField(
+                controller: _nom,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nom du client',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+              ),
+            ],
+            if (_type.ifuRequis) ...[
+              const SizedBox(height: Espace.m),
+              TextField(
+                controller: _ifu,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'IFU du client',
+                  hintText: '00012345A',
+                  prefixIcon: Icon(Icons.numbers_rounded),
+                ),
+              ),
+            ],
+
+            if (_defaut != null) ...[
+              const SizedBox(height: Espace.m),
+              Text(_defaut!,
+                  style: textes.bodyMedium?.copyWith(color: Couleurs.alerte)),
+            ],
+
+            const SizedBox(height: Espace.l),
+            FilledButton(
+              onPressed: _valider,
+              style: FilledButton.styleFrom(
+                backgroundColor: Couleurs.primaire,
+                minimumSize: const Size.fromHeight(52),
+              ),
+              child: const Text('Faire la facture'),
+            ),
+          ],
+        ),
       ),
     );
   }

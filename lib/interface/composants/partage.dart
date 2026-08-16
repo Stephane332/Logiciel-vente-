@@ -31,12 +31,20 @@ class FeuilleDocument extends StatelessWidget {
   /// le commerçant choisira le contact lui-même.
   final String? telephone;
 
+  /// Une action de plus, sous les boutons de partage. Sert au reçu, d'où
+  /// part « Faire une facture » — c'est là que le client la réclame, pas
+  /// dans un écran qu'il faudrait aller chercher.
+  final String? actionSecondaire;
+  final VoidCallback? surActionSecondaire;
+
   const FeuilleDocument({
     super.key,
     required this.titre,
     required this.texte,
     this.texteSms,
     this.telephone,
+    this.actionSecondaire,
+    this.surActionSecondaire,
   });
 
   static Future<void> presenter(
@@ -45,6 +53,8 @@ class FeuilleDocument extends StatelessWidget {
     required String texte,
     String? texteSms,
     String? telephone,
+    String? actionSecondaire,
+    VoidCallback? surActionSecondaire,
   }) =>
       showModalBottomSheet(
         context: context,
@@ -55,6 +65,8 @@ class FeuilleDocument extends StatelessWidget {
           texte: texte,
           texteSms: texteSms,
           telephone: telephone,
+          actionSecondaire: actionSecondaire,
+          surActionSecondaire: surActionSecondaire,
         ),
       );
 
@@ -148,6 +160,17 @@ class FeuilleDocument extends StatelessWidget {
             label: const Text('Copier le texte'),
             style: TextButton.styleFrom(foregroundColor: Couleurs.encreDouce),
           ),
+          if (actionSecondaire != null) ...[
+            const Divider(height: Espace.xl),
+            OutlinedButton.icon(
+              onPressed: surActionSecondaire,
+              icon: const Icon(Icons.receipt_long_outlined, size: 20),
+              label: Text(actionSecondaire!),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+          ],
         ],
       ),
     );

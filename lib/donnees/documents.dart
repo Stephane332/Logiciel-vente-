@@ -7,9 +7,12 @@ library;
 
 import 'package:drift/drift.dart' as drift;
 
+import '../domaine/calcul_facture.dart';
 import '../domaine/document_client.dart';
+import '../domaine/facture.dart';
 import '../domaine/fiche_entreprise.dart';
 import '../domaine/montant.dart';
+import '../domaine/numerotation.dart';
 import '../domaine/references.dart';
 import 'base.dart';
 import 'depot.dart';
@@ -88,6 +91,89 @@ class Documents {
           .toSet()
           .toList(),
     );
+  }
+
+  /// Compose la facture d'une vente déjà enregistrée.
+  ///
+  /// Le numéro n'est pas attribué ici : il vient du dépôt, qui seul sait tenir
+  /// une série ininterrompue. Ce module ne fait que mettre en forme.
+  ///
+  /// Les prix sont pris **toutes taxes comprises**, parce que c'est ainsi
+  /// qu'on vend ici : le prix affiché sur l'étagère est celui qu'on paie, et
+  /// la caisse n'a jamais demandé au commerçant s'il pensait en HT.
+  Future<Facture?> composerFacture(
+    String venteId, {
+    required ReferenceFacture reference,
+    required ClientFacture client,
+    Montant timbreQuittance = const Montant.zero(),
+    List<Commentaire> commentaires = const [],
+    bool duplicata = false,
+  }) async {
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingleOrNull();
+    if (vente == null) return null;
+
+    final lignes = await (base.select(base.lignesVente)
+          ..where((l) => l.venteId.equals(venteId)))
+        .get();
+    if (lignes.isEmpty) return null;
+
+    final calcul = calculerFacture(
+      modePrix: ModePrix.toutesTaxesComprises,
+      lignes: [
+        for (final ligne in lignes)
+          LigneACalculer(
+            codeArticle: ligne.codeArticle,
+            designation: ligne.designation,
+            groupeTaxation: GroupeTaxation.parEtiquette(ligne.groupeTaxation),
+            // La remise se calcule à partir du prix catalogue, quand il
+            // différait : c'est ce que le §3 veut voir au détail de la ligne,
+            // et c'est aussi ce que le client attend d'y lire.
+            prixUnitaire: Montant(
+                ligne.prixCatalogueCentimes ?? ligne.prixUnitaireCentimes),
+            quantite: Quantite(ligne.quantiteMilliemes),
+            remise: _remiseDeLigne(ligne),
+          )
+      ],
+    );
+
+    final reglements = <ModePaiement, Montant>{};
+    for (final paiement in await (base.select(base.paiements)
+          ..where((p) => p.venteId.equals(venteId)))
+        .get()) {
+      final mode = ModePaiement.values.firstWhere(
+        (m) => m.name == paiement.mode,
+        orElse: () => ModePaiement.especes,
+      );
+      reglements[mode] =
+          (reglements[mode] ?? const Montant.zero()) + Montant(paiement.montantCentimes);
+    }
+
+    return Facture(
+      reference: reference,
+      type: TypeFacture.vente,
+      emetteur: fiche ?? FicheEntreprise(nomCommercial: nomCommerce),
+      client: client,
+      calcul: calcul,
+      date: vente.horodatage,
+      operateur: vente.operateur,
+      reglements: reglements,
+      timbreQuittance: timbreQuittance,
+      commentaires: commentaires,
+      duplicata: duplicata,
+    );
+  }
+
+  /// L'écart entre le prix du catalogue et le prix pratiqué, sur toute la
+  /// ligne. Nul quand rien n'a été négocié.
+  static Montant _remiseDeLigne(LigneDeVente ligne) {
+    final catalogue = ligne.prixCatalogueCentimes;
+    if (catalogue == null || catalogue <= ligne.prixUnitaireCentimes) {
+      return const Montant.zero();
+    }
+    return Montant(catalogue - ligne.prixUnitaireCentimes)
+        .multiplieParQuantite(Quantite(ligne.quantiteMilliemes));
   }
 
   /// L'historique des achats d'un client **dans cette boutique**.

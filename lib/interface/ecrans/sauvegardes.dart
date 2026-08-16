@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import '../../donnees/depot.dart';
 import '../../donnees/fichiers.dart';
+import '../../donnees/parametres.dart';
 import '../../donnees/sauvegarde.dart';
 import '../../donnees/version.dart';
 import '../theme/palette.dart';
@@ -25,10 +26,16 @@ class EcranSauvegardes extends StatefulWidget {
 
   final String nomCommerce;
 
+  /// Pour noter la date du jour où le fichier sort du téléphone. Facultatif :
+  /// l'écran sait sauvegarder sans, et les tests n'ont pas à monter des
+  /// réglages pour vérifier autre chose.
+  final Parametres? parametres;
+
   const EcranSauvegardes({
     super.key,
     required this.depot,
     required this.nomCommerce,
+    this.parametres,
   });
 
   /// Ouvre l'écran. Rend `true` si une restauration a eu lieu — auquel cas
@@ -37,11 +44,13 @@ class EcranSauvegardes extends StatefulWidget {
     BuildContext context, {
     required Depot depot,
     required String nomCommerce,
+    Parametres? parametres,
   }) async =>
       await Navigator.of(context).push<bool>(MaterialPageRoute(
         builder: (_) => EcranSauvegardes(
           depot: depot,
           nomCommerce: nomCommerce,
+          parametres: parametres,
         ),
       )) ??
       false;
@@ -109,7 +118,13 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
       final chemin = await ecrireSauvegarde(nom, contenu);
 
       await _relire();
-      if (puisPartager) await partagerSauvegarde(chemin, texte: _messageDePartage);
+      if (puisPartager) {
+        await partagerSauvegarde(chemin, texte: _messageDePartage);
+        // Noté seulement quand le fichier est parti. Une sauvegarde restée sur
+        // le téléphone disparaît avec lui : la compter éteindrait le rappel
+        // sans rien protéger.
+        await widget.parametres?.noterSauvegarde();
+      }
       _dire('Sauvegarde faite · $_evenements écritures');
     } finally {
       if (mounted) setState(() => _occupe = false);

@@ -408,4 +408,59 @@ void main() {
           (await autreDepot.journal.tous()).length);
     });
   });
+
+  group('Savoir si le carnet est sorti du téléphone', () {
+    test("aucune date tant qu'on n'a jamais envoyé", () async {
+      expect(await parametres.derniereSauvegarde(), isNull);
+    });
+
+    test('la date se relit telle qu\'elle a été notée', () async {
+      final quand = DateTime(2026, 8, 10, 18, 30);
+      await parametres.noterSauvegarde(quand);
+
+      expect(await parametres.derniereSauvegarde(), quand);
+    });
+
+    test('une nouvelle sauvegarde remplace la précédente', () async {
+      await parametres.noterSauvegarde(DateTime(2026, 8, 1));
+      await parametres.noterSauvegarde(DateTime(2026, 8, 12));
+
+      expect(await parametres.derniereSauvegarde(), DateTime(2026, 8, 12));
+    });
+
+    // Les horodatages du journal sont à la seconde : les dates sont posées
+    // explicitement, sinon trois ventes de suite tomberaient dans la même et
+    // le test dépendrait de la vitesse de la machine.
+    Future<void> vendreLe(DateTime quand, num prix) => depot.enregistrerVente(
+          lignes: [
+            LigneAEnregistrer(
+              codeArticle: 'RIZ',
+              designation: 'Riz 1 kg',
+              prixUnitaire: f(prix),
+              quantite: const Quantite.unites(1),
+            )
+          ],
+          paiements: [
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
+          ],
+          horodatage: quand,
+        );
+
+    test('le compte des écritures depuis une date ignore ce qui précède',
+        () async {
+      await vendreLe(DateTime(2026, 8, 10, 9), 500);
+      await vendreLe(DateTime(2026, 8, 14, 9), 650);
+      await vendreLe(DateTime(2026, 8, 15, 9), 700);
+
+      expect(await journal.nombreDepuis(DateTime(2026, 8, 12)), 2);
+      expect(await journal.nombreDepuis(null), 3);
+    });
+
+    test('rien depuis la dernière sauvegarde veut dire rien à perdre',
+        () async {
+      await vendreLe(DateTime(2026, 8, 10, 9), 500);
+
+      expect(await journal.nombreDepuis(DateTime(2026, 8, 11)), 0);
+    });
+  });
 }

@@ -23,6 +23,7 @@ class Parametres {
   static const _vendeurs = 'vendeurs';
   static const _vendeurActif = 'vendeur.actif';
   static const _temoin = 'stockage.temoin';
+  static const _derniereSauvegarde = 'sauvegarde.derniere';
 
   /// Nom affiché en tête des documents, faute de fiche entreprise.
   static const nomCommerceParDefaut = 'Ma boutique';
@@ -137,6 +138,24 @@ class Parametres {
     }
     return true;
   }
+
+  /// Quand le carnet est sorti du téléphone pour la dernière fois.
+  ///
+  /// Nul tant que ça n'est jamais arrivé — et c'est le cas le plus inquiétant,
+  /// pas une absence de donnée sans importance.
+  Future<DateTime?> derniereSauvegarde() async {
+    final ligne = await (base.select(base.reglages)
+          ..where((r) => r.cle.equals(_derniereSauvegarde)))
+        .getSingleOrNull();
+    if (ligne == null) return null;
+    return DateTime.tryParse(ligne.valeur);
+  }
+
+  /// À appeler quand le fichier est **sorti** du téléphone, pas quand il est
+  /// composé : une sauvegarde qui reste sur l'appareil disparaît avec lui, et
+  /// noter celle-là éteindrait le rappel sans rien protéger.
+  Future<void> noterSauvegarde([DateTime? quand]) =>
+      _ecrire(_derniereSauvegarde, (quand ?? DateTime.now()).toIso8601String());
 
   Future<void> _effacer(String cle) =>
       (base.delete(base.reglages)..where((r) => r.cle.equals(cle))).go();

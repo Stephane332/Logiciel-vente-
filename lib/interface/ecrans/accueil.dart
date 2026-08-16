@@ -6,12 +6,14 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../domaine/rappel_sauvegarde.dart';
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
 import '../../donnees/documents.dart';
 import '../../donnees/parametres.dart';
 import '../theme/palette.dart';
 import 'dettes.dart';
+import 'sauvegardes.dart';
 import 'rapport.dart';
 import 'reglages.dart';
 import 'stock.dart';
@@ -67,6 +69,49 @@ class _AccueilState extends State<Accueil> {
   /// L'avertissement de démonstration se ferme, et ne revient pas de la
   /// session. On prévient, on n'assiège pas.
   bool _avertissementEcarte = false;
+
+  /// Le rappel de sauvegarde, quand il y a lieu de le faire. Nul le reste du
+  /// temps, c'est-à-dire la plupart du temps.
+  RappelSauvegarde? _rappel;
+
+  /// Écarté d'un appui, pour la session. Même règle que l'autre bandeau : on
+  /// prévient une fois, on ne se met pas en travers de la caisse.
+  bool _rappelEcarte = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _examinerLaSauvegarde();
+  }
+
+  /// Regarde si le carnet est sorti du téléphone récemment.
+  ///
+  /// Deux lectures courtes, faites une fois à l'ouverture : la date du dernier
+  /// envoi, et le nombre d'écritures depuis. On compte, on ne relit pas le
+  /// journal — il fait des milliers de lignes au bout d'un an.
+  Future<void> _examinerLaSauvegarde() async {
+    final derniere = await widget.parametres.derniereSauvegarde();
+    final nouveautes = await widget.depot.journal.nombreDepuis(derniere);
+    if (!mounted) return;
+
+    setState(() => _rappel = RappelSauvegarde(
+          nouveautes: nouveautes,
+          derniere: derniere,
+          maintenant: DateTime.now(),
+        ));
+  }
+
+  Future<void> _ouvrirSauvegardes() async {
+    await EcranSauvegardes.ouvrir(
+      context,
+      depot: widget.depot,
+      nomCommerce: _reglage.nomCommerce,
+      parametres: widget.parametres,
+    );
+    if (!mounted) return;
+    setState(() => _rappelEcarte = true);
+    await _examinerLaSauvegarde();
+  }
 
   /// Le nom du commerce s'imprime sur tous les documents : quand il change,
   /// la fabrique doit changer avec lui.
@@ -159,6 +204,12 @@ class _AccueilState extends State<Accueil> {
         if (!widget.stockageSur && !_avertissementEcarte)
           _BandeauDemonstration(onFermer: () =>
               setState(() => _avertissementEcarte = true)),
+        if (_rappel != null && _rappel!.faut && !_rappelEcarte)
+          _BandeauSauvegarde(
+            message: _rappel!.message,
+            surSauvegarde: _ouvrirSauvegardes,
+            onFermer: () => setState(() => _rappelEcarte = true),
+          ),
         Expanded(child: IndexedStack(
         index: _destination,
         children: [
@@ -233,6 +284,59 @@ class _AccueilState extends State<Accueil> {
 /// contraire n'a pas été faite. Un commerçant qui saisit sa journée et la
 /// retrouve vide n'ouvrira pas l'application une deuxième fois — autant le
 /// dire avant qu'il ne tape quoi que ce soit.
+/// Le rappel de sauvegarde.
+///
+/// En ocre, pas en rouge : rien n'est cassé, il y a quelque chose à faire.
+/// Et avec un bouton, parce qu'un rappel sans le geste qu'il demande oblige
+/// le commerçant à chercher — ce qu'il ne fera pas entre deux clients.
+class _BandeauSauvegarde extends StatelessWidget {
+  final String message;
+  final VoidCallback surSauvegarde;
+  final VoidCallback onFermer;
+
+  const _BandeauSauvegarde({
+    required this.message,
+    required this.surSauvegarde,
+    required this.onFermer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+
+    return Material(
+      color: Couleurs.accentClair,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding:
+              const EdgeInsets.fromLTRB(Espace.l, Espace.s, Espace.s, Espace.s),
+          child: Row(
+            children: [
+              const Icon(Icons.shield_outlined,
+                  size: 18, color: Couleurs.accent),
+              const SizedBox(width: Espace.s),
+              Expanded(child: Text(message, style: textes.labelSmall)),
+              const SizedBox(width: Espace.s),
+              TextButton(
+                onPressed: surSauvegarde,
+                child: const Text('Sauvegarder'),
+              ),
+              IconButton(
+                onPressed: onFermer,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                tooltip: 'Plus tard',
+                color: Couleurs.encreDouce,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BandeauDemonstration extends StatelessWidget {
   final VoidCallback onFermer;
 

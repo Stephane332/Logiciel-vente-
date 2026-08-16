@@ -149,6 +149,22 @@ class Journal {
     return lignes.map(_versEvenement).toList();
   }
 
+  /// Combien d'écritures depuis un instant donné — tout le journal quand
+  /// l'instant est nul.
+  ///
+  /// Sert à savoir s'il y a quelque chose à perdre qui ne soit pas déjà
+  /// sauvegardé. On compte plutôt que de tout relire : ce sont des milliers de
+  /// lignes au bout d'un an, et la question se pose à chaque ouverture.
+  Future<int> nombreDepuis(DateTime? quand) async {
+    final compte = _base.evenements.id.count();
+    final requete = _base.selectOnly(_base.evenements)..addColumns([compte]);
+    if (quand != null) {
+      requete.where(_base.evenements.horodatage.isBiggerThanValue(quand));
+    }
+    final ligne = await requete.getSingle();
+    return ligne.read(compte) ?? 0;
+  }
+
   /// La chaîne d'un appareil, dans l'ordre de ses séquences.
   ///
   /// C'est l'unité d'intégrité : les empreintes se chaînent par appareil, pas

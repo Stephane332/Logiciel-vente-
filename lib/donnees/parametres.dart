@@ -9,6 +9,10 @@
 /// debout tout seul.
 library;
 
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 import '../domaine/mobile_money.dart';
 import '../domaine/telephone.dart';
 import 'base.dart';
@@ -24,6 +28,7 @@ class Parametres {
   static const _vendeurActif = 'vendeur.actif';
   static const _temoin = 'stockage.temoin';
   static const _derniereSauvegarde = 'sauvegarde.derniere';
+  static const _codePatron = 'patron.code';
 
   /// Nom affiché en tête des documents, faute de fiche entreprise.
   static const nomCommerceParDefaut = 'Ma boutique';
@@ -156,6 +161,50 @@ class Parametres {
   /// noter celle-là éteindrait le rappel sans rien protéger.
   Future<void> noterSauvegarde([DateTime? quand]) =>
       _ecrire(_derniereSauvegarde, (quand ?? DateTime.now()).toIso8601String());
+
+  /// Vrai quand un code patron a été posé.
+  ///
+  /// Il ne protège qu'une chose : **les numéros marchands**. C'est le seul
+  /// réglage qui déplace de l'argent — un caissier qui y met le sien détourne
+  /// tous les paiements mobile money, et personne ne le voit avant que les SMS
+  /// cessent d'arriver. Le reste des réglages n'a pas besoin d'être verrouillé,
+  /// et verrouiller l'écran entier ferait appeler le patron pour corriger le
+  /// nom de la boutique.
+  Future<bool> codePatronPose() async => (await _lire(_codePatron)) != null;
+
+  /// Pose ou remplace le code. Quatre chiffres : ça se retient, ça se tape
+  /// d'une main, et ça n'a pas à résister à une attaque — ça a à résister à
+  /// un employé pressé.
+  Future<void> definirCodePatron(String code) async {
+    final propre = code.trim();
+    if (propre.length < 4) {
+      throw ArgumentError('Le code fait au moins quatre chiffres.');
+    }
+    await _ecrire(_codePatron, _empreinte(propre));
+  }
+
+  /// Vrai si le code proposé est le bon. Faux quand aucun code n'est posé :
+  /// il n'y a alors rien à ouvrir, et l'appelant ne doit pas croire l'avoir
+  /// ouvert.
+  Future<bool> codePatronJuste(String code) async {
+    final pose = await _lire(_codePatron);
+    if (pose == null) return false;
+    return pose == _empreinte(code.trim());
+  }
+
+  Future<void> retirerCodePatron() => _effacer(_codePatron);
+
+  /// L'empreinte, pas le code. Une sauvegarde emporte les réglages : si le
+  /// code y voyageait en clair, il suffirait d'ouvrir le fichier pour le lire.
+  static String _empreinte(String code) =>
+      sha256.convert(utf8.encode('carnet.patron.$code')).toString();
+
+  Future<String?> _lire(String cle) async {
+    final ligne = await (base.select(base.reglages)
+          ..where((r) => r.cle.equals(cle)))
+        .getSingleOrNull();
+    return ligne?.valeur;
+  }
 
   Future<void> _effacer(String cle) =>
       (base.delete(base.reglages)..where((r) => r.cle.equals(cle))).go();

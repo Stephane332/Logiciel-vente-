@@ -174,6 +174,13 @@ class _AccueilState extends State<Accueil> {
   void _aller(int index) {
     if (index == _destination) return;
 
+    // Le bandeau « Vente enregistrée · Annuler » appartient à la caisse. Il
+    // vivait au niveau de la coquille, donc il suivait sur les autres onglets :
+    // on le retrouvait sous la dette d'un client, avec un bouton « Annuler »
+    // juste dessous. Le commerçant pouvait raisonnablement croire qu'il annule
+    // ce qu'il a sous les yeux — il annulait la vente, donc la dette.
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
     final premiereVisite = _visites.add(index);
     setState(() => _destination = index);
 

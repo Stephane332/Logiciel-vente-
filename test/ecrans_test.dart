@@ -341,6 +341,37 @@ void main() {
       expect(find.text('encaissés'), findsOneWidget);
     });
 
+    testWidgets("le bandeau de vente ne suit pas sur les autres onglets",
+        (tester) async {
+      await tester.pumpWidget(application());
+      await tester.pumpAndSettle();
+
+      // Une vente, donc un bandeau « Vente enregistrée · Annuler · Reçu ».
+      await tester.tap(find.text('Montant\nlibre'));
+      await tester.pumpAndSettle();
+      for (final touche in ['5', '0', '0']) {
+        await tester.tap(find.widgetWithText(InkWell, touche));
+        await tester.pump();
+      }
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Annuler'), findsOneWidget);
+
+      // Il appartient à la caisse. Sur l'onglet des dettes, il se retrouvait
+      // sous la dette d'un client, bouton « Annuler » compris : on pouvait
+      // croire qu'il annule ce qu'on a sous les yeux, et il annulait la vente.
+      await tester.tap(find.text('Dettes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Annuler'), findsNothing);
+      expect(find.textContaining('Vente enregistrée'), findsNothing);
+    });
+
     testWidgets('revenir à la caisse ne perd pas le panier en cours',
         (tester) async {
       await vendre('RIZ', 'Riz 1 kg', 650);

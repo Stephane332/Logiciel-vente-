@@ -119,13 +119,120 @@ class _EcranReglagesState extends State<EcranReglages> {
           ? Parametres.nomCommerceParDefaut
           : _nom.text,
     );
-    for (final (operateur, champ) in _numeros.entries.map((e) => (e.key, e.value))) {
-      await widget.parametres.definirNumeroMarchand(operateur, champ.text);
+    if (await _numerosAutorises()) {
+      for (final (operateur, champ)
+          in _numeros.entries.map((e) => (e.key, e.value))) {
+        await widget.parametres.definirNumeroMarchand(operateur, champ.text);
+      }
     }
     // Un nom tapé mais pas encore ajouté d'un appui compte quand même :
     // sinon il disparaît en silence et le commerçant croit l'avoir perdu.
     _ajouterVendeur();
     await widget.parametres.definirVendeurs(_vendeurs);
+  }
+
+  /// Vrai si les numéros marchands peuvent être écrits.
+  ///
+  /// C'est le seul réglage qui déplace de l'argent : un caissier qui y met le
+  /// sien détourne tous les paiements mobile money, et ça ne se remarque qu'au
+  /// moment où les SMS cessent d'arriver — ou jamais.
+  ///
+  /// Le code n'est demandé que dans deux conditions réunies : **un numéro a
+  /// changé**, et **une équipe est déclarée**. Un commerçant seul n'a personne
+  /// contre qui se protéger, et lui imposer un code serait une porte fermée
+  /// sur une maison vide.
+  Future<bool> _numerosAutorises() async {
+    if (!_numerosModifies) return true;
+    if (_vendeurs.isEmpty && widget.reglage.vendeurs.isEmpty) return true;
+
+    final pose = await widget.parametres.codePatronPose();
+    if (!mounted) return false;
+
+    if (!pose) {
+      final choisi = await _demanderCode(
+        titre: 'Protéger les numéros',
+        explication: "Tu déclares une équipe. Choisis un code à quatre "
+            "chiffres : il sera demandé pour changer un numéro marchand. "
+            "Sans lui, n'importe qui derrière le comptoir peut faire payer "
+            "sur son propre compte.",
+        valider: 'Choisir ce code',
+      );
+      if (choisi == null || !mounted) return false;
+      await widget.parametres.definirCodePatron(choisi);
+      return true;
+    }
+
+    final propose = await _demanderCode(
+      titre: 'Code du patron',
+      explication: 'Un numéro marchand a changé.',
+      valider: 'Confirmer',
+    );
+    if (propose == null || !mounted) return false;
+
+    if (await widget.parametres.codePatronJuste(propose)) return true;
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text("Code refusé. Les numéros n'ont pas été changés."),
+        ));
+    }
+    return false;
+  }
+
+  /// Vrai si un numéro à l'écran diffère de celui qui est enregistré.
+  bool get _numerosModifies {
+    for (final entree in _numeros.entries) {
+      final avant = widget.reglage.comptes.numeroDe(entree.key) ?? '';
+      if (normaliserTelephone(entree.value.text) != normaliserTelephone(avant)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<String?> _demanderCode({
+    required String titre,
+    required String explication,
+    required String valider,
+  }) {
+    final saisie = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text(titre),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(explication),
+            const SizedBox(height: Espace.m),
+            TextField(
+              controller: saisie,
+              autofocus: true,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 8,
+              decoration: const InputDecoration(labelText: 'Code'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final code = saisie.text.trim();
+              Navigator.of(contexte).pop(code.length >= 4 ? code : null);
+            },
+            child: Text(valider),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _enregistrer() async {

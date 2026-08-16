@@ -425,6 +425,22 @@ class _VoletMobileMoney extends StatelessWidget {
           ),
           child: Column(
             children: [
+              // Le numéro qui va être payé, en clair.
+              //
+              // Sans lui, le commerçant voit un code QR et une suite de
+              // chiffres sans savoir vers quel compte ça part. Un caissier qui
+              // remplace le numéro dans les réglages détournerait tous les
+              // paiements sans que rien ne se voie — et ça ne se remarquerait
+              // qu'au moment où les SMS cessent d'arriver, ou jamais.
+              Text(
+                'Vers ${presenterTelephone(numeroMarchand)}',
+                style: textes.labelSmall?.copyWith(
+                  color: teinteDe(operateur),
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: Espace.xs),
               Text(
                 'Le client scanne, ou tape le code',
                 style: textes.labelSmall,

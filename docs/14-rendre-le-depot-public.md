@@ -27,10 +27,15 @@ est sûre avant de la faire pour de bon :
 
 ```sh
 pip install git-filter-repo
-echo '66798031==>70000000' > /tmp/remplacements.txt
+echo '<mon numéro réel>==>70000000' > /tmp/remplacements.txt
 git filter-repo --replace-text /tmp/remplacements.txt --force
 git push --force origin claude/commerce-management-software-fr1baz
 ```
+
+Le numéro ne s'écrit pas ici. Ce document explique comment le retirer du
+dépôt : l'y recopier en clair le remettrait exactement là où il ne doit pas
+être. Il se tape au moment de lancer la commande, et le fichier
+`remplacements.txt` reste hors du dépôt.
 
 Résultat de l'essai : plus aucun objet du dépôt ne contient le numéro — pas
 seulement les fichiers courants, tous les blobs atteignables. Les 410 tests

@@ -40,6 +40,16 @@ on:
           supprime. Ce n'est pas un canal de distribution, c'est un dépannage.
         type: boolean
         default: false
+      demo:
+        description: >
+          Publier la démonstration web sur GitHub Pages. C'est la seule façon
+          d'essayer l'application depuis un iPhone : Apple n'installe pas
+          d'APK, et une vraie application iOS demande un Mac, un compte
+          développeur et TestFlight. Le navigateur, lui, marche tout de
+          suite. Pages est activé par le workflow lui-même, il n'y a aucun
+          réglage à aller cocher.
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,7 +59,7 @@ jobs:
     name: Construire l'APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ !inputs.livrer }}
+    if: ${{ !inputs.livrer && !inputs.demo }}
 
     steps:
       - uses: actions/checkout@v4
@@ -241,3 +251,71 @@ jobs:
             "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" livraison
           echo "Déposé. À supprimer une fois récupéré :"
           echo "  git push origin --delete livraison"
+
+  # La démonstration web, publiée par GitHub lui-même.
+  #
+  # Un iPhone n'installe pas d'APK. Le navigateur est donc la seule porte
+  # ouverte aujourd'hui, et elle suffit pour montrer les gestes. Le chemin de
+  # base doit valoir `/<dépôt>/` : c'est là que Pages sert un site de projet,
+  # et une valeur qui ne correspond pas donne une page blanche sans message.
+  #
+  # `configure-pages` avec `enablement: true` crée le site s'il n'existe pas :
+  # aucun réglage à cocher à la main. Sur un dépôt privé, Pages demande un
+  # plan payant — l'étape le dira franchement plutôt que d'échouer en silence.
+  demo:
+    name: Publier la démonstration web
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: ${{ inputs.demo }}
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Code généré
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Compiler pour le navigateur
+        run: |
+          flutter build web --release --no-web-resources-cdn \
+            --base-href "/${GITHUB_REPOSITORY#*/}/"
+          touch build/web/.nojekyll
+          ls -lh build/web/index.html
+
+      - name: Préparer Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Déposer le site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Mettre en ligne
+        id: deploiement
+        uses: actions/deploy-pages@v4
+
+      - name: L'adresse
+        run: |
+          echo "### La démonstration est en ligne" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deploiement.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"

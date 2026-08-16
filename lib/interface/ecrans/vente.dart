@@ -97,7 +97,15 @@ class EcranVenteState extends State<EcranVente> {
   /// Les deux tuiles de tête — montant libre et scanner — ne sont pas des
   /// résultats : dès qu'on cherche, elles s'effacent et laissent la place à
   /// ce qui a été trouvé.
-  int get _tuilesDAction => _terme.isEmpty ? 2 : 0;
+  /// Une seule : le montant libre.
+  ///
+  /// Il y en avait deux. La seconde, « Scanner », ne faisait rien — pas de
+  /// message, pas d'écran, rien. Elle occupait la moitié de la zone d'action
+  /// du premier écran, dessinée exactement comme celle qui fonctionne, et
+  /// c'est la deuxième chose sur laquelle appuie quelqu'un à qui on pose le
+  /// téléphone. Une tuile absente ne déçoit personne. Elle reviendra le jour
+  /// où le code-barres sera branché.
+  int get _tuilesDAction => _terme.isEmpty ? 1 : 0;
 
   @override
   void initState() {
@@ -626,17 +634,11 @@ class EcranVenteState extends State<EcranVente> {
                           itemCount: _catalogue.length + _tuilesDAction,
                           itemBuilder: (context, index) {
                             if (index < _tuilesDAction) {
-                              return index == 0
-                                  ? TuileAction(
-                                      icone: Icons.dialpad_rounded,
-                                      libelle: 'Montant\nlibre',
-                                      onPressed: _montantLibre,
-                                    )
-                                  : TuileAction(
-                                      icone: Icons.qr_code_scanner_rounded,
-                                      libelle: 'Scanner',
-                                      onPressed: () {},
-                                    );
+                              return TuileAction(
+                                icone: Icons.dialpad_rounded,
+                                libelle: 'Montant\nlibre',
+                                onPressed: _montantLibre,
+                              );
                             }
 
                             final article = _catalogue[index - _tuilesDAction];
@@ -1109,23 +1111,20 @@ class _EnTete extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Flexible(
-                child: _PastilleCaisse(vendeur: vendeur, onVendeur: onVendeur),
-              ),
-              const Spacer(),
-              // L'état hors-ligne est une information neutre, pas une alarme :
-              // c'est le mode de fonctionnement normal.
-              const Icon(Icons.cloud_off_rounded,
-                  size: 18, color: Couleurs.encreLegere),
-              const SizedBox(width: Espace.xs),
-              Text('Hors ligne',
-                  style:
-                      textes.labelSmall?.copyWith(color: Couleurs.encreLegere)),
-            ],
-          ),
-          const SizedBox(height: Espace.l),
+          // La pastille ne paraît que lorsqu'il y a une équipe : elle dit
+          // alors qui encaisse, et c'est une information. Sans équipe, elle
+          // affichait « Caisse ouverte » — deux mots qui ne changeaient
+          // jamais, en haut de l'écran le plus regardé de la journée.
+          //
+          // L'indicateur « Hors ligne » a disparu pour la même raison, en
+          // pire : il était écrit en dur, ne consultait rien, et un nuage
+          // barré se lit comme une panne alors que le hors-ligne est le mode
+          // normal. Un signe permanent d'alerte pour un non-événement.
+          if (onVendeur != null) ...[
+            _PastilleCaisse(vendeur: vendeur, onVendeur: onVendeur),
+            const SizedBox(height: Espace.l),
+          ],
+
           Text('Total à encaisser', style: textes.labelSmall),
           const SizedBox(height: Espace.xs),
           Row(

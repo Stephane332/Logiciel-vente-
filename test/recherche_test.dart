@@ -179,7 +179,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Article 1'), findsOneWidget);
-      expect(find.byType(TuileAction), findsNWidgets(2));
+      // Le montant libre est de retour : la grille n'est plus filtrée.
+      expect(find.byType(TuileAction), findsOneWidget);
     });
 
     testWidgets('la recherche se vide après une vente', (tester) async {
@@ -201,7 +202,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Article 1'), findsOneWidget);
-      expect(find.byType(TuileAction), findsNWidgets(2));
+      // Le montant libre est de retour : la grille n'est plus filtrée.
+      expect(find.byType(TuileAction), findsOneWidget);
     });
   });
 }

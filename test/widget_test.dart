@@ -73,11 +73,15 @@ void main() {
     await tester.pumpWidget(application());
     await tester.pumpAndSettle();
 
-    // Aucun article, mais les deux actions sont toujours là : le commerçant
-    // peut encaisser dès la première seconde, sans rien configurer.
+    // Aucun article, mais le montant libre est là : le commerçant peut
+    // encaisser dès la première seconde, sans rien configurer.
     expect(find.text('Montant\nlibre'), findsOneWidget);
-    expect(find.text('Scanner'), findsOneWidget);
     expect(find.text('Choisir un article'), findsOneWidget);
+
+    // Et rien d'autre. Une tuile « Scanner » qui ne faisait rien occupait la
+    // moitié de la zone d'action, dessinée comme celle qui fonctionne. Elle
+    // reviendra quand le code-barres sera branché, pas avant.
+    expect(find.text('Scanner'), findsNothing);
   });
 
   testWidgets('le catalogue affiche ce qui a déjà été vendu', (tester) async {

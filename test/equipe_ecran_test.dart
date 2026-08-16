@@ -78,14 +78,27 @@ void main() {
       );
 
   group('La pastille de caisse', () {
-    testWidgets('un commerçant seul voit seulement sa caisse ouverte',
-        (tester) async {
+    testWidgets('un commerçant seul ne voit aucune pastille', (tester) async {
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
 
-      expect(find.text('Caisse ouverte'), findsOneWidget);
-      // Rien qui laisse croire qu'il y a quelque chose à régler.
+      // « Caisse ouverte » ne changeait jamais : deux mots constants en haut
+      // de l'écran le plus regardé de la journée. Un libellé qui affiche
+      // toujours la même valeur ne transporte aucune information — la place
+      // revient au chiffre, qui est la seule chose qu'il regarde.
+      expect(find.text('Caisse ouverte'), findsNothing);
       expect(find.byIcon(Icons.expand_more_rounded), findsNothing);
+    });
+
+    testWidgets("l'état du réseau ne s'affiche plus", (tester) async {
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      // Il était écrit en dur et ne consultait rien. Un nuage barré en
+      // permanence se lit comme une panne, alors que le hors-ligne est le
+      // mode de fonctionnement normal.
+      expect(find.text('Hors ligne'), findsNothing);
+      expect(find.byIcon(Icons.cloud_off_rounded), findsNothing);
     });
 
     testWidgets('avec une équipe, le nom du vendeur remplace le libellé',

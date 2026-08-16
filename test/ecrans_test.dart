@@ -381,6 +381,10 @@ void main() {
       }
       await tester.tap(find.text('Encaisser').last);
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Rapport'));
       await tester.pumpAndSettle();
@@ -835,6 +839,43 @@ void main() {
       final debiteurs = await depot.clientsDebiteurs();
       expect(debiteurs.single.nom, 'Salif');
       expect(debiteurs.single.encoursCentimes, f(650).centimes);
+    });
+
+    // C'était le trou : le montant libre partait en espèces d'office. Le
+    // chemin le plus rapide — et le seul qu'utilise la vente de rue — ne
+    // savait donc pas faire crédit, alors que le cahier de dettes est ce que
+    // cette application remplace en premier.
+    testWidgets('un montant libre peut partir à crédit', (tester) async {
+      await depot.creerClient(nom: 'Issouf', telephone: '70445566');
+
+      await tester.pumpWidget(caisse());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Montant\nlibre'));
+      await tester.pumpAndSettle();
+      for (final touche in ['7', '5', '0', '0']) {
+        await tester.tap(find.descendant(
+          of: find.byType(InkWell),
+          matching: find.text(touche),
+        ).first);
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Crédit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Issouf'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Noter la dette'));
+      await tester.pumpAndSettle();
+
+      final debiteurs = await depot.clientsDebiteurs();
+      expect(debiteurs.single.nom, 'Issouf');
+      expect(debiteurs.single.encoursCentimes, f(7500).centimes);
+
+      // Et rien n'a été compté comme encaissé.
+      expect((await depot.rapportDuJour()).encaisse, f(0));
     });
 
     testWidgets('un habitué se retrouve d\'un geste', (tester) async {

@@ -339,6 +339,10 @@ void main() {
 
     await tester.tap(find.text('Encaisser').last);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Espèces'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valider la vente'));
+    await tester.pumpAndSettle();
 
     final rapport = await depot.rapportDuJour();
     expect(rapport.nombreVentes, 1);
@@ -543,6 +547,10 @@ void main() {
       }
       await tester.tap(find.text('Encaisser').last);
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
 
       expect(find.textContaining("beaucoup plus que d'habitude"), findsOneWidget);
 
@@ -563,6 +571,10 @@ void main() {
         await tester.pump();
       }
       await tester.tap(find.text('Encaisser').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining("beaucoup plus que d'habitude"), findsNothing);

@@ -506,10 +506,40 @@ class EcranVenteState extends State<EcranVente> {
 
   /// Encaisse un montant libre : aucun article n'est choisi, seul le montant
   /// compte. Le catalogue se construira tout seul si le montant revient.
+  ///
+  /// Le mode de paiement se demande, comme pour une vente au catalogue. Il
+  /// était en espèces, décidé d'office : le chemin le plus rapide — et le seul
+  /// qu'utilise la vente de rue — ne savait donc pas faire crédit, alors que
+  /// le cahier de dettes est ce que cette application remplace en premier. Un
+  /// tailleur qui facture 7 500 F payables samedi n'avait aucune route.
+  ///
+  /// Ça coûte un appui de plus sur la vente en espèces, qui reste le premier
+  /// choix de la feuille. En échange, « Encaisser » veut dire la même chose
+  /// partout, ce qui n'était pas le cas.
   Future<void> _montantLibre() async {
     final montant =
         await demanderMontant(context, titre: 'Montant de la vente');
-    if (montant == null || !montant.estPositif) return;
+    if (montant == null || !montant.estPositif || !mounted) return;
+
+    await FeuillePaiement.presenter(
+      context,
+      total: montant,
+      comptes: widget.comptes,
+      nomCommerce: widget.documents.nomCommerce,
+      surConfiguration: widget.surConfiguration,
+      clients: _clients,
+      surNouveauClient: (nom, telephone) =>
+          widget.depot.creerClient(nom: nom, telephone: telephone),
+      surPaiementChoisi: (mode, clientId) =>
+          _enregistrerMontantLibre(montant, mode, clientId),
+    );
+  }
+
+  Future<void> _enregistrerMontantLibre(
+    Montant montant,
+    ModePaiement mode,
+    String? clientId,
+  ) async {
     if (!await _montantConfirme(montant)) return;
 
     final venteId = await widget.depot.enregistrerVente(
@@ -519,9 +549,10 @@ class EcranVenteState extends State<EcranVente> {
           quantite: const Quantite.unites(1),
         )
       ],
-      paiements: [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: montant)
-      ],
+      paiements: [PaiementAEnregistrer(mode: mode, montant: montant)],
+      // Sans client, une vente à crédit n'entrerait jamais dans le cahier de
+      // dettes : la feuille de paiement l'exige avant de valider.
+      clientId: clientId,
       operateur: widget.vendeurActif,
     );
     await recharger();

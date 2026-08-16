@@ -158,6 +158,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Encaisser'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Espèces'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la vente'));
+      await tester.pumpAndSettle();
 
       final (debut, fin) = Periode.jour.bornes();
       final parts = await depot.parVendeur(debut, fin);

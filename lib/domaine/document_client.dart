@@ -54,6 +54,17 @@ class DocumentClient {
   /// Ce qui identifie la vente pour le client : « Table 4 », « Ticket 12 ».
   final String? contenant;
 
+  /// Qui a encaissé. Nul quand le commerçant vend seul : il n'y a personne à
+  /// nommer, et une ligne « Servi par » sous son propre nom n'apprend rien.
+  ///
+  /// La note de service n° 2025-0889 range le **nom de l'opérateur** parmi les
+  /// mentions obligatoires de la facture (§3, mention 25). Le nom était déjà au
+  /// journal et dans le rapport du soir ; il manquait sur ce que le client
+  /// emporte. Le porter dès maintenant évite d'y revenir le jour de la
+  /// certification, et il vaut aussi pour le commerçant : une ardoise
+  /// contestée se règle plus vite quand elle dit qui a servi.
+  final String? operateur;
+
   final List<LigneDocument> lignes;
   final Montant total;
 
@@ -76,6 +87,7 @@ class DocumentClient {
     required this.total,
     required this.regle,
     this.contenant,
+    this.operateur,
     this.modes = const [],
     this.complement,
     this.codeVerification,
@@ -93,6 +105,8 @@ class DocumentClient {
       nomCommerce.toUpperCase(),
       _titre,
       _quand,
+      if (operateur != null && operateur!.trim().isNotEmpty)
+        'Servi par ${operateur!.trim()}',
       '',
     ];
 

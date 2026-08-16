@@ -56,6 +56,7 @@ class Documents {
       nomCommerce: nomCommerce,
       date: vente.horodatage,
       contenant: vente.contenant,
+      operateur: vente.operateur,
       lignes: [
         for (final ligne in lignes)
           LigneDocument(

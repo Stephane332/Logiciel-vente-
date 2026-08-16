@@ -345,4 +345,56 @@ void main() {
       expect(texte, contains('· Huile — il te reste 2 jours'));
     });
   });
+
+  group('Qui a servi', () {
+    Future<String> recuAvec({String? vendeur}) async {
+      final id = await depot.enregistrerVente(
+        lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+        ],
+        operateur: vendeur,
+        horodatage: quand,
+      );
+      return (await documents.pourVente(id))!.texte;
+    }
+
+    test('le nom du vendeur figure sur le reçu', () async {
+      expect(await recuAvec(vendeur: 'Awa'), contains('Servi par Awa'));
+    });
+
+    test("rien ne s'ajoute quand le commerçant vend seul", () async {
+      expect(await recuAvec(), isNot(contains('Servi par')));
+    });
+
+    test('un nom vide ne laisse pas une ligne orpheline', () async {
+      expect(await recuAvec(vendeur: '   '), isNot(contains('Servi par')));
+    });
+
+    test('le nom arrive avant le détail, pas après le total', () async {
+      final texte = await recuAvec(vendeur: 'Issouf');
+      expect(texte.indexOf('Servi par Issouf'),
+          lessThan(texte.indexOf('Riz 1 kg')));
+    });
+
+    // La note de service n° 2025-0889 range le nom de l'opérateur parmi les
+    // mentions obligatoires de la facture (§3, mention 25). Le journal le
+    // portait déjà ; ce test garde le chemin jusqu'au client.
+    test('la mention 25 est tenue de bout en bout', () async {
+      final id = await depot.enregistrerVente(
+        lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+        ],
+        operateur: 'Salif',
+        horodatage: quand,
+      );
+
+      expect((await documents.pourVente(id))!.operateur, 'Salif');
+
+      // Et il y survit à une reconstruction : c'est le journal qui le porte.
+      await depot.reconstruireProjections();
+      expect((await documents.pourVente(id))!.operateur, 'Salif');
+    });
+  });
 }

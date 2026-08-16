@@ -151,6 +151,31 @@ En une phrase : **un commerçant hésite à payer un logiciel de gestion, une en
 Régime Normal n'hésite pas à payer sa conformité** — l'alternative, c'est l'amende. C'est
 la conformité qui porte ma marge et qui finance le gratuit pour les petits.
 
+### Ce qui sépare aujourd'hui le gratuit du Pro : un seul chantier
+
+Le niveau Pro tient sur une ligne du tableau, mais **presque tout ce qu'elle promet
+dépend d'une même brique qui n'est pas écrite : la caisse à plusieurs appareils.**
+
+Aujourd'hui, un vendeur est un nom dans les réglages, pas un compte. Aucun mot de passe,
+aucune application séparée : les vendeurs se relaient sur le même téléphone et chacun
+choisit son nom en prenant la caisse. Le nom part dans l'événement du journal, ressort
+dans le rapport du soir et figure sur le reçu du client. C'est honnête et c'est utile —
+ça donne au patron le compte de chacun et, surtout, le total des remises lâchées par
+chacun. Mais **deux téléphones font deux carnets qui ne se rejoignent pas**, et la
+sauvegarde ne les fusionne pas : elle remplace.
+
+Multi-utilisateurs, multi-boutique, sauvegarde cloud et console patron sont donc quatre
+faces du même chantier : un serveur, une identité de boutique, et la fusion des journaux.
+Le socle a été construit pour ça — un journal append-only chaîné par appareil est
+précisément ce qui se fusionne proprement — mais tant que la brique n'existe pas, **le
+Pro ne se vend pas.**
+
+C'est le premier chantier une fois la boutique installée chez de vrais clients, avant les
+modules métier et avant la certification. C'est aussi ce qu'il ne faut pas laisser croire
+en démonstration : un patron qui a compris qu'il aurait une application par vendeur
+découvrira le contraire à l'installation, et c'est le genre de malentendu qui coûte le
+client.
+
 **Le levier d'échelle : un réseau de revendeurs-installateurs.** Seul, je ne démarcherai
 jamais mille boutiques. Je recrute des jeunes à Ouaga et Bobo qui installent, forment,
 encaissent le frais d'installation et touchent une commission récurrente sur les

@@ -377,7 +377,20 @@ sections.append(recette(
      "Ajoute-toi aussi, si tu vends.",
      "À la caisse, une pastille en haut porte le nom de celui qui encaisse. "
      "Un appui pour en changer.",
-     "Le soir, le rapport donne le compte de chacun."],
+     "Le soir, le rapport donne le compte de chacun. Le nom figure aussi "
+     "sur le reçu du client."],
+    "<b>Un téléphone, une caisse.</b> Ce ne sont pas des comptes : ce sont "
+    "des noms. Il n'y a ni mot de passe ni application séparée — les vendeurs "
+    "se relaient sur le même téléphone, et chacun choisit son nom en prenant "
+    "la caisse. Deux téléphones font deux carnets qui ne se rejoignent pas, "
+    "et la sauvegarde ne les fusionne pas : elle remplace. La caisse à "
+    "plusieurs appareils viendra avec le serveur, elle n'est pas encore là. "
+    "Sache-le avant de promettre à quelqu'un qu'il aura la sienne."
+    "<br><br>"
+    "Comme n'importe qui peut choisir n'importe quel nom, le compte du soir "
+    "éclaire une journée honnête et permet de comparer dans le temps ; il "
+    "n'arrête pas quelqu'un qui triche exprès."
+    "<br><br>"
     "Laisse vide si tu vends seul : rien ne s'affiche, et rien ne te sera "
     "demandé. Si personne n'est choisi, la vente passe quand même — une "
     "caisse qui refuse de vendre est une caisse qu'on repose — et elle "

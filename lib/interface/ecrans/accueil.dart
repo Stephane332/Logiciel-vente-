@@ -113,8 +113,8 @@ class _AccueilState extends State<Accueil> {
     await _examinerLaSauvegarde();
   }
 
-  /// Le nom du commerce s'imprime sur tous les documents : quand il change,
-  /// la fabrique doit changer avec lui.
+  /// Le nom du commerce et les mentions de l'entreprise s'impriment sur tous
+  /// les documents : quand ils changent, la fabrique doit changer avec eux.
   late Documents _documents = widget.documents;
 
   Future<void> _ouvrirReglages() async {
@@ -128,8 +128,11 @@ class _AccueilState extends State<Accueil> {
 
     setState(() {
       _reglage = maj;
-      _documents =
-          Documents(widget.documents.base, nomCommerce: maj.nomCommerce);
+      _documents = Documents(
+        widget.documents.base,
+        nomCommerce: maj.nomCommerce,
+        fiche: maj.fiche,
+      );
     });
 
     // Une restauration a pu remplacer tout le carnet pendant qu'on était

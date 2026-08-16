@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../domaine/fiche_entreprise.dart';
 import '../domaine/mobile_money.dart';
 import '../domaine/telephone.dart';
 import 'base.dart';
@@ -29,6 +30,19 @@ class Parametres {
   static const _temoin = 'stockage.temoin';
   static const _derniereSauvegarde = 'sauvegarde.derniere';
   static const _codePatron = 'patron.code';
+
+  /// Les mentions de la fiche entreprise. Une clé par mention plutôt qu'un
+  /// bloc JSON : ça s'ajoute et ça se retire sans migration, et une valeur
+  /// abîmée n'emporte pas les autres.
+  static const _raisonSociale = 'entreprise.raison';
+  static const _ifu = 'entreprise.ifu';
+  static const _cadastre = 'entreprise.cadastre';
+  static const _adresse = 'entreprise.adresse';
+  static const _telephone = 'entreprise.telephone';
+  static const _courriel = 'entreprise.courriel';
+  static const _regime = 'entreprise.regime';
+  static const _serviceImpots = 'entreprise.service';
+  static const _banque = 'entreprise.banque';
 
   /// Nom affiché en tête des documents, faute de fiche entreprise.
   static const nomCommerceParDefaut = 'Ma boutique';
@@ -55,15 +69,60 @@ class Parametres {
     final vendeurs = _decouper(valeurs[_vendeurs]);
     final actif = valeurs[_vendeurActif];
 
+    final nomCommerce = valeurs[_nomCommerce] ?? nomCommerceParDefaut;
+
     return Reglage(
-      nomCommerce: valeurs[_nomCommerce] ?? nomCommerceParDefaut,
+      nomCommerce: nomCommerce,
       comptes: ComptesMarchands(comptes),
       vendeurs: vendeurs,
       // Un vendeur retiré de la liste ne tient plus la caisse : sans ce
       // filtre, son nom continuerait de s'écrire sur les ventes après son
       // départ, et le rapport accuserait quelqu'un qui n'était plus là.
       vendeurActif: vendeurs.contains(actif) ? actif : null,
+      mentions: FicheEntreprise(
+        nomCommercial: nomCommerce,
+        raisonSociale: valeurs[_raisonSociale],
+        // L'IFU est renormalisé à la lecture, pas seulement à l'écriture :
+        // une sauvegarde restaurée peut venir d'une version qui validait
+        // autrement, et une facture ne doit pas porter une forme fausse.
+        ifu: Ifu.normaliser(valeurs[_ifu]),
+        cadastre: ReferenceCadastrale.analyser(valeurs[_cadastre]),
+        adresse: valeurs[_adresse],
+        telephone: valeurs[_telephone],
+        courriel: valeurs[_courriel],
+        regime: RegimeImposition.parEtiquette(valeurs[_regime]),
+        serviceImpots: valeurs[_serviceImpots],
+        referencesBancaires: valeurs[_banque],
+      ),
     );
+  }
+
+  /// Enregistre la fiche entreprise.
+  ///
+  /// Chaque mention vide **efface** sa clé plutôt que d'écrire une chaîne
+  /// vide : une facture doit pouvoir dire « cette mention manque », et une
+  /// chaîne vide se lirait comme une mention remplie avec rien.
+  ///
+  /// L'IFU et les références cadastrales ne sont enregistrés que s'ils ont la
+  /// bonne forme. Une saisie fausse n'est pas rangée à moitié : elle est
+  /// refusée, et l'écran la garde sous les yeux du commerçant avec ce qui
+  /// cloche.
+  Future<void> definirFiche(FicheEntreprise fiche) async {
+    await definirNomCommerce(fiche.nomCommercial);
+    await _ecrireOuEffacer(_raisonSociale, fiche.raisonSociale);
+    await _ecrireOuEffacer(_ifu, Ifu.normaliser(fiche.ifu));
+    await _ecrireOuEffacer(_cadastre, fiche.cadastre?.compact);
+    await _ecrireOuEffacer(_adresse, fiche.adresse);
+    await _ecrireOuEffacer(_telephone, fiche.telephone);
+    await _ecrireOuEffacer(_courriel, fiche.courriel);
+    await _ecrireOuEffacer(_regime, fiche.regime?.etiquette);
+    await _ecrireOuEffacer(_serviceImpots, fiche.serviceImpots);
+    await _ecrireOuEffacer(_banque, fiche.referencesBancaires);
+  }
+
+  Future<void> _ecrireOuEffacer(String cle, String? valeur) {
+    final propre = valeur?.trim() ?? '';
+    return propre.isEmpty ? _effacer(cle) : _ecrire(cle, propre);
   }
 
   Future<void> definirNomCommerce(String nom) =>
@@ -230,11 +289,22 @@ class Reglage {
   /// Qui la tient en ce moment, s'il y a quelqu'un.
   final String? vendeurActif;
 
+  /// Les mentions fiscales saisies. Nulle tant que le commerçant n'est pas
+  /// passé par la fiche entreprise — c'est-à-dire presque toujours.
+  final FicheEntreprise? mentions;
+
+  /// La fiche entreprise, jamais nulle : un appelant qui compose l'en-tête
+  /// d'un document doit l'obtenir même quand rien n'est rempli, réduite au
+  /// seul nom de la boutique.
+  FicheEntreprise get fiche =>
+      mentions ?? FicheEntreprise(nomCommercial: nomCommerce);
+
   const Reglage({
     required this.nomCommerce,
     required this.comptes,
     this.vendeurs = const [],
     this.vendeurActif,
+    this.mentions,
   });
 
   /// Vrai tant que le commerçant ne peut pas encore encaisser par téléphone.

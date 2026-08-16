@@ -29,7 +29,11 @@ Future<void> main() async {
 
   runApp(Application(
     depot: Depot(base, Journal(base, appareil: appareil)),
-    documents: Documents(base, nomCommerce: reglage.nomCommerce),
+    documents: Documents(
+      base,
+      nomCommerce: reglage.nomCommerce,
+      fiche: reglage.fiche,
+    ),
     analyses: Analyses(base),
     parametres: parametres,
     reglage: reglage,

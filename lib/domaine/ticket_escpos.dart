@@ -67,6 +67,11 @@ class TicketEscPos {
       ..._ligne(document.nomCommerce.toUpperCase(), large: true),
       ..._doubleHauteur(false),
       ..._gras(false),
+      // Les mentions de l'entreprise, quand il y en a. Le papier doit dire
+      // exactement ce que dit le message envoyé par WhatsApp : deux versions
+      // d'un même reçu qui divergent, c'est une contestation gagnée d'avance
+      // par le client.
+      for (final mention in document.mentions) ..._ligne(mention),
       ..._ligne(document.nature.libelle),
       ..._ligne(_date(document.date)),
       if (document.operateur != null && document.operateur!.trim().isNotEmpty)

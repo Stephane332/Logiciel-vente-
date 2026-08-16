@@ -5,12 +5,16 @@
 /// petit écran.
 library;
 
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:carnet/domaine/document_client.dart';
+import 'package:carnet/domaine/fiche_entreprise.dart';
 import 'package:carnet/domaine/montant.dart';
 import 'package:carnet/domaine/references.dart';
+import 'package:carnet/domaine/ticket_escpos.dart';
 import 'package:carnet/donnees/base.dart';
 import 'package:carnet/donnees/depot.dart';
 import 'package:carnet/donnees/documents.dart';
@@ -395,6 +399,85 @@ void main() {
       // Et il y survit à une reconstruction : c'est le journal qui le porte.
       await depot.reconstruireProjections();
       expect((await documents.pourVente(id))!.operateur, 'Salif');
+    });
+  });
+
+  group("Les mentions de l'entreprise", () {
+    Future<DocumentClient> recu(Documents fabrique) async {
+      final id = await depot.enregistrerVente(
+        lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+        ],
+        horodatage: quand,
+      );
+      return (await fabrique.pourVente(id))!;
+    }
+
+    test('un reçu de boutique ne porte que le nom', () async {
+      // C'est le cas de la quasi-totalité de mes utilisateurs, et le reçu ne
+      // doit pas avoir changé d'un caractère depuis qu'une fiche existe.
+      final lignes = (await recu(documents)).texte.split('\n');
+
+      expect(lignes.first, 'CHEZ AWA');
+      expect(lignes[1], 'Reçu');
+    });
+
+    test('une fiche sans mention fiscale ne change rien non plus', () async {
+      // Ouvrir la section sans rien y taper ne doit pas modifier les reçus.
+      final lignes = (await recu(Documents(
+        base,
+        nomCommerce: 'Chez Awa',
+        fiche: const FicheEntreprise(nomCommercial: 'Chez Awa'),
+      )))
+          .texte
+          .split('\n');
+
+      expect(lignes[1], 'Reçu');
+    });
+
+    test('une entreprise voit ses mentions sur ce que le client emporte',
+        () async {
+      final texte = (await recu(Documents(
+        base,
+        nomCommerce: 'Chez Awa',
+        fiche: FicheEntreprise(
+          nomCommercial: 'Chez Awa',
+          ifu: '00012345A',
+          adresse: 'Gounghin, Ouagadougou',
+          cadastre: ReferenceCadastrale.analyser('12345678901'),
+          regime: RegimeImposition.rni,
+        ),
+      )))
+          .texte;
+
+      expect(texte, contains('IFU : 00012345A'));
+      expect(texte, contains('Gounghin, Ouagadougou'));
+      expect(texte, contains('Parcelle : 1234 567 8901'));
+      // Elles précèdent le titre : ce sont des mentions d'en-tête, pas une
+      // note de bas de page.
+      expect(texte.indexOf('IFU : 00012345A'), lessThan(texte.indexOf('Reçu')));
+    });
+
+    test('le papier dit la même chose que le message', () async {
+      // Deux versions d'un même reçu qui divergeraient, c'est une
+      // contestation gagnée d'avance par le client.
+      final document = await recu(Documents(
+        base,
+        nomCommerce: 'Chez Awa',
+        fiche: const FicheEntreprise(
+          nomCommercial: 'Chez Awa',
+          ifu: '00012345A',
+        ),
+      ));
+
+      final papier = latin1.decode(
+        const TicketEscPos(page: PageDeCode.cp1252).composer(document),
+        allowInvalid: true,
+      );
+
+      expect(document.texte, contains('IFU : 00012345A'));
+      expect(papier, contains('IFU : 00012345A'));
     });
   });
 }

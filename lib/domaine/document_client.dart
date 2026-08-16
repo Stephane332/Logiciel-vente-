@@ -49,6 +49,19 @@ enum NatureDocument {
 class DocumentClient {
   final NatureDocument nature;
   final String nomCommerce;
+
+  /// Les mentions de l'émetteur, sous le nom : IFU, adresse, régime.
+  ///
+  /// Vides chez presque tous mes utilisateurs, et le reçu ne porte alors que
+  /// le nom — exactement comme avant que cette liste existe. Une boutique de
+  /// quartier n'a pas d'IFU, et un reçu de 500 F portant six lignes
+  /// d'administration serait ridicule.
+  ///
+  /// Elles ne sont pas décoratives : la note de service en fait des mentions
+  /// obligatoires (§3, a à f). L'entreprise qui les a saisies les voit donc
+  /// sur ce qu'elle remet, sans attendre le module de contrôle.
+  final List<String> mentions;
+
   final DateTime date;
 
   /// Ce qui identifie la vente pour le client : « Table 4 », « Ticket 12 ».
@@ -86,6 +99,7 @@ class DocumentClient {
     required this.lignes,
     required this.total,
     required this.regle,
+    this.mentions = const [],
     this.contenant,
     this.operateur,
     this.modes = const [],
@@ -103,6 +117,7 @@ class DocumentClient {
   String get texte {
     final lignesTexte = <String>[
       nomCommerce.toUpperCase(),
+      ...mentions,
       _titre,
       _quand,
       if (operateur != null && operateur!.trim().isNotEmpty)

@@ -8,6 +8,7 @@ library;
 import 'package:drift/drift.dart' as drift;
 
 import '../domaine/document_client.dart';
+import '../domaine/fiche_entreprise.dart';
 import '../domaine/montant.dart';
 import '../domaine/references.dart';
 import 'base.dart';
@@ -17,12 +18,22 @@ class Documents {
   final BaseLocale base;
 
   /// Nom affiché en tête des documents.
-  ///
-  /// Il viendra de la fiche entreprise quand la certification l'imposera ;
-  /// en attendant, il est réglé à l'installation.
   final String nomCommerce;
 
-  const Documents(this.base, {required this.nomCommerce});
+  /// La fiche entreprise, quand elle est renseignée. Nulle chez la quasi-
+  /// totalité des commerçants, et les documents n'en portent alors aucune
+  /// trace.
+  final FicheEntreprise? fiche;
+
+  const Documents(this.base, {required this.nomCommerce, this.fiche});
+
+  /// Les mentions de l'émetteur qui coiffent chaque document, sans le nom —
+  /// il est déjà porté à part.
+  List<String> get _mentions {
+    final renseignee = fiche;
+    if (renseignee == null || !renseignee.renseignee) return const [];
+    return renseignee.enTete.skip(1).toList();
+  }
 
   /// Le reçu d'une vente soldée, ou la note d'une vente encore ouverte.
   ///
@@ -54,6 +65,7 @@ class Documents {
     return DocumentClient(
       nature: nature,
       nomCommerce: nomCommerce,
+      mentions: _mentions,
       date: vente.horodatage,
       contenant: vente.contenant,
       operateur: vente.operateur,

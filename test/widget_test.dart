@@ -78,10 +78,9 @@ void main() {
     expect(find.text('Montant\nlibre'), findsOneWidget);
     expect(find.text('Choisir un article'), findsOneWidget);
 
-    // Et rien d'autre. Une tuile « Scanner » qui ne faisait rien occupait la
-    // moitié de la zone d'action, dessinée comme celle qui fonctionne. Elle
-    // reviendra quand le code-barres sera branché, pas avant.
-    expect(find.text('Scanner'), findsNothing);
+    // Le scanner est là aussi, et il fait maintenant quelque chose : il avait
+    // été retiré tant qu'il ne faisait rien.
+    expect(find.text('Scanner'), findsOneWidget);
   });
 
   testWidgets('le catalogue affiche ce qui a déjà été vendu', (tester) async {

@@ -23,6 +23,7 @@ import '../composants/tuile_produit.dart';
 import '../theme/palette.dart';
 import 'feuille_paiement.dart';
 import 'nommer_article.dart';
+import 'scanner.dart';
 
 class EcranVente extends StatefulWidget {
   final Depot depot;
@@ -94,18 +95,15 @@ class EcranVenteState extends State<EcranVente> {
 
   String get _terme => _recherche.text.trim();
 
-  /// Les deux tuiles de tête — montant libre et scanner — ne sont pas des
-  /// résultats : dès qu'on cherche, elles s'effacent et laissent la place à
-  /// ce qui a été trouvé.
-  /// Une seule : le montant libre.
+  /// Deux tuiles de tête : le montant libre et le scanner.
   ///
-  /// Il y en avait deux. La seconde, « Scanner », ne faisait rien — pas de
-  /// message, pas d'écran, rien. Elle occupait la moitié de la zone d'action
-  /// du premier écran, dessinée exactement comme celle qui fonctionne, et
-  /// c'est la deuxième chose sur laquelle appuie quelqu'un à qui on pose le
-  /// téléphone. Une tuile absente ne déçoit personne. Elle reviendra le jour
-  /// où le code-barres sera branché.
-  int get _tuilesDAction => _terme.isEmpty ? 1 : 0;
+  /// Ce ne sont pas des résultats : dès qu'on cherche, elles s'effacent et
+  /// laissent toute la place à ce qui a été trouvé.
+  ///
+  /// Le scanner a été retiré un temps parce qu'il ne faisait rien — une tuile
+  /// morte sur le premier écran déçoit plus qu'une tuile absente. Il est
+  /// revenu le jour où il a été branché, pas avant.
+  int get _tuilesDAction => _terme.isEmpty ? 2 : 0;
 
   @override
   void initState() {
@@ -504,6 +502,57 @@ class EcranVenteState extends State<EcranVente> {
     await FeuilleDocument.presenter(context, titre: 'Reçu', texte: recu.texte);
   }
 
+  /// Ouvre l'appareil photo, puis traite le code lu.
+  Future<void> _scanner() async {
+    final code = await EcranScanner.lire(context);
+    if (code == null || !mounted) return;
+    await ajouterParCodeBarre(code);
+  }
+
+  /// Ce qu'on fait d'un code-barres lu.
+  ///
+  /// Public, et c'est volontaire : aucun test ne peut ouvrir un appareil
+  /// photo, et la décision qui compte est ici, pas dans la caméra.
+  ///
+  /// Le code lu **est** le code de l'article — un code-barres est déjà un
+  /// identifiant unique. Article connu : il tombe au panier, et on peut
+  /// enchaîner. Article inconnu : la caisse demande son prix, exactement
+  /// comme pour un montant libre, et le catalogue se garnit tout seul. Le
+  /// commerçant ne saisit donc jamais d'inventaire — c'est la promesse de
+  /// départ, et le scanner ne doit pas la reprendre par la fenêtre.
+  Future<void> ajouterParCodeBarre(String code) async {
+    final connu = await widget.depot.articleParCode(code);
+    if (!mounted) return;
+
+    if (connu != null) {
+      _ajouter(connu);
+      return;
+    }
+
+    final montant = await demanderMontant(
+      context,
+      titre: 'Prix de cet article',
+      indication: "Il n'est pas encore au catalogue. Il y entrera tout seul.",
+    );
+    if (montant == null || !montant.estPositif || !mounted) return;
+
+    // On ne demande pas son nom : c'est une deuxième question, et la règle de
+    // la maison est qu'on n'en pose qu'une. Il entre au catalogue sous son
+    // prix, et l'application demandera comment il s'appelle quand il aura été
+    // vendu assez souvent pour que ça vaille la peine — exactement comme un
+    // montant libre qui revient.
+    await widget.depot.creerArticle(
+      code: code,
+      designation: 'Article à ${montant.enFrancs}',
+      prix: montant,
+    );
+    await recharger();
+    if (!mounted) return;
+
+    final cree = _article(code);
+    if (cree != null) _ajouter(cree);
+  }
+
   /// Encaisse un montant libre : aucun article n'est choisi, seul le montant
   /// compte. Le catalogue se construira tout seul si le montant revient.
   ///
@@ -665,11 +714,17 @@ class EcranVenteState extends State<EcranVente> {
                           itemCount: _catalogue.length + _tuilesDAction,
                           itemBuilder: (context, index) {
                             if (index < _tuilesDAction) {
-                              return TuileAction(
-                                icone: Icons.dialpad_rounded,
-                                libelle: 'Montant\nlibre',
-                                onPressed: _montantLibre,
-                              );
+                              return index == 0
+                                  ? TuileAction(
+                                      icone: Icons.dialpad_rounded,
+                                      libelle: 'Montant\nlibre',
+                                      onPressed: _montantLibre,
+                                    )
+                                  : TuileAction(
+                                      icone: Icons.qr_code_scanner_rounded,
+                                      libelle: 'Scanner',
+                                      onPressed: _scanner,
+                                    );
                             }
 
                             final article = _catalogue[index - _tuilesDAction];

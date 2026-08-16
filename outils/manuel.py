@@ -117,6 +117,7 @@ sections.append(profil(
     "et l'après-midi se fait en appuyant sur des tuiles. Le soir, le rapport.",
     'Va voir : <a href="#premiere-vente">ma première vente</a>, '
     '<a href="#nommer">nommer ce que je vends souvent</a>, '
+    '<a href="#scanner">scanner un produit emballé</a>, '
     '<a href="#credit">le client paie plus tard</a>, '
     '<a href="#rapport">le rapport du soir</a>.'))
 
@@ -226,6 +227,31 @@ sections.append(recette(
     [('04-proposition-de-nom', 'Le bandeau, après trois ventes'),
      ('05-nommer-article', 'Un mot suffit'),
      ('06-catalogue-nomme', 'La tuile remplace le pavé')]))
+
+sections.append(recette(
+    'scanner', 'Scanner un produit emballé',
+    "Quand ce que tu vends porte un code-barres : boissons, conserves, "
+    "savons, lait, biscuits.",
+    ["Appuie sur la tuile <b>Scanner</b>. L'appareil photo s'ouvre.",
+     "Vise le code-barres du produit, dans le cadre blanc. La lampe est en "
+     "haut à droite si la boutique est sombre.",
+     "<b>Produit déjà connu</b> : il tombe au panier tout seul. Scanne le "
+     "suivant.",
+     "<b>Produit jamais vendu ici</b> : l'application demande son prix, une "
+     "seule fois. Ensuite il est au catalogue pour toujours."],
+    "Tu ne saisis jamais d'inventaire, là non plus. Le catalogue se construit "
+    "au fur et à mesure que tu scannes, exactement comme il se construit avec "
+    "le montant libre."
+    "<br><br>"
+    "<b>Ce n'est utile que pour les produits emballés.</b> Le riz au détail, "
+    "le charbon, les beignets, le tissu au mètre n'ont pas de code-barres — "
+    "et c'est souvent l'essentiel de ce qui se vend. Le scanner est un "
+    "raccourci quand il sert, jamais un passage obligé : la caisse marche "
+    "entièrement sans lui."
+    "<br><br>"
+    "Si le téléphone n'a pas d'appareil photo, ou si tu refuses "
+    "l'autorisation, l'application le dit et te ramène à la caisse. Elle ne "
+    "reste jamais bloquée sur un écran noir."))
 
 sections.append(recette(
     'plusieurs', "Vendre plusieurs choses d'un coup",
@@ -513,7 +539,7 @@ sections.append("""<section class="bloc" id="pas-encore">
 </section>""")
 
 sections.append("""<footer>
-  <p>Carnet 0.7.0 &middot; application développée pour les commerçants du
+  <p>Carnet 0.7.1 &middot; application développée pour les commerçants du
   Burkina Faso. Hors ligne d'abord. Les numéros et les noms figurant sur les
   captures sont fictifs.</p>
 </footer>""")

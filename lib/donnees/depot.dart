@@ -1198,6 +1198,25 @@ class Depot {
     return requete.get();
   }
 
+  /// L'article qui porte ce code, s'il existe et s'il est encore au catalogue.
+  ///
+  /// C'est ce que rend un code-barres scanné : le code lu **est** le code de
+  /// l'article. Rien à rapprocher, rien à deviner — un code-barres est déjà un
+  /// identifiant unique, c'est même tout ce qu'il est.
+  ///
+  /// Nul quand l'article n'a jamais été vendu ici, ou qu'il a été retiré : dans
+  /// les deux cas la caisse demandera son prix, et le catalogue se garnira tout
+  /// seul comme il le fait pour un montant libre.
+  Future<LigneArticle?> articleParCode(String code) {
+    final propre = code.trim();
+    if (propre.isEmpty) return Future.value(null);
+
+    return (base.select(base.articles)
+          ..where((a) => a.code.equals(propre) & a.retireLe.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Nombre d'articles au catalogue, pour savoir s'il faut une recherche.
   Future<int> nombreDArticles() async {
     final ligne = await base

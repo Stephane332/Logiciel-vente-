@@ -1,4 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- L'appareil photo ne sert qu'au scanner de code-barres, et le scanner
+         n'est jamais obligatoire : la caisse marche entièrement sans lui.
+         `required="false"` est donc essentiel — sans lui, le Play Store et
+         certains installateurs écartent les téléphones sans caméra, qui sont
+         exactement ceux d'une partie de mes commerçants. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus"
+                  android:required="false" />
+
     <application
         android:label="Carnet"
         android:name="${applicationName}"

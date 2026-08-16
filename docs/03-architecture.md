@@ -62,8 +62,24 @@ touche au reste du logiciel.
 
 ### 5. Sauvegarde locale exportable
 
-Un fichier chiffré partageable par WhatsApp ou Bluetooth. Les téléphones sont volés et
-cassés, et c'est aussi une porte de sortie pour transférer des données sans internet.
+Un fichier partageable par WhatsApp ou Bluetooth. Les téléphones sont volés et cassés, et
+c'est aussi une porte de sortie pour transférer des données sans internet.
+
+Il porte le nom, le téléphone et la dette de chaque client : c'est le seul endroit où
+l'application expose les données de quelqu'un d'autre que son utilisateur. Il est donc
+**chiffrable à la demande** — AES-GCM 256, clé dérivée du mot de passe par PBKDF2-HMAC-SHA256
+sur cent mille tours, sel et nonce tirés au hasard à chaque sauvegarde.
+
+**À la demande, pas d'office**, et c'est un arbitrage assumé : un mot de passe oublié rend la
+sauvegarde définitivement illisible. Chiffrer d'office reviendrait à échanger une perte contre
+une autre, chez des commerçants qui n'ont pas de gestionnaire de mots de passe. Sans mot de
+passe, le fichier reste du JSON inspectable — ce qui était la raison d'être du format, et qui
+compte le jour où une restauration échoue.
+
+L'application réclame d'elle-même une sauvegarde quand le carnet n'est jamais sorti du
+téléphone et qu'il commence à compter, puis une fois par semaine tant qu'il y a du nouveau.
+Jamais à chaque ouverture : un bandeau permanent cesse d'être lu, et le jour où il compte,
+il ne compte plus.
 
 ### 6. Modules métier en surcouche
 

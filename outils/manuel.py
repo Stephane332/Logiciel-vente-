@@ -430,7 +430,21 @@ sections.append(recette(
     "avant en comptant ce qui va disparaître. Elle vérifie le fichier "
     "<b>avant</b> d'écrire quoi que ce soit : effacer un carnet pour "
     "découvrir ensuite que la sauvegarde était abîmée serait la pire façon de "
-    "perdre des données.",
+    "perdre des données."
+    "<br><br>"
+    "<b>L'application te le rappellera.</b> Pas à chaque ouverture — un "
+    "bandeau qui revient tout le temps, on cesse de le lire. Elle se manifeste "
+    "quand le carnet n'est jamais sorti du téléphone et qu'il commence à "
+    "compter, puis une fois par semaine tant qu'il y a du nouveau. Le bouton "
+    "est dans le bandeau : il n'y a rien à aller chercher."
+    "<br><br>"
+    "<b>Protéger par un mot de passe, ou pas.</b> Ce fichier contient le nom, "
+    "le téléphone et la dette de chacun de tes clients. Envoyé par WhatsApp, "
+    "il est lisible par qui le reçoit. Le bouton <b>Protéger par un mot de "
+    "passe</b> le scelle. Mais réfléchis avant : un mot de passe oublié rend "
+    "cette sauvegarde <b>définitivement</b> illisible, et personne ne peut le "
+    "retrouver à ta place. Si tu le choisis, écris-le quelque part qui ne soit "
+    "pas ce téléphone.",
     [('carnet-07-sauvegarde', 'Sauvegarder, et sortir le fichier')]))
 
 sections.append('</div>')

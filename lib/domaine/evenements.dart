@@ -62,6 +62,16 @@ enum TypeEvenement {
   creditAccorde('credit_accorde'),
   creditRembourse('credit_rembourse'),
   caisseMouvement('caisse_mouvement'),
+
+  /// Une facture a été émise pour une vente, et un numéro lui a été attribué.
+  ///
+  /// C'est le seul endroit où un numéro de facture naît. Le §2.18 exige une
+  /// série ascendante **ininterrompue** par année de gestion : le numéro doit
+  /// donc être attribué une fois, écrit au journal, et retrouvé à l'identique
+  /// après une reconstruction. Le tenir dans un compteur à part laisserait
+  /// deux vérités, et la seconde finirait par mentir.
+  factureEmise('facture_emise'),
+
   ventecertifiee('vente_certifiee');
 
   final String cle;

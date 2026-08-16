@@ -10,6 +10,7 @@ import 'package:drift/drift.dart';
 
 import '../domaine/evenements.dart';
 import '../domaine/montant.dart';
+import '../domaine/numerotation.dart';
 import '../domaine/references.dart';
 import '../domaine/telephone.dart';
 import '../domaine/texte.dart';
@@ -358,6 +359,118 @@ class Depot {
       );
       await _appliquerAnnulation(evenement);
     });
+  }
+
+  // -------------------------------------------------------------- factures
+
+  /// Émet une facture pour une vente et lui attribue son numéro.
+  ///
+  /// Le numéro est attribué **ici et une seule fois**, dans la transaction qui
+  /// l'écrit au journal. Deux caisses qui factureraient au même instant ne
+  /// peuvent donc pas se voir donner le même rang : la transaction sérialise.
+  ///
+  /// Une vente déjà facturée rend sa référence d'origine sans en consommer une
+  /// nouvelle — c'est le duplicata du §2.18, qui garde le numéro d'origine.
+  /// Sans cette règle, rééditer une facture perdue trouerait la série.
+  ///
+  /// Une vente annulée ne se facture pas : la note traite les annulations par
+  /// facture d'avoir (§2.28), pas en émettant la facture d'une vente qui n'a
+  /// plus lieu d'être.
+  Future<ReferenceFacture> emettreFacture(
+    String venteId, {
+    TypeFacture type = TypeFacture.vente,
+    DateTime? horodatage,
+  }) async {
+    final vente = await (base.select(base.ventes)
+          ..where((v) => v.id.equals(venteId)))
+        .getSingleOrNull();
+    if (vente == null) {
+      throw ArgumentError('Vente inconnue : $venteId');
+    }
+    if (vente.annulee) {
+      throw StateError(
+          "Une vente annulée ne se facture pas : elle se solde par un avoir "
+          "(§2.28).");
+    }
+
+    final deja = await referenceFacture(venteId);
+    if (deja != null) return deja;
+
+    final quand = horodatage ?? vente.horodatage;
+    final annee = Numerotation.anneeDe(quand);
+
+    return base.transaction(() async {
+      final rang = const Numerotation()
+          .rangSuivant(await _rangsAttribues(type: type, annee: annee));
+
+      final evenement = await journal.ajouter(
+        TypeEvenement.factureEmise,
+        {
+          'venteId': venteId,
+          'type': type.etiquette,
+          'annee': annee,
+          'rang': rang,
+        },
+        horodatage: quand,
+      );
+      await _appliquerEmissionFacture(evenement);
+
+      return ReferenceFacture(type: type.etiquette, annee: annee, rang: rang);
+    });
+  }
+
+  /// La référence de la facture d'une vente, si elle en a une.
+  Future<ReferenceFacture?> referenceFacture(String venteId) async {
+    for (final evenement in await journal.tous()) {
+      if (evenement.type != TypeEvenement.factureEmise) continue;
+      if (evenement.charge['venteId'] != venteId) continue;
+      return ReferenceFacture(
+        type: evenement.charge['type']! as String,
+        annee: evenement.charge['annee']! as int,
+        rang: evenement.charge['rang']! as int,
+      );
+    }
+    return null;
+  }
+
+  /// Les rangs déjà attribués dans une série. Lus au journal, pas à la
+  /// projection : c'est le journal qui fait foi, et une projection vidée ne
+  /// doit pas faire repartir la numérotation à un.
+  Future<List<int>> _rangsAttribues({
+    required TypeFacture type,
+    required int annee,
+  }) async {
+    final rangs = <int>[];
+    for (final evenement in await journal.tous()) {
+      if (evenement.type != TypeEvenement.factureEmise) continue;
+      if (evenement.charge['type'] != type.etiquette) continue;
+      if (evenement.charge['annee'] != annee) continue;
+      rangs.add(evenement.charge['rang']! as int);
+    }
+    return rangs;
+  }
+
+  /// Les trous d'une série, s'il y en a. Vide quand tout va bien.
+  ///
+  /// Ce n'est pas censé arriver. C'est vérifié quand même : une série trouée
+  /// est le premier reproche d'un contrôle, et je préfère l'apprendre d'un
+  /// écran que d'un redressement.
+  Future<List<int>> trousDeSerie({
+    TypeFacture type = TypeFacture.vente,
+    required int annee,
+  }) async =>
+      const Numerotation()
+          .trous(await _rangsAttribues(type: type, annee: annee));
+
+  Future<void> _appliquerEmissionFacture(Evenement evenement) async {
+    final venteId = evenement.charge['venteId']! as String;
+
+    await (base.update(base.ventes)..where((v) => v.id.equals(venteId))).write(
+      VentesCompanion(
+        numero: Value(evenement.charge['rang']! as int),
+        anneeGestion: Value(evenement.charge['annee']! as int),
+      ),
+    );
   }
 
   Future<void> _appliquerAnnulation(Evenement evenement) async {
@@ -1574,6 +1687,8 @@ class Depot {
             await _appliquerSolde(evenement);
           case TypeEvenement.venteAnnulee:
             await _appliquerAnnulation(evenement);
+          case TypeEvenement.factureEmise:
+            await _appliquerEmissionFacture(evenement);
           case TypeEvenement.creditAccorde:
           case TypeEvenement.ventecertifiee:
             break;

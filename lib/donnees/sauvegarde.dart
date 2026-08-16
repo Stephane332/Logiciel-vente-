@@ -21,6 +21,7 @@ import 'package:drift/drift.dart';
 
 import '../domaine/evenements.dart';
 import 'base.dart';
+import 'coffre.dart';
 import 'journal.dart';
 
 /// Numéro de format du fichier.
@@ -112,7 +113,42 @@ class Sauvegardes {
   /// restauration échouera, je veux pouvoir ouvrir le fichier et voir ce
   /// qu'il contient. Une sauvegarde qu'on ne peut pas inspecter est une
   /// sauvegarde en laquelle on ne peut pas avoir confiance.
-  Future<String> composer({String? nomCommerce, DateTime? quand}) async {
+  ///
+  /// Avec un [motDePasse], le même contenu part dans une enveloppe scellée —
+  /// voir `coffre.dart`. Sans, il reste tel quel : lisible, inspectable, et
+  /// c'est ce qu'on veut le jour où une restauration échoue.
+  Future<String> composer({
+    String? nomCommerce,
+    DateTime? quand,
+    String? motDePasse,
+  }) async {
+    final clair = await _composerEnClair(nomCommerce: nomCommerce, quand: quand);
+    if (motDePasse == null || motDePasse.isEmpty) return clair;
+
+    return Coffre.fermer(
+      clair,
+      motDePasse: motDePasse,
+      format: formatSauvegarde,
+      nomCommerce: nomCommerce ?? '',
+      faiteLe: quand ?? DateTime.now(),
+    );
+  }
+
+  /// Vrai quand le fichier est scellé : l'écran doit demander le mot de passe
+  /// **avant** de proposer quoi que ce soit.
+  static bool estChiffree(String contenu) => Coffre.estChiffre(contenu);
+
+  /// Ouvre un fichier scellé. `null` si le mot de passe ne va pas — ou si le
+  /// fichier a été abîmé, ce qui se traite pareil : on n'écrit rien.
+  static Future<Sauvegarde?> ouvrirAvec(
+    String contenu,
+    String motDePasse,
+  ) async {
+    final clair = await Coffre.ouvrir(contenu, motDePasse);
+    return clair == null ? null : ouvrir(clair);
+  }
+
+  Future<String> _composerEnClair({String? nomCommerce, DateTime? quand}) async {
     final evenements = await journal.tous();
     final lignes = await base.select(base.reglages).get();
 

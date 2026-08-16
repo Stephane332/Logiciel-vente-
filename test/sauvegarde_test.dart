@@ -463,4 +463,64 @@ void main() {
       expect(await journal.nombreDepuis(DateTime(2026, 8, 11)), 0);
     });
   });
+
+  group('Une sauvegarde sous mot de passe', () {
+    const motDePasse = 'gombo-du-mercredi';
+
+    test('ne laisse plus voir les clients', () async {
+      await garnir();
+      final ferme = await sauvegardes.composer(
+        nomCommerce: 'Chez Awa',
+        motDePasse: motDePasse,
+      );
+
+      expect(ferme, isNot(contains('Salif')));
+      expect(ferme, isNot(contains('70000000')));
+      expect(Sauvegardes.estChiffree(ferme), isTrue);
+    });
+
+    test('se rouvre entière avec le bon mot de passe', () async {
+      await garnir();
+      final attendus = await journal.tous();
+      final ferme = await sauvegardes.composer(motDePasse: motDePasse);
+
+      final lue = await Sauvegardes.ouvrirAvec(ferme, motDePasse);
+
+      expect(lue, isNotNull);
+      expect(lue!.evenements.length, attendus.length);
+      expect(lue.apercu.nombreEvenements, attendus.length);
+    });
+
+    test('ne rend rien avec un mauvais mot de passe', () async {
+      await garnir();
+      final ferme = await sauvegardes.composer(motDePasse: motDePasse);
+
+      expect(await Sauvegardes.ouvrirAvec(ferme, 'autre-chose'), isNull);
+    });
+
+    test('sans mot de passe, le fichier reste celui d\'avant', () async {
+      await garnir();
+      final clair = await sauvegardes.composer(nomCommerce: 'Chez Awa');
+
+      expect(Sauvegardes.estChiffree(clair), isFalse);
+      expect(Sauvegardes.ouvrir(clair), isNotNull);
+    });
+
+    test('un mot de passe vide ne scelle rien, et ne casse rien', () async {
+      await garnir();
+      final clair = await sauvegardes.composer(motDePasse: '');
+
+      expect(Sauvegardes.estChiffree(clair), isFalse);
+      expect(Sauvegardes.ouvrir(clair), isNotNull);
+    });
+
+    test('un fichier scellé ne s\'ouvre pas comme un fichier clair', () async {
+      await garnir();
+      final ferme = await sauvegardes.composer(motDePasse: motDePasse);
+
+      // Sans ça, l'écran croirait tenir une sauvegarde vide et proposerait
+      // d'écraser un carnet vivant par rien du tout.
+      expect(Sauvegardes.ouvrir(ferme), isNull);
+    });
+  });
 }

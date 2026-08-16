@@ -109,11 +109,70 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
       ));
   }
 
-  Future<void> _sauvegarder({bool puisPartager = true}) async {
+  /// Demande un mot de passe. `null` si le commerçant renonce.
+  Future<String?> _demanderMotDePasse({bool pourFermer = false}) {
+    final saisie = TextEditingController();
+
+    return showDialog<String>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text(pourFermer ? 'Protéger la sauvegarde' : 'Mot de passe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (pourFermer)
+              const Text(
+                "Le fichier ne sera lisible qu'avec ce mot de passe. "
+                "Personne ne peut le retrouver à ta place — si tu l'oublies, "
+                'cette sauvegarde est perdue.',
+              )
+            else
+              const Text('Ce fichier est protégé.'),
+            const SizedBox(height: Espace.m),
+            TextField(
+              controller: saisie,
+              autofocus: true,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Mot de passe'),
+              onSubmitted: (valeur) =>
+                  Navigator.of(contexte).pop(valeur.isEmpty ? null : valeur),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(
+                saisie.text.isEmpty ? null : saisie.text),
+            child: Text(pourFermer ? 'Protéger' : 'Ouvrir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sauvegarder({
+    bool puisPartager = true,
+    bool protegee = false,
+  }) async {
     if (_occupe) return;
+
+    String? motDePasse;
+    if (protegee) {
+      motDePasse = await _demanderMotDePasse(pourFermer: true);
+      if (motDePasse == null || !mounted) return;
+    }
+
     setState(() => _occupe = true);
     try {
-      final contenu = await _sauvegardes.composer(nomCommerce: widget.nomCommerce);
+      final contenu = await _sauvegardes.composer(
+        nomCommerce: widget.nomCommerce,
+        motDePasse: motDePasse,
+      );
       final nom = Sauvegardes.nomDeFichier(widget.nomCommerce);
       final chemin = await ecrireSauvegarde(nom, contenu);
 
@@ -148,10 +207,26 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
     final contenu = await lire();
     if (contenu == null || contenu.isEmpty) return;
 
-    final sauvegarde = Sauvegardes.ouvrir(contenu);
-    if (sauvegarde == null) {
-      _dire("Ce fichier n'est pas une sauvegarde de Carnet.", alerte: true);
-      return;
+    // Un fichier scellé se reconnaît avant qu'on demande quoi que ce soit :
+    // sinon l'écran croirait tenir une sauvegarde illisible et le dirait mal.
+    final Sauvegarde? sauvegarde;
+    if (Sauvegardes.estChiffree(contenu)) {
+      if (!mounted) return;
+      final motDePasse = await _demanderMotDePasse();
+      if (motDePasse == null) return;
+
+      sauvegarde = await Sauvegardes.ouvrirAvec(contenu, motDePasse);
+      if (sauvegarde == null) {
+        _dire('Mot de passe refusé, ou fichier abîmé. Rien n’a été touché.',
+            alerte: true);
+        return;
+      }
+    } else {
+      sauvegarde = Sauvegardes.ouvrir(contenu);
+      if (sauvegarde == null) {
+        _dire("Ce fichier n'est pas une sauvegarde de Carnet.", alerte: true);
+        return;
+      }
     }
 
     if (!mounted) return;
@@ -275,6 +350,21 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                     style: FilledButton.styleFrom(
                       backgroundColor: Couleurs.primaire,
                       minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                  const SizedBox(height: Espace.s),
+                  // Le fichier porte le nom, le téléphone et la dette de
+                  // chaque client, et il part par WhatsApp. Le protéger n'est
+                  // pas le défaut : un mot de passe oublié rend la sauvegarde
+                  // définitivement illisible, et on échangerait une perte
+                  // contre une autre. Le choix est donc offert, et expliqué.
+                  OutlinedButton.icon(
+                    onPressed:
+                        _occupe ? null : () => _sauvegarder(protegee: true),
+                    icon: const Icon(Icons.lock_outline_rounded, size: 20),
+                    label: const Text('Protéger par un mot de passe'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
                     ),
                   ),
                   const SizedBox(height: Espace.s),

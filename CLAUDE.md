@@ -58,3 +58,4 @@ s'en apercevoir. Les charger avant de commencer, pas après.
 | `terrain` | Piloter l'application dans un navigateur, capturer, chercher un défaut d'usage |
 | `documents` | Manuel, guide, page d'accueil, captures |
 | `conformite` | Facture, taxe, rapport X/Z/A, annulation, homologation |
+| `defaut` | Corriger ce qui ne marche pas, ment ou affiche un chiffre faux |

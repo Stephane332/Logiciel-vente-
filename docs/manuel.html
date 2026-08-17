@@ -126,6 +126,12 @@
             max-width:66ch; }
   .manque li::marker { color:var(--alerte); }
 
+  /* Trois listes se suivent dans le chapitre d'honnêteté : ce qu'il me reste
+     à écrire, ce qui ne viendra pas de moi, ce qui existe déjà. Sans
+     intertitre, on lit tout comme un seul aveu. */
+  .sous-manque { font-size:16px; margin:26px 0 8px; color:var(--encre); }
+  .sous-manque:first-of-type { margin-top:18px; }
+
   footer { border-top:1px solid var(--bordure); padding-top:26px;
            color:var(--encre-legere); font-size:14px; }
 
@@ -212,41 +218,72 @@
   encaisser.</p>
 </section>
 <section class="bloc" id="pas-encore">
-  <p class="sur-titre">Honnêteté</p>
+  <p class="sur-titre">Honn&ecirc;tet&eacute;</p>
   <h2>Ce qui n'existe pas encore</h2>
-  <p>Pour qu'un essai sur le terrain soit honnête, voici ce qui n'est pas
-  fait. Mieux vaut l'annoncer que le laisser découvrir.</p>
+  <p>Pour qu'un essai sur le terrain soit honn&ecirc;te, voici ce qui n'est pas
+  fait. Mieux vaut l'annoncer que le laisser d&eacute;couvrir. J'ai class&eacute; par ce
+  qui manque : ce que je peux encore &eacute;crire, et ce qui ne viendra pas de
+  moi.</p>
+
+  <h3 class="sous-manque">Ce qu'il me reste &agrave; &eacute;crire</h3>
   <ul class="manque">
     <li><b>La lecture automatique des SMS de confirmation.</b> Elle est
-    <em>écrite</em> : l'application sait reconnaître un message d'Orange, de
-    Moov ou de Telecel, en tirer le montant et l'expéditeur, et refuser une
-    publicité ou un transfert sortant qui lui ressemblent. Ce qui manque, ce
+    <em>&eacute;crite</em> : l'application sait reconna&icirc;tre un message d'Orange, de
+    Moov ou de Telecel, en tirer le montant et l'exp&eacute;diteur, et refuser une
+    publicit&eacute; ou un transfert sortant qui lui ressemblent. Ce qui manque, ce
     sont deux choses que je ne peux pas faire depuis mon bureau : brancher la
-    réception sur Android, et surtout <b>vérifier les règles sur de vrais
-    messages</b>. Un format deviné est un format faux. En attendant, c'est le
-    commerçant qui confirme — l'écran le dit plutôt que d'afficher une attente
+    r&eacute;ception sur Android, et surtout <b>v&eacute;rifier les r&egrave;gles sur de vrais
+    messages</b>. Un format devin&eacute; est un format faux. En attendant, c'est le
+    commer&ccedil;ant qui confirme &mdash; l'&eacute;cran le dit plut&ocirc;t que d'afficher une attente
     qui n'existe pas.</li>
-    <li><b>L'impression Bluetooth.</b> Le ticket est composé : la mise en
+    <li><b>L'impression Bluetooth.</b> Le ticket est compos&eacute; : la mise en
     page sur trente-deux colonnes, les commandes de l'imprimante, la coupe du
-    papier. Reste le transport, et le jeu de caractères — une imprimante à
-    15 000 F ne connaît pas l'UTF-8, et laquelle des pages de code elle
-    accepte se lit sur du papier, pas dans un test. Le repli imprime « Recu »
-    sans accent : laid, mais lisible partout.</li>
-    <li><b>La synchronisation et la console à distance.</b> Tout vit sur le
-    téléphone. La sauvegarde exportable est là ; le serveur, non — et c'était
-    bien l'ordre à tenir. C'est le chantier dont dépendent le multi-appareils,
-    le multi-boutique et le rapport qui part tout seul.</li>
-    <li><b>La facturation certifiée.</b> Le modèle de données suit déjà le
-    vocabulaire de la DGI, mais le dialogue avec le module de contrôle attend
-    le protocole officiel. Inventer un format d'échange, ce serait garantir
-    une réécriture le jour où on aura le vrai.</li>
+    papier. Reste le transport, et le jeu de caract&egrave;res &mdash; une imprimante &agrave;
+    15 000 F ne conna&icirc;t pas l'UTF-8, et laquelle des pages de code elle
+    accepte se lit sur du papier, pas dans un test. Le repli imprime
+    &laquo;&nbsp;Recu&nbsp;&raquo; sans accent : laid, mais lisible partout.</li>
+    <li><b>La synchronisation et la console &agrave; distance.</b> Tout vit sur le
+    t&eacute;l&eacute;phone. La sauvegarde exportable est l&agrave; ; le serveur, non &mdash; et c'&eacute;tait
+    bien l'ordre &agrave; tenir. C'est le chantier dont d&eacute;pendent le multi-appareils,
+    le multi-boutique et le rapport qui part tout seul &agrave; heure fixe.</li>
     <li><b>Les modules restaurant et services.</b> Tables, envoi cuisine,
     devis, rendez-vous. Ils attendent que la boutique tourne chez de vrais
-    clients — c'est l'ordre que je me suis fixé, et je m'y tiens.</li>
+    clients &mdash; c'est l'ordre que je me suis fix&eacute;, et je m'y tiens.</li>
   </ul>
+
+  <h3 class="sous-manque">Ce qui ne viendra pas de moi</h3>
+  <p>Trois choses bloquent la facturation certifi&eacute;e, et aucune ne se code.
+  Je pr&eacute;f&egrave;re les nommer que les laisser passer pour des retards.</p>
+  <ul class="manque">
+    <li><b>Le protocole de dialogue avec le module de contr&ocirc;le.</b> La
+    sp&eacute;cification y renvoie sans le contenir. Sans lui, je ne peux ni signer
+    une facture ni composer le code QR officiel. Inventer un format
+    d'&eacute;change garantirait une r&eacute;&eacute;criture le jour o&ugrave; j'aurai le vrai. Ce qui
+    en d&eacute;pend est isol&eacute; derri&egrave;re une seule interface, pr&ecirc;t &agrave; &ecirc;tre branch&eacute;.</li>
+    <li><b>Une soci&eacute;t&eacute; de droit burkinab&egrave;.</b> Seule une personne physique ou
+    morale de droit burkinab&egrave; peut commercialiser un syst&egrave;me de facturation,
+    avec attestation de conformit&eacute; et identifiant d&eacute;livr&eacute;s par la Direction
+    g&eacute;n&eacute;rale des imp&ocirc;ts. Ce n'est pas une formalit&eacute; de confort : c'est la
+    condition l&eacute;gale de la vente.</li>
+    <li><b>Une cl&eacute; de signature tenue par son propri&eacute;taire.</b> Les fichiers
+    publi&eacute;s aujourd'hui sont sign&eacute;s avec une cl&eacute; de d&eacute;bogage r&eacute;g&eacute;n&eacute;r&eacute;e &agrave;
+    chaque compilation : deux versions ne s'installent pas l'une sur l'autre.
+    C'est sans cons&eacute;quence pour un essai, et &agrave; r&eacute;gler avant le premier vrai
+    client &mdash; une cl&eacute; perdue emp&ecirc;che d&eacute;finitivement de mettre &agrave; jour ce qui a
+    d&eacute;j&agrave; &eacute;t&eacute; install&eacute;.</li>
+  </ul>
+
+  <h3 class="sous-manque">Ce qui existe d&eacute;j&agrave;, et qu'on croit souvent absent</h3>
+  <p>La facture, elle, se fait. Elle porte les mentions de l'&eacute;metteur, le
+  client selon son type, le d&eacute;tail par groupe de taxation, le montant en
+  toutes lettres, un num&eacute;ro dans une s&eacute;rie sans trou qui repart chaque
+  ann&eacute;e &mdash; et, &eacute;crit en clair, qu'elle <b>n'est pas certifi&eacute;e</b>. Les
+  rapports X, Z et A se tirent, et le Z sert d'abord &agrave; savoir ce qu'il doit
+  y avoir dans le tiroir. Ce qui manque &agrave; ces documents, c'est la signature
+  du module &mdash; pas leur contenu.</p>
 </section>
 <footer>
-  <p>Carnet 0.7.1 &middot; application développée pour les commerçants du
+  <p>Carnet 0.8.0 &middot; application développée pour les commerçants du
   Burkina Faso. Hors ligne d'abord. Les numéros et les noms figurant sur les
   captures sont fictifs.</p>
 </footer>

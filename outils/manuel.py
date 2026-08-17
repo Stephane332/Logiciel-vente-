@@ -30,11 +30,13 @@ REGULIER = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Regular.ttf')
 GRAS = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Bold.ttf')
 
 ECRAN = {}
-for _n in ['01-caisse-vide', '02-pave-montant-libre', '04-proposition-de-nom',
-           '05-nommer-article', '06-catalogue-nomme', '07-panier',
-           '08-feuille-paiement', '09-credit-a-qui', '11-credit-client-choisi',
-           '12-cahier-dettes', '14-creer-article', '15-stock-suivi',
-           '16-rapport-du-soir', '17-reglages', '18-mobile-money-qr']:
+for _n in ['01-caisse-vide', '02-pave-montant-libre', '05-proposition-de-nom',
+           '06-nommer-article', '07-catalogue-nomme', '08-panier',
+           '09-feuille-paiement', '10-credit-a-qui', '12-credit-client-choisi',
+           '13-cahier-dettes', '15-creer-article', '16-stock-suivi',
+           '17-rapport-du-soir', '18-reglages', '19-mobile-money-qr',
+           '20-fiche-repliee', '21-fiche-depliee', '25-facture',
+           '26-cloturer', '27-cloture']:
     ECRAN[_n] = 'data:image/png;base64,' + b64(CAPTURES / (_n + '.png'))
 for _n in ['equipe-02-qui-encaisse', 'equipe-03-liste', 'equipe-05-rapport',
            'equipe-07-semaine', 'equipe-09-recherche']:
@@ -119,7 +121,8 @@ sections.append(profil(
     '<a href="#nommer">nommer ce que je vends souvent</a>, '
     '<a href="#scanner">scanner un produit emballé</a>, '
     '<a href="#credit">le client paie plus tard</a>, '
-    '<a href="#rapport">le rapport du soir</a>.'))
+    '<a href="#rapport">le rapport du soir</a>, '
+    '<a href="#cloture">arrêter la caisse le soir</a>.'))
 
 sections.append(profil(
     'employeur', 'La boutique avec des vendeurs',
@@ -134,6 +137,7 @@ sections.append(profil(
     "chiffre qui est intéressant.",
     'Va voir : <a href="#equipe">déclarer qui tient la caisse</a>, '
     '<a href="#rapport">le rapport du soir</a>, '
+    '<a href="#cloture">arrêter la caisse le soir</a>, '
     '<a href="#sauvegarde">changer de téléphone</a>.'))
 
 sections.append(profil(
@@ -189,7 +193,28 @@ sections.append(profil(
     "il ouvre l'application le matin en prenant son café, regarde hier, et "
     "voit qui a encaissé quoi. S'il n'a pas le téléphone, il reçoit le résumé.",
     'Va voir : <a href="#rapport">le rapport du soir</a>, '
-    '<a href="#equipe">déclarer qui tient la caisse</a>.'))
+    '<a href="#equipe">déclarer qui tient la caisse</a>, '
+    '<a href="#cloture">arrêter la caisse le soir</a>.'))
+
+sections.append(profil(
+    'fournisseur', "Le fournisseur d'entreprises",
+    "Quincaillerie, grossiste, imprimeur, prestataire — on vend à des "
+    "sociétés, à des ONG, parfois à l'État.",
+    ["Tout ce que fait la boutique",
+     "<b>Ma fiche entreprise</b> : IFU, adresse, parcelle, régime",
+     "<b>Faire une facture</b> depuis le reçu, avec un numéro qui ne se "
+     "répète jamais",
+     "<b>Clôturer la journée</b>, qui est aussi le Z-rapport de la DGI"],
+    ["Rien de neuf côté caisse : on vend exactement comme les autres. La "
+     "facture n'est qu'une sortie de plus, demandée après coup."],
+    "on vend au comptoir toute la journée comme n'importe qui. Deux ou trois "
+    "clients réclament une facture : on la fait en trois appuis depuis leur "
+    "reçu. Le soir, on clôture — et le même geste sert au tiroir et à "
+    "l'administration.",
+    'Va voir : <a href="#fiche-entreprise">remplir sa fiche</a>, '
+    '<a href="#facture">faire une facture</a>, '
+    '<a href="#cloture">arrêter la caisse le soir</a>, '
+    '<a href="#pas-encore">ce qui n\'existe pas encore</a>.'))
 
 sections.append('</div>')
 
@@ -224,9 +249,9 @@ sections.append(recette(
     "<b>« Plusieurs choses »</b> : l'application te fait créer chaque article "
     "d'un coup et cesse de poser la question. Et « Plus tard » est une "
     "réponse valable — elle ne bloque rien, et la question reviendra.",
-    [('04-proposition-de-nom', 'Le bandeau, après trois ventes'),
-     ('05-nommer-article', 'Un mot suffit'),
-     ('06-catalogue-nomme', 'La tuile remplace le pavé')]))
+    [('05-proposition-de-nom', 'Le bandeau, après trois ventes'),
+     ('06-nommer-article', 'Un mot suffit'),
+     ('07-catalogue-nomme', 'La tuile remplace le pavé')]))
 
 sections.append(recette(
     'scanner', 'Scanner un produit emballé',
@@ -262,7 +287,7 @@ sections.append(recette(
      "<b>Encaisser</b>, puis le mode de paiement."],
     "La corbeille rouge, à gauche du bouton, vide tout le panier. Elle "
     "n'apparaît que quand il y a quelque chose dedans.",
-    [('07-panier', 'Trois articles au panier')]))
+    [('08-panier', 'Trois articles au panier')]))
 
 sections.append(recette(
     'carton', 'Vendre un carton entier',
@@ -302,8 +327,8 @@ sections.append(recette(
     "l'opérateur prélève les frais de transfert entre particuliers sur chaque "
     "vente. C'est le commerçant qui confirme avoir reçu son SMS : la lecture "
     "automatique n'est pas encore écrite, et l'écran le dit franchement.",
-    [('08-feuille-paiement', "Trois façons d'encaisser"),
-     ('18-mobile-money-qr', 'Le QR, le code en gros, le lien')]))
+    [('09-feuille-paiement', "Trois façons d'encaisser"),
+     ('19-mobile-money-qr', 'Le QR, le code en gros, le lien')]))
 
 sections.append(recette(
     'credit', 'Le client paie plus tard',
@@ -316,8 +341,8 @@ sections.append(recette(
     "Le téléphone n'est pas obligatoire, mais sans lui tu ne pourras pas "
     "envoyer l'ardoise. Une vente à crédit sans client n'entrerait dans le "
     "cahier de personne : l'application te le demande donc avant de valider.",
-    [('09-credit-a-qui', 'À qui ?'),
-     ('11-credit-client-choisi', 'Le client choisi, la dette annoncée')]))
+    [('10-credit-a-qui', 'À qui ?'),
+     ('12-credit-client-choisi', 'Le client choisi, la dette annoncée')]))
 
 sections.append(recette(
     'rembourse', 'Le client rembourse',
@@ -327,7 +352,7 @@ sections.append(recette(
      "Tape ce qu'il donne. Le bouton <b>Tout</b> met le solde entier."],
     "La dette redescend immédiatement, et la carte disparaît de la liste "
     "quand elle tombe à zéro.",
-    [('12-cahier-dettes', 'Qui doit combien, du plus ancien au plus récent')]))
+    [('13-cahier-dettes', 'Qui doit combien, du plus ancien au plus récent')]))
 
 sections.append(recette(
     'conteste', 'Le client conteste sa dette',
@@ -381,8 +406,8 @@ sections.append(recette(
     "pas sur un seuil fixe : trois sachets par jour et il t'en reste six, "
     "l'application te le dit. Et si tu ne veux rien suivre, tu peux ne rien "
     "suivre — c'est le comportement par défaut.",
-    [('15-stock-suivi', 'Ce que je suis, et ce qu\'il en reste'),
-     ('14-creer-article', 'Créer un article à la main, si on préfère')]))
+    [('16-stock-suivi', 'Ce que je suis, et ce qu\'il en reste'),
+     ('15-creer-article', 'Créer un article à la main, si on préfère')]))
 
 sections.append(recette(
     'catalogue', 'Corriger ou retirer un article',
@@ -438,7 +463,7 @@ sections.append(recette(
     "bien, presque jamais ce qui a cessé de se vendre. Le résumé porte la "
     "période regardée : sans ça on lirait « Journée du » suivi du jour où on "
     "appuie.",
-    [('16-rapport-du-soir', 'Ce que le patron voit le soir'),
+    [('17-rapport-du-soir', 'Ce que le patron voit le soir'),
      ('equipe-07-semaine', 'La même chose sur sept jours')]))
 
 sections.append(recette(
@@ -472,6 +497,87 @@ sections.append(recette(
     "retrouver à ta place. Si tu le choisis, écris-le quelque part qui ne soit "
     "pas ce téléphone.",
     [('carnet-07-sauvegarde', 'Sauvegarder, et sortir le fichier')]))
+
+sections.append(recette(
+    'fiche-entreprise', "Remplir sa fiche, quand on facture",
+    "Une entreprise, une ONG ou un service de l'État te réclame une facture "
+    "en bonne et due forme. <b>Si ça ne t'arrive jamais, saute cette page :</b> "
+    "rien de tout ça ne sert à vendre au comptoir.",
+    ["<b>Réglages</b> → <b>Ma fiche entreprise</b>. La section est fermée "
+     "tant qu'elle est vide.",
+     "Ton <b>IFU</b>, tel qu'il est écrit sur ton attestation "
+     "d'immatriculation fiscale : huit chiffres et une lettre.",
+     "Ton <b>adresse de vente</b> en clair, et les <b>références "
+     "cadastrales</b> de la parcelle — onze chiffres, au service du cadastre.",
+     "Ton <b>régime d'imposition</b> et ton <b>service des impôts</b>, tels "
+     "que la Direction générale des impôts t'a classé."],
+    "<b>Rien n'est obligatoire, et rien ne bloque.</b> L'application encaisse "
+    "sans que tu sois passé par là, comme au premier jour. Tu remplis cette "
+    "fiche le jour où elle sert, pas avant."
+    "<br><br>"
+    "Deux champs ont une forme imposée et sont vérifiés : l'IFU, et les "
+    "références cadastrales. Une saisie fausse est <b>signalée</b> et n'est "
+    "pas enregistrée — mieux vaut le savoir tout de suite que le découvrir "
+    "sur une facture déjà remise."
+    "<br><br>"
+    "Un bilan en bas de la section te dit ce qui manque encore, et pourquoi "
+    "chaque mention est demandée. <b>Une fiche complète ne fait pas une "
+    "facture certifiée</b> : la certification exige en plus un module de "
+    "contrôle agréé, qui ne se règle pas depuis un écran. Ce que tu produis "
+    "aujourd'hui le dit franchement.",
+    [('20-fiche-repliee', "Fermée tant qu'elle est vide"),
+     ('21-fiche-depliee', 'Les mentions, et ce qui manque')]))
+
+sections.append(recette(
+    'facture', 'Faire une facture',
+    "Le client réclame une facture. C'est au comptoir que ça se demande, "
+    "juste après qu'il a payé.",
+    ["Encaisse normalement.",
+     "Dans le bandeau, appuie sur <b>Reçu</b>.",
+     "En bas de la feuille, <b>Faire une facture</b>.",
+     "Dis <b>à qui</b> : client comptant, personne physique, ou personne "
+     "morale. L'application ne demande que ce qu'il faut pour le type choisi.",
+     "<b>Faire la facture</b>. Elle part par WhatsApp comme le reste."],
+    "<b>Le bouton n'apparaît que si ta fiche entreprise est remplie.</b> "
+    "Sans IFU ni adresse, la facture qui sortirait ne porterait aucune des "
+    "mentions qu'un client professionnel vient précisément chercher."
+    "<br><br>"
+    "Chaque facture reçoit un <b>numéro</b> qui ne se répète jamais, dans une "
+    "série sans trou qui repart à un chaque année. Refaire une facture perdue "
+    "rend le <b>même</b> numéro : c'est un duplicata, pas une nouvelle "
+    "facture. Renoncer en cours de route ne consomme aucun numéro."
+    "<br><br>"
+    "La facture porte le détail par groupe de taxation, le montant en toutes "
+    "lettres, les modes de règlement, et — en bas, en clair — qu'elle "
+    "<b>n'est pas certifiée</b>. Je préfère qu'elle le dise plutôt que de te "
+    "laisser croire que tu es en règle : une facture qui aurait l'air "
+    "normalisée sans l'être t'exposerait à une sanction.",
+    [('25-facture', 'Une facture, telle qu\'elle part')]))
+
+sections.append(recette(
+    'cloture', 'Arrêter la caisse le soir',
+    "Tu comptes ton argent avant de fermer, et tu veux savoir ce qu'il "
+    "devrait y avoir dans le tiroir.",
+    ["Onglet <b>Rapport</b>, tout en bas.",
+     "<b>Point de caisse, sans clôturer</b> pour jeter un œil à n'importe "
+     "quel moment de la journée.",
+     "<b>Clôturer la journée</b> quand tu fermes. L'application demande "
+     "confirmation.",
+     "Le rapport s'affiche et part par WhatsApp comme les autres documents."],
+    "La ligne qui compte est en bas : <b>à avoir en caisse (espèces)</b>. "
+    "C'est ce que tu dois trouver dans le tiroir — le mobile money est sur "
+    "ton téléphone, et le crédit n'est nulle part encore."
+    "<br><br>"
+    "<b>La clôture ne se défait pas.</b> Le rapport suivant repart d'ici : "
+    "c'est ce qui fait qu'on ne compte jamais deux fois la même journée. "
+    "C'est aussi pour ça que l'application demande confirmation — c'est le "
+    "seul endroit où elle le fait."
+    "<br><br>"
+    "<b>État des articles</b>, juste en dessous, dit pour chaque produit ce "
+    "qui est sorti, ce qui est revenu et ce qu'il reste depuis le dernier "
+    "arrêté. C'est le rapport qu'on sort quand un chiffre ne tombe pas juste.",
+    [('26-cloturer', 'Elle demande confirmation'),
+     ('27-cloture', 'Ce qui doit être dans le tiroir')]))
 
 sections.append('</div>')
 

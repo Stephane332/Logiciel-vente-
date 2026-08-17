@@ -23,9 +23,9 @@ GRAS = 'data:font/ttf;base64,' + b64(POLICES / 'Outfit-Bold.ttf')
 
 ECRANS = [
     ('01-caisse-vide', 'La caisse, au premier lancement'),
-    ('08-feuille-paiement', "Trois façons d'encaisser"),
-    ('12-cahier-dettes', 'Le cahier de dettes'),
-    ('16-rapport-du-soir', 'Le rapport du soir'),
+    ('09-feuille-paiement', "Trois façons d'encaisser"),
+    ('13-cahier-dettes', 'Le cahier de dettes'),
+    ('17-rapport-du-soir', 'Le rapport du soir'),
 ]
 IMAGES = {n: 'data:image/png;base64,' + b64(CAPTURES / (n + '.png'))
           for n, _ in ECRANS}

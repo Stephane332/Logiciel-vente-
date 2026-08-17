@@ -14,11 +14,11 @@ def b64(chemin):
 
 
 ECRAN = {}
-for _nom in ['01-caisse-vide', '02-pave-montant-libre', '04-proposition-de-nom',
-             '05-nommer-article', '06-catalogue-nomme', '08-feuille-paiement',
-             '09-credit-a-qui', '11-credit-client-choisi', '12-cahier-dettes',
-             '14-creer-article', '15-stock-suivi', '16-rapport-du-soir',
-             '17-reglages', '18-mobile-money-qr']:
+for _nom in ['01-caisse-vide', '02-pave-montant-libre', '05-proposition-de-nom',
+             '06-nommer-article', '07-catalogue-nomme', '09-feuille-paiement',
+             '10-credit-a-qui', '12-credit-client-choisi', '13-cahier-dettes',
+             '15-creer-article', '16-stock-suivi', '17-rapport-du-soir',
+             '18-reglages', '19-mobile-money-qr']:
     ECRAN[_nom] = 'data:image/png;base64,' + b64(CAPTURES / (_nom + '.png'))
 
 for _nom in ['equipe-02-qui-encaisse', 'equipe-03-liste', 'equipe-05-rapport',
@@ -129,7 +129,7 @@ propose alors de donner un nom à ce que le commerçant vend si souvent.</p>
 <p>Elle ne peut pas le deviner — un montant tapé au pavé ne porte aucune
 information sur ce qu'on a vendu. Mais elle ne pose la question qu'une fois
 qu'elle vaut la peine, et jamais pendant qu'un client attend.</p>
-""", '04-proposition-de-nom', 'La proposition, après trois ventes'))
+""", '05-proposition-de-nom', 'La proposition, après trois ventes'))
 
 sections.append(etape(4, 'Un mot, et le catalogue existe', """
 <p>« Sachet d'eau ». C'est tout. L'article prend une initiale et une couleur
@@ -139,7 +139,7 @@ ce qu'il vend vraiment.</p>
 <p class="note">Il n'est pas obligé d'attendre qu'on lui demande : depuis
 l'écran de stock, il peut nommer, corriger un prix ou créer un article de toutes
 pièces quand il veut.</p>
-""", '05-nommer-article', 'Nommer un article'))
+""", '06-nommer-article', 'Nommer un article'))
 
 sections.append(etape(5, 'La vente suivante est un seul geste', """
 <p>On appuie sur l'article, le total monte. Un appui long change le prix pour
@@ -147,7 +147,7 @@ cette vente seulement — sur un marché le prix se discute, et le prix affiché
 n'est qu'une proposition. Le catalogue, lui, ne bouge pas.</p>
 <p>L'écart part en remise mesurée dans le rapport du soir : le commerçant voit
 enfin ce que ses gestes commerciaux lui coûtent.</p>
-""", '06-catalogue-nomme', 'Le catalogue construit par l&rsquo;usage'))
+""", '07-catalogue-nomme', 'Le catalogue construit par l&rsquo;usage'))
 
 sections.append('</div>')
 
@@ -166,8 +166,8 @@ n'installe rien.</p>
 <p class="note">Seuls les opérateurs chez qui le commerçant a réellement un
 compte marchand sont proposés. Afficher un code qui ne le paierait pas serait
 pire que ne rien afficher.</p>
-""", [('08-feuille-paiement', 'Le choix du mode'),
-      ('18-mobile-money-qr', 'Le code que le client scanne')]))
+""", [('09-feuille-paiement', 'Le choix du mode'),
+      ('19-mobile-money-qr', 'Le code que le client scanne')]))
 
 sections.append(bloc('Le crédit', """
 <p>C'est la vraie douleur d'un commerçant ici, et l'objet le plus précieux de sa
@@ -182,9 +182,9 @@ que l'information est utile : avant d'accorder, pas après.</p>
 qu'on oublie, et celles qu'on ne récupère plus. Passé trente jours, la carte se
 signale. L'ardoise part au client en un geste, et le remboursement s'encaisse
 avec un raccourci « Tout », parce que solder est le cas fréquent.</p>
-""", [('09-credit-a-qui', 'Une dette sans nom est refusée'),
-      ('11-credit-client-choisi', 'Ce que le client doit déjà'),
-      ('12-cahier-dettes', 'Le cahier, les plus anciens en tête')]))
+""", [('10-credit-a-qui', 'Une dette sans nom est refusée'),
+      ('12-credit-client-choisi', 'Ce que le client doit déjà'),
+      ('13-cahier-dettes', 'Le cahier, les plus anciens en tête')]))
 
 sections.append(bloc('Sauvegarder, et surtout sortir la sauvegarde', """
 <p>C'est la seule panne dont un commerçant ne se relève pas. Un téléphone se
@@ -265,8 +265,8 @@ article avec son nom, son prix et sa quantité. C'est son commerce, pas le nôtr
 <p class="note">« Perdu » est la ligne que personne n'aime remplir et que tout le
 monde devrait tenir. Sans elle, une casse devient un écart inexpliqué — et c'est
 par là que l'argent d'un commerce disparaît sans qu'on sache jamais où.</p>
-""", [('14-creer-article', 'Saisir un article d&rsquo;avance, si on veut'),
-      ('15-stock-suivi', 'Reçu &middot; Compté &middot; Perdu')]))
+""", [('15-creer-article', 'Saisir un article d&rsquo;avance, si on veut'),
+      ('16-stock-suivi', 'Reçu &middot; Compté &middot; Perdu')]))
 
 sections.append(bloc('Retrouver un article quand la boutique grandit', """
 <p>Tant que la boutique compte une douzaine d'articles, ils tiennent tous à
@@ -315,9 +315,9 @@ veille ne doit pas avoir disparu à minuit une.</p>
 <p>Le résumé part au patron en un geste, par WhatsApp ou SMS. Il porte la
 période regardée : sans ça, on lirait « Journée du » suivi du jour où l'on
 appuie, et on croirait avoir encaissé ça aujourd'hui.</p>
-""", [('16-rapport-du-soir', 'Ce que le patron voit le soir'),
+""", [('17-rapport-du-soir', 'Ce que le patron voit le soir'),
       ('equipe-07-semaine', 'La même chose sur sept jours'),
-      ('17-reglages', 'Les réglages : nom, numéros marchands, équipe')]))
+      ('18-reglages', 'Les réglages : nom, numéros marchands, équipe')]))
 
 sections.append(bloc('Ce que reçoit le client', """
 <p>Le client n'installe rien. Personne n'installe une application pour un achat

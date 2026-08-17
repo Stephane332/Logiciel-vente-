@@ -11,6 +11,7 @@ import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
 import '../../donnees/documents.dart';
 import '../../donnees/parametres.dart';
+import '../../donnees/rapports.dart';
 import '../theme/palette.dart';
 import 'dettes.dart';
 import 'sauvegardes.dart';
@@ -250,6 +251,14 @@ class _AccueilState extends State<Accueil> {
               documents: _documents,
               analyses: widget.analyses,
               surReglages: _ouvrirReglages,
+              // La fiche vient des réglages en cours, pas de celle du
+              // démarrage : un IFU saisi il y a une minute doit être sur le
+              // Z de ce soir.
+              rapports: Rapports(
+                widget.depot.base,
+                widget.depot.journal,
+                fiche: _reglage.fiche,
+              ),
             ),
           ),
         ],

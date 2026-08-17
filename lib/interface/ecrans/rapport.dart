@@ -14,7 +14,9 @@ import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/periode.dart';
+import '../../domaine/rapport_fiscal.dart';
 import '../../donnees/documents.dart';
+import '../../donnees/rapports.dart';
 import '../composants/montant_anime.dart';
 import '../composants/partage.dart';
 import '../theme/palette.dart';
@@ -28,12 +30,17 @@ class EcranRapport extends StatefulWidget {
   /// boutique, pas au milieu d'une vente.
   final VoidCallback? surReglages;
 
+  /// L'arrêté de caisse : X, Z et A. Nul dans les tests d'écran qui ne
+  /// regardent pas la clôture — la section disparaît alors entièrement.
+  final Rapports? rapports;
+
   const EcranRapport({
     super.key,
     required this.depot,
     required this.documents,
     required this.analyses,
     this.surReglages,
+    this.rapports,
   });
 
   @override
@@ -80,6 +87,9 @@ class EcranRapportState extends State<EcranRapport> {
       widget.depot.parVendeur(debut, fin),
     ).wait;
 
+    final cloture =
+        await widget.rapports?.derniereCloture(NatureRapport.z);
+
     if (!mounted) return;
     setState(() {
       _rapport = rapport;
@@ -88,6 +98,7 @@ class EcranRapportState extends State<EcranRapport> {
       _meilleures = meilleures;
       _perdu = perdu;
       _parVendeur = parVendeur;
+      _derniereCloture = cloture;
     });
   }
 
@@ -95,6 +106,84 @@ class EcranRapportState extends State<EcranRapport> {
     if (periode == _periode) return;
     setState(() => _periode = periode);
     recharger();
+  }
+
+  /// Quand la caisse a été arrêtée pour la dernière fois. Nulle tant qu'elle
+  /// ne l'a jamais été.
+  DateTime? _derniereCloture;
+
+  static String _dateLisible(DateTime quand) {
+    String d(int v) => v.toString().padLeft(2, '0');
+    return '${d(quand.day)}/${d(quand.month)} à ${d(quand.hour)}h${d(quand.minute)}';
+  }
+
+  /// Le point de caisse, sans rien arrêter.
+  Future<void> _pointDeCaisse() async {
+    final rapports = widget.rapports;
+    if (rapports == null) return;
+
+    final x = await rapports.x();
+    if (!mounted) return;
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'Point de caisse',
+      texte: x.texte,
+    );
+  }
+
+  /// Clôture la journée.
+  ///
+  /// Demande confirmation, et c'est le seul endroit de l'application où j'en
+  /// demande une. Une clôture ne se défait pas : le rapport suivant repartira
+  /// d'ici, et un Z tiré par erreur à midi couperait la journée en deux.
+  Future<void> _cloturer() async {
+    final rapports = widget.rapports;
+    if (rapports == null) return;
+
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: const Text('Clôturer la journée ?'),
+        content: const Text(
+          "Le prochain rapport repartira d'ici. C'est le geste du soir, "
+          'quand la caisse est comptée — il ne se défait pas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(false),
+            child: const Text('Pas maintenant'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(true),
+            child: const Text('Clôturer'),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    final z = await rapports.z();
+    if (!mounted) return;
+
+    setState(() => _derniereCloture = z.fin);
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'Clôture n° ${z.numero}',
+      texte: z.texte,
+    );
+  }
+
+  Future<void> _etatDesArticles() async {
+    final rapports = widget.rapports;
+    if (rapports == null) return;
+
+    final a = await rapports.a();
+    if (!mounted) return;
+    await FeuilleDocument.presenter(
+      context,
+      titre: 'État des articles',
+      texte: a.texte,
+    );
   }
 
   /// Vrai quand la répartition par vendeur a quelque chose à dire.
@@ -314,6 +403,48 @@ class EcranRapportState extends State<EcranRapport> {
                 backgroundColor: Couleurs.primaire,
               ),
             ),
+
+            if (widget.rapports != null) ...[
+              const SizedBox(height: Espace.xxl),
+              Text('Arrêter la caisse', style: textes.titleLarge),
+              const SizedBox(height: 2),
+              Text(
+                _derniereCloture == null
+                    ? "Tu n'as encore jamais clôturé. La clôture arrête la "
+                        'journée et dit ce qui doit rester dans le tiroir.'
+                    : 'Dernière clôture le ${_dateLisible(_derniereCloture!)}.',
+                style: textes.labelSmall,
+              ),
+              const SizedBox(height: Espace.m),
+              OutlinedButton.icon(
+                onPressed: _pointDeCaisse,
+                icon: const Icon(Icons.visibility_outlined, size: 20),
+                label: const Text('Point de caisse, sans clôturer'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+              const SizedBox(height: Espace.s),
+              OutlinedButton.icon(
+                onPressed: _cloturer,
+                icon: const Icon(Icons.lock_outline_rounded, size: 20),
+                label: const Text('Clôturer la journée'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: Couleurs.primaire,
+                  side: const BorderSide(color: Couleurs.primaire),
+                ),
+              ),
+              const SizedBox(height: Espace.s),
+              TextButton.icon(
+                onPressed: _etatDesArticles,
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('État des articles'),
+                style:
+                    TextButton.styleFrom(foregroundColor: Couleurs.encreDouce),
+              ),
+            ],
+
             const SizedBox(height: Espace.xxl),
           ],
         ),

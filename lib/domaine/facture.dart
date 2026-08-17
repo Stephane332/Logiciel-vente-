@@ -273,11 +273,17 @@ class Facture {
 
   List<String> _ligneArticle(LigneCalculee ligne) {
     final source = ligne.source;
+
+    // La désignation est **repliée, jamais tronquée**. Le §2.19 impose de
+    // porter au moins soixante-quatre caractères ; sur un reçu de comptoir on
+    // coupe pour garder l'alignement, mais couper ici reviendrait à ne pas
+    // tenir la règle — et une désignation coupée est précisément ce qu'un
+    // client professionnel conteste.
+    final replie = _replier(source.designation, _largeur);
+
     final sortie = <String>[
-      DocumentClient.aligne(
-        _tronquer(source.designation, 30),
-        ligne.montantNet.enFrancs,
-      ),
+      DocumentClient.aligne(replie.first, ligne.montantNet.enFrancs),
+      ...replie.skip(1),
       '  ${source.quantite} × ${source.prixUnitaire.enFrancs} '
           '· groupe ${source.groupeTaxation.etiquette}',
     ];
@@ -321,6 +327,33 @@ class Facture {
   static const _largeur = 38;
   static String get _separateur => '─' * _largeur;
 
-  static String _tronquer(String texte, int largeur) =>
-      texte.length <= largeur ? texte : '${texte.substring(0, largeur - 1)}…';
+  /// Replie un texte sur plusieurs lignes, en coupant aux espaces.
+  ///
+  /// La première ligne laisse la place au montant collé à droite ; les
+  /// suivantes sont décalées de deux espaces, comme le détail.
+  static List<String> _replier(String texte, int largeur) {
+    final premiere = largeur - 12;
+    final suivantes = largeur - 2;
+
+    final lignes = <String>[];
+    var courante = StringBuffer();
+    var place = premiere;
+
+    void pousser() {
+      if (courante.isEmpty) return;
+      lignes.add(lignes.isEmpty ? '$courante' : '  $courante');
+      courante = StringBuffer();
+      place = suivantes;
+    }
+
+    for (final mot in texte.trim().split(RegExp(r'\s+'))) {
+      final ajout = courante.isEmpty ? mot.length : courante.length + 1 + mot.length;
+      if (ajout > place && courante.isNotEmpty) pousser();
+      if (courante.isNotEmpty) courante.write(' ');
+      courante.write(mot);
+    }
+    pousser();
+
+    return lignes.isEmpty ? [''] : lignes;
+  }
 }

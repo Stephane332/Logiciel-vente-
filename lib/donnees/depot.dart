@@ -1691,6 +1691,9 @@ class Depot {
             await _appliquerEmissionFacture(evenement);
           case TypeEvenement.creditAccorde:
           case TypeEvenement.ventecertifiee:
+          // Une clôture ne modifie aucune projection : elle borne une période
+          // et fige des totaux dans le journal. La rejouer n'a rien à faire.
+          case TypeEvenement.clotureTiree:
             break;
         }
       }

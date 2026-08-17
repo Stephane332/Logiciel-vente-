@@ -72,6 +72,18 @@ enum TypeEvenement {
   /// deux vérités, et la seconde finirait par mentir.
   factureEmise('facture_emise'),
 
+  /// Une clôture Z a été tirée : la caisse est arrêtée à cet instant.
+  ///
+  /// Le Z-rapport porte « la période écoulée depuis le dernier Z » (note de
+  /// service, §5). Sa borne de début est donc le Z précédent, et la borne
+  /// n'existe que si la clôture est enregistrée. Un rapport qu'on peut
+  /// retirer deux fois avec deux résultats différents ne clôture rien.
+  ///
+  /// Le même événement porte le A-rapport, distingué par sa charge : les deux
+  /// arrêtent une période, et les séparer aurait fait deux mécanismes
+  /// identiques à maintenir.
+  clotureTiree('cloture_tiree'),
+
   ventecertifiee('vente_certifiee');
 
   final String cle;

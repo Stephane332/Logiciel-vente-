@@ -189,6 +189,38 @@ void main() {
       );
     });
 
+    test('une désignation longue est repliée, jamais tronquée (§2.19)', () {
+      // Le §2.19 impose de porter au moins soixante-quatre caractères. Sur un
+      // reçu de comptoir on coupe pour garder l'alignement ; couper ici
+      // reviendrait à ne pas tenir la règle, et une désignation amputée est
+      // précisément ce qu'un client professionnel conteste.
+      const longue = 'Ciment Portland composé CPJ 45 en sac de cinquante '
+          'kilogrammes, palette de quarante';
+      expect(longue.length, greaterThan(64));
+
+      final texte = facture(
+        calculee: calculerFacture(
+          modePrix: ModePrix.toutesTaxesComprises,
+          lignes: [
+            LigneACalculer(
+              codeArticle: 'CIM',
+              designation: longue,
+              groupeTaxation: GroupeTaxation.b,
+              prixUnitaire: f(10000),
+              quantite: const Quantite.unites(1),
+            )
+          ],
+        ),
+      ).texte;
+
+      // Chaque mot de la désignation se retrouve, et rien n'est remplacé par
+      // des points de suspension.
+      for (final mot in longue.split(' ')) {
+        expect(texte, contains(mot), reason: mot);
+      }
+      expect(texte, isNot(contains('…')));
+    });
+
     test('une remise de ligne figure au détail (§3, q)', () {
       final texte = facture(calculee: calcul(remise: f(500))).texte;
 

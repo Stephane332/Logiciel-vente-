@@ -98,7 +98,13 @@ const constat = (quoi, vrai) => {
   const vendre = async (montant) => {
     await clic(p, 'Montant\nlibre', { exact: false });
     for (const c of montant.split('')) await clic(p, c);
+    // « Encaisser » ouvre désormais la feuille de paiement : elle demande
+    // comment le client paie avant d'enregistrer quoi que ce soit. Ce script
+    // datait d'avant, et s'arrêtait là en croyant la vente faite.
     await clic(p, 'Encaisser');
+    await pause(p, 900);
+    await clic(p, 'Espèces');
+    await clic(p, 'Valider la vente');
     // Le bandeau de confirmation flotte trois secondes au-dessus de la
     // grille : tant qu'il est là, il avale les appuis destinés au-dessous.
     await pause(p, 3600);
@@ -189,6 +195,12 @@ const constat = (quoi, vrai) => {
   await clic(p, 'Réglages');
   await pause(p, 1000);
   constat('la version est affichée', await present(p, 'Carnet', { exact: false }));
+  // Les réglages ont grandi depuis que la fiche entreprise y vit : le bouton
+  // de sauvegarde est passé sous le bord de l'écran, et un clic sur un nœud
+  // hors champ ne fait rien du tout.
+  await p.mouse.move(TEL.width / 2, TEL.height / 2);
+  await p.mouse.wheel(0, 900);
+  await pause(p, 900);
   await clic(p, 'Sauvegarder ou restaurer');
   await pause(p, 1500);
   constat("l'écran de sauvegarde s'ouvre",

@@ -87,8 +87,13 @@ const constat = (quoi, vrai) => {
   await reveiller(p);
 
   // --- Un commerçant seul ne doit rien voir de tout ça.
-  constat('caisse ouverte chez un commerçant seul',
-    await present(p, 'Caisse ouverte'));
+  // Ce script attendait « Caisse ouverte » en haut de la caisse. Ces deux
+  // mots ont été retirés depuis : ils ne changeaient jamais, en haut de
+  // l'écran le plus regardé de la journée. Chez un commerçant seul, la
+  // pastille n'a rien à dire et ne paraît donc pas du tout.
+  constat("aucune pastille de caisse chez un commerçant seul",
+    !(await present(p, 'Caisse ouverte')) &&
+    !(await present(p, 'Qui encaisse ?')));
   // La barre est le seul champ de saisie de la caisse : le compter dans le
   // DOM est plus sûr que de chercher son texte d'invite, qui vit dans un
   // attribut et pas dans l'arbre d'accessibilité.
@@ -105,6 +110,11 @@ const constat = (quoi, vrai) => {
   await saisir(p, champs - 1, 'Salif');
   await clic(p, 'Ajouter');
   await capture(p, 'equipe-01-reglages');
+  // Les réglages ont grandi depuis que la fiche entreprise y vit : le bouton
+  // d'enregistrement est passé sous le bord de l'écran.
+  await p.mouse.move(TEL.width / 2, TEL.height / 2);
+  await p.mouse.wheel(0, 1400);
+  await pause(p, 900);
   await clic(p, 'Enregistrer');
   await pause(p, 1200);
 
@@ -125,7 +135,12 @@ const constat = (quoi, vrai) => {
   const vendre = async (montant) => {
     await clic(p, 'Montant\nlibre', { exact: false });
     for (const c of montant.split('')) await clic(p, c);
+    // « Encaisser » ouvre la feuille de paiement : elle demande comment le
+    // client paie avant d'enregistrer. Ce script datait d'avant.
     await clic(p, 'Encaisser');
+    await pause(p, 900);
+    await clic(p, 'Espèces');
+    await clic(p, 'Valider la vente');
     // Le bandeau de confirmation flotte trois secondes : tant qu'il est là,
     // il avale les appuis destinés à ce qui se trouve dessous.
     await pause(p, 3600);

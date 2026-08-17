@@ -101,6 +101,47 @@ void main() {
       expect(find.textContaining('Inutile pour vendre au comptoir'),
           findsOneWidget);
     });
+
+    testWidgets('elle tient sur la largeur d\'un téléphone', (tester) async {
+      // Trouvé en la dépliant sur un écran étroit : « CME — Contribution des
+      // micro-entreprises » débordait de trois cent cinquante pixels. Les
+      // autres tests de ce fichier travaillent sur une surface large pour
+      // éviter la gymnastique de défilement, et n'auraient jamais vu ça.
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(await ecran());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(find.text('Ma fiche entreprise'), 100,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Ma fiche entreprise'));
+      await tester.pumpAndSettle();
+
+      // Un débordement de mise en page lève une exception que le test
+      // capture : arriver ici sans erreur, c'est la preuve.
+      expect(tester.takeException(), isNull);
+
+      final champ = find.byType(DropdownButtonFormField<RegimeImposition?>);
+      await tester.scrollUntilVisible(champ, 100,
+          scrollable: find.byType(Scrollable).first);
+      expect(tester.getSize(champ).width, lessThanOrEqualTo(400));
+    });
+  });
+
+  group('Ce qu\'un lecteur d\'écran entend', () {
+    testWidgets('le nom de la boutique porte un libellé', (tester) async {
+      // Le champ arrive **rempli** — « Ma boutique » par défaut — donc son
+      // texte de remplacement ne s'affiche jamais, et il n'avait aucun
+      // libellé. À l'œil le titre de section suffisait ; pour quelqu'un qui
+      // n'a que la voix, c'était une zone de saisie anonyme. Trouvé en lisant
+      // l'arbre d'accessibilité de l'application pilotée.
+      await ouvrir(tester);
+
+      expect(find.widgetWithText(TextField, 'Nom de la boutique'),
+          findsOneWidget);
+    });
   });
 
   group('Ce qui est tapé est gardé', () {

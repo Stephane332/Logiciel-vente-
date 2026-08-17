@@ -118,7 +118,11 @@ class FeuilleDocument extends StatelessWidget {
             child: Text(
               texte,
               style: const TextStyle(
-                fontFamily: 'monospace',
+                // Une police embarquée, pas « monospace » demandée au
+                // système : dans un navigateur, ce nom ne résout rien et le
+                // document s'affichait dans un cadre vide. Sur téléphone
+                // l'ancien code marchait — c'est le pilotage qui l'a vu.
+                fontFamily: 'CarnetMono',
                 fontSize: 12,
                 height: 1.45,
                 color: Couleurs.encre,

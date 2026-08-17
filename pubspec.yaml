@@ -85,6 +85,19 @@ flutter:
         - asset: assets/polices/Outfit-Bold.ttf
           weight: 700
 
+    # La chasse fixe des documents — reçu, ardoise, facture, rapport.
+    #
+    # Elle était demandée au système sous le nom « monospace ». Sur téléphone
+    # ça marche ; dans un navigateur, non : rien n'était peint, et le reçu
+    # s'affichait dans un cadre vide. C'est exactement ce que voit quelqu'un
+    # qui essaie l'application depuis un iPhone.
+    #
+    # DejaVu Sans Mono, réduite aux 146 caractères que les documents peuvent
+    # porter : 11 ko au lieu de 343. La licence est dans le même dossier.
+    - family: CarnetMono
+      fonts:
+        - asset: assets/polices/DejaVuSansMono-Carnet.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

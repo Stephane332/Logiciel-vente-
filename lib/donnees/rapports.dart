@@ -45,7 +45,7 @@ class Rapports {
   /// qu'un X tiré à midi puis un Z qui ne recoupe pas, ça se vérifie.
   Future<RapportFiscal> x({DateTime? debut, DateTime? fin}) async {
     final maintenant = DateTime.now();
-    final depuis = debut ?? await derniereCloture(NatureRapport.z) ?? _origine;
+    final depuis = debut ?? await derniereCloture(NatureRapport.z) ?? await _origine();
     final borne = fin ?? maintenant;
     final numero = await _prochainNumero(NatureRapport.x);
 
@@ -82,7 +82,7 @@ class Rapports {
   /// deux fois avec deux résultats différents ne clôture rien.
   Future<RapportFiscal> z({DateTime? quand}) async {
     final maintenant = quand ?? DateTime.now();
-    final depuis = await derniereCloture(NatureRapport.z) ?? _origine;
+    final depuis = await derniereCloture(NatureRapport.z) ?? await _origine();
     final numero = await _prochainNumero(NatureRapport.z);
 
     final rapport = await _composer(
@@ -117,7 +117,7 @@ class Rapports {
   /// Le A-rapport : par article, depuis le dernier A.
   Future<RapportFiscal> a({DateTime? quand}) async {
     final maintenant = quand ?? DateTime.now();
-    final depuis = await derniereCloture(NatureRapport.a) ?? _origine;
+    final depuis = await derniereCloture(NatureRapport.a) ?? await _origine();
     final numero = await _prochainNumero(NatureRapport.a);
 
     final rapport = RapportFiscal(
@@ -195,9 +195,22 @@ class Rapports {
     return maximum + 1;
   }
 
-  /// Avant toute vente. Sert de borne au premier rapport, faute de clôture
-  /// précédente.
-  static final _origine = DateTime.fromMillisecondsSinceEpoch(0);
+  /// La borne de départ du tout premier rapport, faute de clôture précédente.
+  ///
+  /// Le premier événement du journal, c'est-à-dire le jour où le carnet a
+  /// commencé. Une date fixe conviendrait au calcul — tout est postérieur —
+  /// mais elle s'imprime sur le rapport, et « Du 01/01/1970 » ne veut rien
+  /// dire pour un commerçant qui ouvre sa caisse. Vu sur une capture, pas
+  /// dans un test : aucun test ne lisait la ligne de période.
+  /// Une seconde **avant** le premier événement : les bornes de période sont
+  /// strictes à gauche, pour qu'une vente tombant pile à l'instant d'un Z ne
+  /// compte pas deux fois. Rendre l'horodatage exact exclurait donc la toute
+  /// première vente de son propre premier rapport.
+  Future<DateTime> _origine() async {
+    final tous = await journal.tous();
+    if (tous.isEmpty) return DateTime.now();
+    return tous.first.horodatage.subtract(const Duration(seconds: 1));
+  }
 
   Future<RapportFiscal> _composer({
     required NatureRapport nature,

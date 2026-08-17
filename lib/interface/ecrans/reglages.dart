@@ -340,6 +340,13 @@ class _EcranReglagesState extends State<EcranReglages> {
             controller: _nom,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
+              // Le champ arrive **rempli** — « Ma boutique » par défaut — donc
+              // le texte de remplacement ne s'affiche jamais et le champ
+              // n'avait aucun libellé du tout. À l'œil, le titre de section
+              // suffisait ; pour un lecteur d'écran, c'était une zone de
+              // saisie anonyme. Trouvé en pilotant, en lisant l'arbre
+              // d'accessibilité.
+              labelText: 'Nom de la boutique',
               hintText: Parametres.nomCommerceParDefaut,
               prefixIcon: Icon(Icons.storefront_outlined),
             ),
@@ -516,7 +523,7 @@ class _EcranReglagesState extends State<EcranReglages> {
 /// quartier qui n'aura jamais d'IFU ne doit pas tomber dessus en cherchant
 /// comment changer le nom de son commerce. Celle qui en a un le voit ouvert,
 /// parce qu'elle y revient.
-class _FicheEntrepriseSection extends StatelessWidget {
+class _FicheEntrepriseSection extends StatefulWidget {
   final bool depliee;
   final TextEditingController raisonSociale;
   final TextEditingController ifu;
@@ -550,6 +557,39 @@ class _FicheEntrepriseSection extends StatelessWidget {
   });
 
   @override
+  State<_FicheEntrepriseSection> createState() =>
+      _FicheEntrepriseSectionState();
+}
+
+class _FicheEntrepriseSectionState extends State<_FicheEntrepriseSection> {
+  /// Sert à ramener la section sous les yeux quand elle s'ouvre.
+  final _tete = GlobalKey();
+
+  /// Amène le titre en haut de l'écran après l'ouverture.
+  ///
+  /// La section vit en bas des réglages. Sans ça, l'appui déplie dix champs
+  /// **sous** le bas de l'écran : le commerçant voit une ligne bouger, un
+  /// bout de champ apparaître, et il croit que rien ne s'est passé. Trouvé en
+  /// pilotant, pas en test — un test widget ne regarde pas où se trouve ce
+  /// qu'il a déplié.
+  void _ramenerSousLesYeux(bool ouverte) {
+    if (!ouverte) return;
+
+    // Sans attendre l'animation : c'est le **haut** de la section qu'on
+    // aligne, et le haut ne bouge pas quand elle se déplie — seul ce qui est
+    // dessous grandit. Attendre ne servirait qu'à faire sauter l'écran une
+    // seconde fois.
+    final contexte = _tete.currentContext;
+    if (contexte == null) return;
+    Scrollable.ensureVisible(
+      contexte,
+      alignment: 0,
+      duration: Duree.moyenne,
+      curve: Courbe.sortie,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final textes = Theme.of(context).textTheme;
 
@@ -558,7 +598,9 @@ class _FicheEntrepriseSection extends StatelessWidget {
       // deux et fait croire à une fin de contenu.
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        initiallyExpanded: depliee,
+        key: _tete,
+        initiallyExpanded: widget.depliee,
+        onExpansionChanged: _ramenerSousLesYeux,
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(top: Espace.m),
         title: Text('Ma fiche entreprise', style: textes.titleLarge),
@@ -569,7 +611,7 @@ class _FicheEntrepriseSection extends StatelessWidget {
         ),
         children: [
           TextField(
-            controller: raisonSociale,
+            controller: widget.raisonSociale,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Raison sociale',
@@ -579,19 +621,19 @@ class _FicheEntrepriseSection extends StatelessWidget {
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: ifu,
+            controller: widget.ifu,
             textCapitalization: TextCapitalization.characters,
             decoration: InputDecoration(
               labelText: 'IFU',
               hintText: '00012345A',
               helperText: "Sur l'attestation d'immatriculation fiscale.",
-              errorText: defautIfu,
+              errorText: widget.defautIfu,
               prefixIcon: const Icon(Icons.numbers_rounded),
             ),
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: adresse,
+            controller: widget.adresse,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               labelText: 'Adresse de vente',
@@ -601,19 +643,19 @@ class _FicheEntrepriseSection extends StatelessWidget {
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: cadastre,
+            controller: widget.cadastre,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               labelText: 'Références cadastrales',
               hintText: '1234 567 8901',
               helperText: 'Onze chiffres : section, lot, parcelle.',
-              errorText: defautCadastre,
+              errorText: widget.defautCadastre,
               prefixIcon: const Icon(Icons.map_outlined),
             ),
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: contact,
+            controller: widget.contact,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               labelText: "Téléphone de l'entreprise",
@@ -622,7 +664,7 @@ class _FicheEntrepriseSection extends StatelessWidget {
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: courriel,
+            controller: widget.courriel,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
               labelText: 'Adresse électronique',
@@ -631,7 +673,12 @@ class _FicheEntrepriseSection extends StatelessWidget {
           ),
           const SizedBox(height: Espace.m),
           DropdownButtonFormField<RegimeImposition?>(
-            initialValue: regime,
+            initialValue: widget.regime,
+            // Sans ça, « CME — Contribution des micro-entreprises » déborde de
+            // trois cent cinquante pixels sur un téléphone. Le sigle vient en
+            // premier parce que c'est lui qu'on reconnaît, et c'est donc la
+            // fin de la phrase qui est coupée, pas le début.
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: "Régime d'imposition",
               prefixIcon: Icon(Icons.account_balance_outlined),
@@ -641,14 +688,17 @@ class _FicheEntrepriseSection extends StatelessWidget {
               for (final choix in RegimeImposition.values)
                 DropdownMenuItem(
                   value: choix,
-                  child: Text('${choix.etiquette} — ${choix.libelle}'),
+                  child: Text(
+                    '${choix.etiquette} — ${choix.libelle}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
             ],
-            onChanged: surRegime,
+            onChanged: widget.surRegime,
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: serviceImpots,
+            controller: widget.serviceImpots,
             decoration: const InputDecoration(
               labelText: 'Service des impôts de rattachement',
               hintText: 'DME Ouaga 1',
@@ -657,7 +707,7 @@ class _FicheEntrepriseSection extends StatelessWidget {
           ),
           const SizedBox(height: Espace.m),
           TextField(
-            controller: banque,
+            controller: widget.banque,
             decoration: const InputDecoration(
               labelText: 'Références bancaires',
               hintText: 'Banque et numéro de compte',
@@ -665,7 +715,7 @@ class _FicheEntrepriseSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Espace.l),
-          _EtatDeLaFiche(fiche: fiche),
+          _EtatDeLaFiche(fiche: widget.fiche),
         ],
       ),
     );

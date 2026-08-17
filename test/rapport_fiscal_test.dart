@@ -164,6 +164,22 @@ void main() {
       expect(z.total, f(1000));
     });
 
+    test('le premier rapport part du jour où le carnet a commencé', () async {
+      // Il partait de l'époque Unix, et le rapport imprimait « Du 01/01/1970 ».
+      // Vu sur une capture, pas dans un test : aucun test ne lisait la ligne
+      // de période.
+      await vendre(prix: 1000, quand: DateTime(2026, 8, 10, 9));
+
+      final z = await rapports.z(quand: DateTime(2026, 8, 10, 20));
+
+      expect(z.debut.year, 2026);
+      expect(z.texte, isNot(contains('1970')));
+      // Et la toute première vente compte bien dans son propre premier
+      // rapport : les bornes sont strictes à gauche, la date de départ doit
+      // donc précéder l'événement, pas l'égaler.
+      expect(z.total, f(1000));
+    });
+
     test("l'en-tête porte le nom et l'IFU", () async {
       final texte = (await rapports.z()).texte;
 

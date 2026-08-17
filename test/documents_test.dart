@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -478,6 +479,35 @@ void main() {
 
       expect(document.texte, contains('IFU : 00012345A'));
       expect(papier, contains('IFU : 00012345A'));
+    });
+  });
+
+  group("La police des documents", () {
+    test('elle est embarquée, pas demandée au système', () async {
+      // Les documents s'alignent en chasse fixe. La famille était « monospace »,
+      // demandée au système : sur téléphone ça marche, dans un navigateur non
+      // — rien n'était peint, et le reçu s'affichait dans un cadre vide. C'est
+      // exactement ce que voit quelqu'un qui essaie l'application depuis un
+      // iPhone. Vu sur une capture d'écran, jamais par un test.
+      final source =
+          await File('lib/interface/composants/partage.dart').readAsString();
+
+      expect(source, contains("fontFamily: 'CarnetMono'"));
+      expect(source, isNot(contains("fontFamily: 'monospace'")));
+    });
+
+    test('elle est déclarée et présente dans le dépôt', () async {
+      expect(await File('pubspec.yaml').readAsString(),
+          contains('family: CarnetMono'));
+      expect(
+        await File('assets/polices/DejaVuSansMono-Carnet.ttf').exists(),
+        isTrue,
+      );
+      // Une police redistribuée voyage avec sa licence.
+      expect(
+        await File('assets/polices/LICENCE-DejaVuSansMono.txt').exists(),
+        isTrue,
+      );
     });
   });
 }

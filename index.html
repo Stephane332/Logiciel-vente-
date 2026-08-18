@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <!--
+    Le chemin de base est réécrit à la compilation par `--base-href`. La
+    démonstration est servie depuis un sous-dossier, pas depuis la racine :
+    sans cette valeur, le navigateur cherche les fichiers un cran trop haut
+    et la page reste blanche, sans message.
+  -->
+  <base href="/Logiciel-vente-/">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description"
+        content="Carnet — le cahier du commerçant, en mieux. Ventes, dettes
+                 clients et rapport du soir, hors ligne d'abord.">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Carnet">
+  <!-- 180 px, la taille qu'attend Safari pour l'écran d'accueil. Avec une
+       image d'une autre taille, iOS se rabat parfois sur une capture de la
+       page : l'application apparaît alors sans icône. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Carnet</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

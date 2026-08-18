@@ -10,7 +10,7 @@
 library;
 
 /// Numéro de version, aligné sur celui du `pubspec.yaml`.
-const versionApplication = '0.8.0';
+const versionApplication = '0.8.1';
 
 /// Nom du modèle, tel qu'il apparaîtra au dossier d'homologation.
 const nomApplication = 'Carnet';

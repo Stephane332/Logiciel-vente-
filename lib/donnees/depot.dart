@@ -1641,12 +1641,36 @@ class Depot {
       await base.delete(base.mouvementsCaisse).go();
       await base.delete(base.mouvementsStock).go();
 
-      for (final evenement in await journal.tous()) {
+      final tous = await journal.tous();
+
+      // Les clients d'abord, quel que soit leur horodatage.
+      //
+      // Le rejeu suit l'ordre des faits, et c'est le bon ordre — sauf pour
+      // une dépendance : une vente à crédit désigne un client, et si elle est
+      // rejouée avant lui, la dette s'applique à quelqu'un qui n'existe pas
+      // encore. Elle disparaît alors en silence.
+      //
+      // Ça ne peut pas arriver sur un seul appareil, dont l'horloge avance :
+      // le client est créé au moment de la vente. Ça arrivera le jour où deux
+      // caisses se synchroniseront avec des horloges décalées — et ce jour-là,
+      // ce sont les dettes des clients qui se perdraient, c'est-à-dire ce que
+      // le commerçant a de plus précieux dans ce carnet.
+      //
+      // Un client n'a besoin de rien d'autre pour exister : les poser tous
+      // d'abord retire la dépendance au lieu de parier sur les horloges.
+      for (final evenement in tous) {
+        if (evenement.type == TypeEvenement.clientCree) {
+          await _appliquerCreationClient(evenement);
+        }
+      }
+
+      for (final evenement in tous) {
         switch (evenement.type) {
           case TypeEvenement.venteEnregistree:
             await _appliquerVente(evenement);
           case TypeEvenement.clientCree:
-            await _appliquerCreationClient(evenement);
+            // Déjà posé au tour précédent.
+            break;
           case TypeEvenement.consentementDonne:
             await _appliquerConsentement(evenement);
           case TypeEvenement.articleNomme:

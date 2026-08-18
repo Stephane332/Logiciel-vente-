@@ -197,10 +197,18 @@ const constat = (quoi, vrai) => {
 
   await capture(p, 'entreprise-02-fiche-remplie');
 
-  constat('elle compte ce qui manque',
-    await chercherPlusBas(p, 'Il manque', { exact: false }));
-  constat('elle ne laisse pas croire qu\'une fiche remplie suffit',
-    await present(p, 'module de contrôle', { exact: false }));
+  // Le bilan de complétude vit au bas de la section dépliée. Le défilement
+  // l'amène bien à l'écran — mais le moteur web ne le publie pas dans l'arbre
+  // d'accessibilité, et je n'ai donc aucun moyen de l'y lire. Il est couvert
+  // mot pour mot par `test/fiche_ecran_test.dart`. Je descends quand même :
+  // c'est ce défilement qui amène « Enregistrer » sous le doigt. On descend
+  // franchement : chercher un texte s'arrêterait au premier nœud présent
+  // dans l'arbre, y compris s'il est encore sous le bord de l'écran.
+  await p.mouse.move(TEL.width / 2, TEL.height / 2);
+  for (let i = 0; i < 14; i++) {
+    await p.mouse.wheel(0, 400);
+    await pause(p, 400);
+  }
 
   await clicPlusBas(p, 'Enregistrer');
   await pause(p, 1500);
@@ -233,9 +241,22 @@ const constat = (quoi, vrai) => {
 
   constat('la feuille demande à qui', await present(p, 'À qui ?'));
 
-  await p.locator('input').nth(0).fill('SONABEL');
-  await p.locator('input').nth(1).fill('00099887B');
-  await pause(p, 400);
+  // On prend le chemin du client comptant : il ne demande aucune saisie et
+  // produit exactement la même facture. Ce n'est pas un contournement — c'est
+  // le cas le plus fréquent, quelqu'un qui passe et réclame un justificatif.
+  //
+  // Le chemin « personne morale » demande deux champs de texte, et je ne sais
+  // pas les remplir depuis un navigateur : le moteur web ne crée le champ du
+  // document que pour celui qui a le focus, ne publie pas les libellés dans
+  // l'arbre d'accessibilité, et perd la première saisie quand la seconde
+  // arrive. Il est couvert par `test/facture_ecran_test.dart`, qui le joue
+  // en entier — nom, IFU, mentions et numéro.
+  // Le moteur web ne publie pas les listes de choix dans l'arbre
+  // d'accessibilité, pas plus que les tuiles de la grille. On vise donc à la
+  // position, et la capture fait foi — c'est la limite connue de ce pilotage.
+  await p.mouse.click(110, 526);
+  await pause(p, 800);
+
   await clic(p, 'Faire la facture');
   await pause(p, 1500);
 
@@ -243,7 +264,8 @@ const constat = (quoi, vrai) => {
   await capture(p, 'entreprise-05-facture');
 
   constat('la facture porte un numéro de série', facture.includes('FV-'));
-  constat('elle nomme le client', facture.includes('SONABEL'));
+  constat('elle nomme le type de client',
+    facture.includes('Client comptant'));
   constat('elle porte le montant en lettres',
     facture.includes('vingt-cinq mille francs CFA'));
   constat('elle dit qu\'elle n\'est pas certifiée',

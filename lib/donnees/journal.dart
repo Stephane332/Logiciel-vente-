@@ -149,6 +149,39 @@ class Journal {
     return lignes.map(_versEvenement).toList();
   }
 
+
+  /// Les événements d'un seul type, dans l'ordre chronologique.
+  ///
+  /// Le filtre est fait par la base, pas après coup. La différence n'est pas
+  /// cosmétique : chercher les factures d'un commerçant en relisant tout son
+  /// journal, c'est charger une année de ventes en mémoire pour en retenir
+  /// quelques dizaines — sur un téléphone d'entrée de gamme, à chaque fois
+  /// qu'il regarde sa caisse.
+  Future<List<Evenement>> parType(TypeEvenement type) async {
+    final requete = _base.select(_base.evenements)
+      ..where((e) => e.type.equals(type.cle))
+      ..orderBy([
+        (e) => OrderingTerm.asc(e.horodatage),
+        (e) => OrderingTerm.asc(e.appareil),
+        (e) => OrderingTerm.asc(e.sequence),
+      ]);
+    return (await requete.get()).map(_versEvenement).toList();
+  }
+
+  /// Le tout premier événement du journal, c'est-à-dire le jour où le carnet
+  /// a commencé. Nul quand rien n'a encore été écrit.
+  Future<Evenement?> premier() async {
+    final requete = _base.select(_base.evenements)
+      ..orderBy([
+        (e) => OrderingTerm.asc(e.horodatage),
+        (e) => OrderingTerm.asc(e.appareil),
+        (e) => OrderingTerm.asc(e.sequence),
+      ])
+      ..limit(1);
+    final ligne = await requete.getSingleOrNull();
+    return ligne == null ? null : _versEvenement(ligne);
+  }
+
   /// Combien d'écritures depuis un instant donné — tout le journal quand
   /// l'instant est nul.
   ///

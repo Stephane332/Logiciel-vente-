@@ -316,7 +316,7 @@ class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -330,6 +330,13 @@ class BaseLocale extends _$BaseLocale {
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_evenements_synchronise '
             'ON evenements (synchronise)',
+          );
+          // Les factures et les clôtures se cherchent par type. Sans cet
+          // index, les retrouver oblige à parcourir tout le journal — une
+          // année de ventes pour en retenir quelques dizaines.
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_evenements_type '
+            'ON evenements (type, horodatage)',
           );
           await customStatement(
             'CREATE INDEX IF NOT EXISTS idx_ventes_horodatage '
@@ -375,6 +382,12 @@ class BaseLocale extends _$BaseLocale {
           }
           if (depuis < 9) {
             await m.addColumn(articles, articles.retireLe);
+          }
+          if (depuis < 10) {
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_evenements_type '
+              'ON evenements (type, horodatage)',
+            );
           }
         },
         beforeOpen: (details) async {

@@ -85,14 +85,17 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
   }
 
   Future<void> _relire() async {
+    // On compte, on ne relit pas : l'écran n'affiche qu'un nombre, et tout
+    // relire pour en connaître la longueur charge une année de ventes en
+    // mémoire à chaque ouverture.
     final (fichiers, evenements) = await (
       sauvegardesLocales(),
-      widget.depot.journal.tous(),
+      widget.depot.journal.nombreDepuis(null),
     ).wait;
     if (!mounted) return;
     setState(() {
       _fichiers = fichiers;
-      _evenements = evenements.length;
+      _evenements = evenements;
       _chargement = false;
     });
   }

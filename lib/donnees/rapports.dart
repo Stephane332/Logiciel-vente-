@@ -149,8 +149,8 @@ class Rapports {
   /// en a jamais eu — le premier Z couvre alors tout depuis l'installation.
   Future<DateTime?> derniereCloture(NatureRapport nature) async {
     DateTime? derniere;
-    for (final evenement in await journal.tous()) {
-      if (evenement.type != TypeEvenement.clotureTiree) continue;
+    for (final evenement
+        in await journal.parType(TypeEvenement.clotureTiree)) {
       if (evenement.charge['nature'] != nature.code) continue;
       final fin = DateTime.tryParse(evenement.charge['fin'] as String? ?? '');
       if (fin == null) continue;
@@ -165,8 +165,8 @@ class Rapports {
   /// mois ». Il se lit au journal, qui ne se réécrit pas.
   Future<List<ClotureTiree>> clotures({NatureRapport? nature}) async {
     final sortie = <ClotureTiree>[];
-    for (final evenement in await journal.tous()) {
-      if (evenement.type != TypeEvenement.clotureTiree) continue;
+    for (final evenement
+        in await journal.parType(TypeEvenement.clotureTiree)) {
       final quelle = NatureRapport.parCode(
           evenement.charge['nature'] as String? ?? 'Z');
       if (nature != null && quelle != nature) continue;
@@ -186,8 +186,8 @@ class Rapports {
 
   Future<int> _prochainNumero(NatureRapport nature) async {
     var maximum = 0;
-    for (final evenement in await journal.tous()) {
-      if (evenement.type != TypeEvenement.clotureTiree) continue;
+    for (final evenement
+        in await journal.parType(TypeEvenement.clotureTiree)) {
       if (evenement.charge['nature'] != nature.code) continue;
       final numero = evenement.charge['numero'] as int? ?? 0;
       if (numero > maximum) maximum = numero;
@@ -207,9 +207,9 @@ class Rapports {
   /// compte pas deux fois. Rendre l'horodatage exact exclurait donc la toute
   /// première vente de son propre premier rapport.
   Future<DateTime> _origine() async {
-    final tous = await journal.tous();
-    if (tous.isEmpty) return DateTime.now();
-    return tous.first.horodatage.subtract(const Duration(seconds: 1));
+    final premier = await journal.premier();
+    if (premier == null) return DateTime.now();
+    return premier.horodatage.subtract(const Duration(seconds: 1));
   }
 
   Future<RapportFiscal> _composer({

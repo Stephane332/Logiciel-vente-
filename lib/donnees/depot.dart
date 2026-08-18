@@ -421,8 +421,8 @@ class Depot {
 
   /// La référence de la facture d'une vente, si elle en a une.
   Future<ReferenceFacture?> referenceFacture(String venteId) async {
-    for (final evenement in await journal.tous()) {
-      if (evenement.type != TypeEvenement.factureEmise) continue;
+    for (final evenement
+        in await journal.parType(TypeEvenement.factureEmise)) {
       if (evenement.charge['venteId'] != venteId) continue;
       return ReferenceFacture(
         type: evenement.charge['type']! as String,
@@ -441,8 +441,8 @@ class Depot {
     required int annee,
   }) async {
     final rangs = <int>[];
-    for (final evenement in await journal.tous()) {
-      if (evenement.type != TypeEvenement.factureEmise) continue;
+    for (final evenement
+        in await journal.parType(TypeEvenement.factureEmise)) {
       if (evenement.charge['type'] != type.etiquette) continue;
       if (evenement.charge['annee'] != annee) continue;
       rangs.add(evenement.charge['rang']! as int);

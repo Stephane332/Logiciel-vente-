@@ -595,17 +595,97 @@ void main() {
       expect((await depot.catalogue()).single.designation, "Sachet d'eau");
     });
 
-    test('une vente au pavé après nommage garde le nom donné', () async {
+    test('le montant libre ne tombe jamais sur un article déjà nommé',
+        () async {
+      // Le défaut que ce test remplace : une fois « Sachet d'eau » nommé à
+      // 500 F, **tout** ce qui se vendait à 500 F au montant libre était
+      // enregistré comme du sachet d'eau. Un pain à 500 F faisait baisser le
+      // stock d'eau, et le rapport disait qu'on avait vendu de l'eau.
+      //
+      // Une boutique a plusieurs produits au même prix : c'est la règle, pas
+      // l'exception. Le prix ne peut donc pas faire l'identité une fois qu'un
+      // nom a été donné — le montant libre ne prétend plus savoir ce qu'on
+      // vend, il ouvre un article anonyme de plus.
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+
+      await vendreAuPave(500);
+
+      final eau = (await depot.catalogue())
+          .firstWhere((a) => a.code == 'AUTO-50000');
+      expect(eau.designation, "Sachet d'eau");
+      expect(eau.nombreVentes, 3, reason: 'le pain ne compte pas pour de l\'eau');
+
+      final autre = (await depot.catalogue())
+          .firstWhere((a) => a.code != 'AUTO-50000');
+      expect(autre.nomme, isFalse);
+      expect(autre.prixCentimes, 50000);
+      expect(autre.nombreVentes, 1);
+    });
+
+    test('le nouvel article anonyme se fait nommer à son tour', () async {
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+
+      // Trois pains vendus : l'application demande leur nom, comme elle l'a
+      // fait pour l'eau. Elle ne redemande pas celui de l'eau.
+      final aNommer = await depot.articlesANommer();
+      expect(aNommer.single.code, isNot('AUTO-50000'));
+      expect(aNommer.single.nombreVentes, 3);
+    });
+
+    test('un troisième produit au même prix trouve encore sa place', () async {
       for (var i = 0; i < 3; i++) {
         await vendreAuPave(500);
       }
       await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
       await vendreAuPave(500);
+      final pain = (await depot.articlesAuPrix(f(500)))
+          .firstWhere((a) => !a.nomme);
+      await depot.nommerArticle(pain.code, 'Pain');
 
-      final article = (await depot.catalogue()).single;
-      expect(article.designation, "Sachet d'eau");
-      expect(article.nombreVentes, 4);
-      // Le nom ne se perd pas : on ne redemande pas ce qui est déjà répondu.
+      await vendreAuPave(500);
+
+      // Trois articles à 500 F : deux nommés, un anonyme tout neuf.
+      final auPrix = await depot.articlesAuPrix(f(500));
+      expect(auPrix, hasLength(3));
+      expect(auPrix.where((a) => a.nomme).map((a) => a.designation),
+          containsAll(["Sachet d'eau", 'Pain']));
+      expect(auPrix.where((a) => !a.nomme), hasLength(1));
+    });
+
+    test('vendre par la tuile garde bien le nom', () async {
+      // L'autre moitié de la règle : quand le commerçant désigne l'article,
+      // c'est lui qui décide, et le nom ne bouge pas.
+      for (var i = 0; i < 3; i++) {
+        await vendreAuPave(500);
+      }
+      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+
+      await depot.enregistrerVente(
+        lignes: [
+          LigneAEnregistrer(
+            codeArticle: 'AUTO-50000',
+            prixUnitaire: f(500),
+            quantite: const Quantite.unites(1),
+          )
+        ],
+        paiements: [
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        ],
+      );
+
+      final eau = (await depot.catalogue())
+          .firstWhere((a) => a.code == 'AUTO-50000');
+      expect(eau.nombreVentes, 4);
       expect(await depot.articlesANommer(), isEmpty);
     });
 

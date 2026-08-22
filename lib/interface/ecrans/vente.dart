@@ -621,6 +621,22 @@ class EcranVenteState extends State<EcranVente> {
         await demanderMontant(context, titre: 'Montant de la vente');
     if (montant == null || !montant.estPositif || !mounted) return;
 
+    // Ce prix désigne-t-il déjà quelque chose ? Une boutique a plusieurs
+    // produits au même prix, et le montant seul ne dit pas lequel. Plutôt que
+    // de deviner — ce que l'application faisait, en attribuant tout au
+    // premier nommé — on montre ce qu'il y a et on laisse choisir.
+    final connus = await widget.depot.articlesAuPrix(montant);
+    final nommes = connus.where((a) => a.nomme).toList();
+    if (!mounted) return;
+
+    String? codeChoisi;
+    if (nommes.isNotEmpty) {
+      final choix = await _demanderLequel(montant, nommes);
+      if (choix == null || !mounted) return;
+      codeChoisi = choix.code;
+    }
+
+    if (!mounted) return;
     await FeuillePaiement.presenter(
       context,
       total: montant,
@@ -631,20 +647,82 @@ class EcranVenteState extends State<EcranVente> {
       surNouveauClient: (nom, telephone) =>
           widget.depot.creerClient(nom: nom, telephone: telephone),
       surPaiementChoisi: (mode, clientId) =>
-          _enregistrerMontantLibre(montant, mode, clientId),
+          _enregistrerMontantLibre(montant, mode, clientId, codeChoisi),
     );
   }
+
+  /// « 500 F — c'est lequel ? »
+  ///
+  /// N'apparaît que si le commerçant a déjà nommé au moins un produit à ce
+  /// prix. Un appui de plus, et seulement là où l'ambiguïté est réelle — mais
+  /// il remplace une devinette qui se trompait en silence. Au passage, ça
+  /// aide : c'est plus rapide que de chercher la tuile dans la grille.
+  Future<_ChoixArticle?> _demanderLequel(
+    Montant montant,
+    List<LigneArticle> nommes,
+  ) =>
+      showModalBottomSheet<_ChoixArticle>(
+        context: context,
+        showDragHandle: true,
+        builder: (contexte) {
+          final textes = Theme.of(contexte).textTheme;
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      Espace.l, 0, Espace.l, Espace.xs),
+                  child: Text('${montant.enFrancs} — c'"'"'est lequel ?',
+                      style: textes.titleLarge, textAlign: TextAlign.center),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      Espace.l, 0, Espace.l, Espace.m),
+                  child: Text(
+                    'Tu vends plusieurs choses à ce prix.',
+                    style: textes.labelSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                for (final article in nommes)
+                  ListTile(
+                    leading: const Icon(Icons.inventory_2_outlined),
+                    title: Text(article.designation),
+                    onTap: () => Navigator.of(contexte)
+                        .pop(_ChoixArticle(article.code)),
+                    minVerticalPadding: 14,
+                  ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.add_circle_outline_rounded),
+                  title: const Text('Autre chose'),
+                  subtitle: Text('Un produit que tu n'"'"'as pas encore nommé',
+                      style: textes.labelSmall),
+                  onTap: () =>
+                      Navigator.of(contexte).pop(const _ChoixArticle(null)),
+                  minVerticalPadding: 14,
+                ),
+                const SizedBox(height: Espace.m),
+              ],
+            ),
+          );
+        },
+      );
 
   Future<void> _enregistrerMontantLibre(
     Montant montant,
     ModePaiement mode,
     String? clientId,
+    String? codeArticle,
   ) async {
     if (!await _montantConfirme(montant)) return;
 
     final venteId = await widget.depot.enregistrerVente(
       lignes: [
         LigneAEnregistrer(
+          codeArticle: codeArticle,
           prixUnitaire: montant,
           quantite: const Quantite.unites(1),
         )
@@ -1432,4 +1510,17 @@ class _FeuilleClientState extends State<_FeuilleClient> {
       ),
     );
   }
+}
+
+/// Ce que le commerçant a répondu à « c'est lequel ? ».
+///
+/// Une classe plutôt qu'une chaîne nullable : `null` voudrait dire à la fois
+/// « il a fermé la feuille » et « il a choisi autre chose », et ces deux
+/// réponses n'ont rien à voir — la première annule la vente, la seconde la
+/// poursuit sous un article anonyme.
+class _ChoixArticle {
+  /// Le code de l'article désigné. Nul pour « autre chose ».
+  final String? code;
+
+  const _ChoixArticle(this.code);
 }

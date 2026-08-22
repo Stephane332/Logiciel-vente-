@@ -237,8 +237,8 @@ class Depot {
     var remise = const Montant.zero();
 
     for (final ligne in lignes) {
-      final code =
-          ligne.codeArticle ?? _codeAutomatiquePour(ligne.prixUnitaire);
+      final code = ligne.codeArticle ??
+          await _codeAutomatiquePour(ligne.prixUnitaire);
       final designation = ligne.designation ??
           await _designationConnue(code) ??
           'Article à ${ligne.prixUnitaire.enFrancs}';
@@ -682,7 +682,59 @@ class Depot {
 
   /// Un article non nommé est identifié par son prix : le commerçant qui tape
   /// trois fois « 500 F » vend très probablement trois fois la même chose.
-  String _codeAutomatiquePour(Montant prix) => 'AUTO-${prix.centimes}';
+  /// Le code d'article que reçoit une vente au montant libre.
+  ///
+  /// **Il ne désigne jamais un article nommé.** C'était le défaut le plus
+  /// coûteux du carnet : le prix faisait l'identité, donc une fois « Sachet
+  /// d'eau » nommé à 500 F, un pain vendu à 500 F au montant libre était
+  /// enregistré comme du sachet d'eau. Le stock d'eau baissait, le rapport
+  /// mentait, et rien ne le signalait.
+  ///
+  /// Une boutique a plusieurs produits au même prix — c'est la règle, pas
+  /// l'exception. Le montant libre ne prétend donc rien savoir : il retrouve
+  /// l'article **anonyme** de ce prix, ou en ouvre un nouveau. Nommer un
+  /// article le retire du chemin du montant libre, et c'est exactement ce
+  /// qu'on veut : à partir de là, il a une tuile, et c'est par elle qu'on le
+  /// vend.
+  ///
+  /// La garantie est ici et pas dans l'écran : un écran peut oublier de
+  /// demander, la couche de données ne peut pas mentir.
+  Future<String> _codeAutomatiquePour(Montant prix) async {
+    final racine = 'AUTO-${prix.centimes}';
+
+    final auPrix = await (base.select(base.articles)
+          ..where((a) =>
+              a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull()))
+        .get();
+
+    // Le premier article anonyme de ce prix reprend la vente : sans ça, on
+    // ouvrirait un article neuf à chaque montant libre, et le catalogue
+    // n'apprendrait jamais rien.
+    for (final article in auPrix) {
+      if (!article.nomme) return article.code;
+    }
+
+    if (auPrix.isEmpty) return racine;
+
+    // Tous nommés : on en ouvre un de plus, sous un code encore libre.
+    final pris = auPrix.map((a) => a.code).toSet();
+    var rang = 2;
+    while (pris.contains('$racine-$rang')) {
+      rang++;
+    }
+    return '$racine-$rang';
+  }
+
+  /// Les articles vendus à ce prix, nommés ou non, hors retirés.
+  ///
+  /// Sert à la caisse : quand le commerçant tape un montant pour lequel il a
+  /// déjà des articles nommés, on lui demande lequel plutôt que de deviner.
+  Future<List<LigneArticle>> articlesAuPrix(Montant prix) =>
+      (base.select(base.articles)
+            ..where((a) =>
+                a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull())
+            ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]))
+          .get();
 
   Future<String?> _designationConnue(String code) async {
     final article = await (base.select(base.articles)

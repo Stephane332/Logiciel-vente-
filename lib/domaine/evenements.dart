@@ -1,0 +1,190 @@
+/// Les événements du journal.
+///
+/// Le journal est la source de vérité. Tout ce qui se passe dans la boutique
+/// y est écrit une fois, définitivement : rien n'est jamais modifié ni
+/// supprimé. L'état courant — stock, encours client, totaux — est une
+/// projection reconstructible à partir de ces événements.
+///
+/// Ce choix sert trois besoins d'un coup : la persistance, la synchronisation
+/// entre appareils, et le journal électronique inaltérable exigé au §2.23 de
+/// la note de service.
+///
+/// Une correction ne réécrit donc jamais le passé : elle ajoute un événement
+/// qui l'annule. C'est aussi ce qu'impose la DGI, qui traite les annulations
+/// et les remises par facture d'avoir (§2.28, §2.29).
+library;
+
+import 'dart:convert';
+
+/// Nature d'un événement.
+///
+/// Les valeurs sont écrites telles quelles dans le journal : **ne jamais les
+/// renommer**, un journal existant deviendrait illisible.
+enum TypeEvenement {
+  venteEnregistree('vente_enregistree'),
+  venteOuverte('vente_ouverte'),
+  lignesAjoutees('lignes_ajoutees'),
+  venteServie('vente_servie'),
+  venteSoldee('vente_soldee'),
+  venteAnnulee('vente_annulee'),
+  articleCree('article_cree'),
+  articleNomme('article_nomme'),
+  articlePrixModifie('article_prix_modifie'),
+  stockAjuste('stock_ajuste'),
+
+  /// Le mode de suivi d'un article a changé.
+  ///
+  /// Distinct de `stockAjuste` : les deux modifiaient la même table par le
+  /// même type d'événement, et le rejeu devait deviner lequel des deux en
+  /// reniflant la charge. Un journal ne se relit pas aux devinettes.
+  suiviStockDefini('suivi_stock_defini'),
+
+  /// Le commerçant a répondu « plus tard » à la proposition de suivre le
+  /// stock d'un article. Ça masque la proposition, jamais la possibilité.
+  propositionSuiviReportee('proposition_suivi_reportee'),
+
+  /// Le commerçant a dit qu'un même prix recouvre plusieurs produits : il n'y
+  /// a pas de nom à donner, et il ne faut plus le demander.
+  nommageRefuse('nommage_refuse'),
+
+  /// Un article a été retiré du catalogue.
+  ///
+  /// Retiré, pas supprimé : il disparaît de la caisse et du stock, mais ses
+  /// ventes passées restent au journal et dans les rapports. Effacer
+  /// l'histoire pour effacer une faute de frappe reviendrait à fausser la
+  /// journée — et le §2.23 l'interdit de toute façon.
+  articleRetire('article_retire'),
+
+  /// Un article retiré revient au catalogue.
+  articleRepris('article_repris'),
+  clientCree('client_cree'),
+  consentementDonne('consentement_donne'),
+  creditAccorde('credit_accorde'),
+  creditRembourse('credit_rembourse'),
+  caisseMouvement('caisse_mouvement'),
+
+  /// Une facture a été émise pour une vente, et un numéro lui a été attribué.
+  ///
+  /// C'est le seul endroit où un numéro de facture naît. Le §2.18 exige une
+  /// série ascendante **ininterrompue** par année de gestion : le numéro doit
+  /// donc être attribué une fois, écrit au journal, et retrouvé à l'identique
+  /// après une reconstruction. Le tenir dans un compteur à part laisserait
+  /// deux vérités, et la seconde finirait par mentir.
+  factureEmise('facture_emise'),
+
+  /// Une clôture Z a été tirée : la caisse est arrêtée à cet instant.
+  ///
+  /// Le Z-rapport porte « la période écoulée depuis le dernier Z » (note de
+  /// service, §5). Sa borne de début est donc le Z précédent, et la borne
+  /// n'existe que si la clôture est enregistrée. Un rapport qu'on peut
+  /// retirer deux fois avec deux résultats différents ne clôture rien.
+  ///
+  /// Le même événement porte le A-rapport, distingué par sa charge : les deux
+  /// arrêtent une période, et les séparer aurait fait deux mécanismes
+  /// identiques à maintenir.
+  clotureTiree('cloture_tiree'),
+
+  ventecertifiee('vente_certifiee');
+
+  final String cle;
+  const TypeEvenement(this.cle);
+
+  static TypeEvenement parCle(String cle) => values.firstWhere(
+        (t) => t.cle == cle,
+        orElse: () => throw ArgumentError("Type d'événement inconnu : $cle"),
+      );
+}
+
+/// Un événement du journal, tel qu'il est écrit et relu.
+class Evenement {
+  /// Identifiant unique, trié par ordre chronologique.
+  final String id;
+
+  /// Appareil qui a produit l'événement.
+  final String appareil;
+
+  /// Compteur monotone propre à l'appareil. Une rupture signale une perte.
+  final int sequence;
+
+  final DateTime horodatage;
+  final TypeEvenement type;
+
+  /// Contenu de l'événement.
+  final Map<String, Object?> charge;
+
+  /// Empreinte de l'événement précédent, sur cet appareil.
+  ///
+  /// Nulle pour le tout premier événement.
+  final String? empreintePrecedente;
+
+  /// Empreinte de cet événement, calculée sur son contenu **et** sur celle
+  /// qui précède. C'est ce chaînage qui rend le journal inaltérable :
+  /// modifier un événement ancien invalide toute la suite.
+  final String empreinte;
+
+  const Evenement({
+    required this.id,
+    required this.appareil,
+    required this.sequence,
+    required this.horodatage,
+    required this.type,
+    required this.charge,
+    required this.empreinte,
+    this.empreintePrecedente,
+  });
+
+  /// Représentation canonique servant au calcul de l'empreinte.
+  ///
+  /// Les clés sont triées : deux appareils doivent produire exactement la
+  /// même chaîne pour un même événement, sinon les empreintes divergent.
+  String get representationCanonique {
+    final triee = Map.fromEntries(
+      charge.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
+    return jsonEncode({
+      'id': id,
+      'appareil': appareil,
+      'sequence': sequence,
+      'horodatage': horodatage.toUtc().millisecondsSinceEpoch,
+      'type': type.cle,
+      'charge': triee,
+      'precedente': empreintePrecedente,
+    });
+  }
+
+  String get chargeJson => jsonEncode(charge);
+
+  static Map<String, Object?> chargeDepuisJson(String json) =>
+      Map<String, Object?>.from(jsonDecode(json) as Map);
+}
+
+/// Génère des identifiants triés par ordre chronologique.
+///
+/// Un identifiant purement aléatoire obligerait à trier sur l'horodatage,
+/// avec des ex æquo à la milliseconde. Ici, l'ordre alphabétique des
+/// identifiants est déjà l'ordre chronologique.
+class GenerateurIdentifiant {
+  static const _alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+  final String appareil;
+  int _compteur = 0;
+
+  GenerateurIdentifiant(this.appareil);
+
+  String suivant(DateTime horodatage) {
+    final millis = horodatage.toUtc().millisecondsSinceEpoch;
+    final temps = _base32(millis, 10);
+    final suffixe = _base32(_compteur++, 4);
+    return '$temps-$suffixe-$appareil';
+  }
+
+  static String _base32(int valeur, int longueur) {
+    var v = valeur;
+    final tampon = List<String>.filled(longueur, '0');
+    for (var i = longueur - 1; i >= 0; i--) {
+      tampon[i] = _alphabet[v % 32];
+      v ~/= 32;
+    }
+    return tampon.join();
+  }
+}

@@ -1,0 +1,333 @@
+# Compile l'application pour Android et publie l'APK.
+#
+# Je n'ai pas de machine à moi pour compiler du jour au lendemain, et un APK
+# qu'on ne peut refaire qu'à la main est un APK qui finit périmé. Celui-ci se
+# refait à chaque changement, et se télécharge depuis l'onglet Actions.
+#
+# La signature vient des secrets du dépôt quand ils existent. Sans eux,
+# l'APK est signé avec la clé de débogage : il s'installe et fonctionne, mais
+# il ne pourra pas mettre à jour un APK signé avec la vraie clé — Android
+# refuse de remplacer une application par une autre signature. C'est donc
+# bon pour essayer, pas pour installer chez un commerçant qu'on reverra.
+name: APK
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+    paths-ignore:
+      - 'docs/**'
+      - 'outils/**'
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      publier:
+        description: >
+          Créer une version téléchargeable, étiquetée d'après le numéro du
+          pubspec. Les artefacts de compilation expirent au bout de trois
+          mois ; une version, non — et c'est elle qu'on garde en face du
+          téléphone d'un commerçant qui appelle.
+        type: boolean
+        default: false
+      livrer:
+        description: >
+          Déposer l'APK de la dernière version sur la branche `livraison`,
+          sans rien recompiler. Une version publiée sur un dépôt privé ne se
+          télécharge qu'avec un compte GitHub qui y a accès : sur un
+          téléphone qui n'est pas connecté, le lien renvoie une page
+          « introuvable » et rien n'explique pourquoi. La branche est la
+          porte de sortie — on récupère le fichier avec git, puis on la
+          supprime. Ce n'est pas un canal de distribution, c'est un dépannage.
+        type: boolean
+        default: false
+      demo:
+        description: >
+          Publier la démonstration web sur GitHub Pages. C'est la seule façon
+          d'essayer l'application depuis un iPhone : Apple n'installe pas
+          d'APK, et une vraie application iOS demande un Mac, un compte
+          développeur et TestFlight. Le navigateur, lui, marche tout de
+          suite. Pages est activé par le workflow lui-même, il n'y a aucun
+          réglage à aller cocher.
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  construire:
+    name: Construire l'APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ !inputs.livrer && !inputs.demo }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Code généré
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyse
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      # La clé n'est jamais dans le dépôt. Elle arrive par les secrets, et
+      # seulement si les quatre sont posés.
+      # Le test se fait dans le script et pas dans un `if:` : les variables
+      # d'une étape n'existent pas encore quand sa condition est évaluée, et
+      # la condition serait donc toujours fausse.
+      - name: Clé de signature
+        env:
+          MAGASIN: ${{ secrets.MAGASIN_ANDROID }}
+          MOT_DE_PASSE_MAGASIN: ${{ secrets.MOT_DE_PASSE_MAGASIN }}
+          ALIAS: ${{ secrets.ALIAS_CLE }}
+          MOT_DE_PASSE_CLE: ${{ secrets.MOT_DE_PASSE_CLE }}
+        run: |
+          # `SIGNATURE` s'accole au titre de la version : la liste des
+          # versions doit dire d'un coup d'œil laquelle est installable chez
+          # un commerçant. L'espace initial est voulu.
+          if [ -z "$MAGASIN" ] || [ -z "$MOT_DE_PASSE_MAGASIN" ] \
+             || [ -z "$ALIAS" ] || [ -z "$MOT_DE_PASSE_CLE" ]; then
+            echo "Aucune clé fournie : l'APK sera signé en débogage."
+            echo "SIGNATURE= (signature de débogage)" >> "$GITHUB_ENV"
+            {
+              echo "AVERTISSEMENT<<FIN_AVERTISSEMENT"
+              echo "**Ces APK sont signés avec une clé de débogage, et cette"
+              echo "clé est fabriquée à neuf à chaque compilation.** Deux"
+              echo "versions successives n'ont donc pas la même signature, et"
+              echo "Android refuse de remplacer une application par une autre"
+              echo "signature : il faut **désinstaller la précédente avant"
+              echo "d'installer celle-ci**, et ce qui a été saisi pour"
+              echo "l'essai part avec elle."
+              echo ""
+              echo "C'est bon pour essayer, jamais pour installer chez un"
+              echo "commerçant qu'on reverra. Poser les quatre secrets de"
+              echo "signature met fin à ça, définitivement."
+              echo "FIN_AVERTISSEMENT"
+            } >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "$MAGASIN" | base64 -d > android/app/carnet.jks
+          {
+            echo "storeFile=carnet.jks"
+            echo "storePassword=$MOT_DE_PASSE_MAGASIN"
+            echo "keyAlias=$ALIAS"
+            echo "keyPassword=$MOT_DE_PASSE_CLE"
+          } > android/key.properties
+          echo "Clé en place."
+          echo "SIGNATURE=" >> "$GITHUB_ENV"
+          echo "AVERTISSEMENT=" >> "$GITHUB_ENV"
+
+      # Un APK par architecture pèse bien moins qu'un APK universel, et le
+      # débit compte ici. L'universel reste quand même, pour qui ne sait pas
+      # quel téléphone il a en face — c'est le cas le plus fréquent quand on
+      # envoie un fichier par WhatsApp.
+      - name: APK par architecture
+        run: flutter build apk --release --split-per-abi
+
+      # Le pubspec porte `0.6.0+6` : un numéro de version et un numéro de
+      # construction. Le `+` n'a rien à faire dans une URL — il s'y encode en
+      # `%2B` et un lien collé dans WhatsApp arrive cassé. Le nom des fichiers
+      # et l'étiquette ne gardent donc que `0.6.0` ; le numéro de construction
+      # part dans le titre de la version, où il reste lisible sans gêner.
+      - name: Mettre de côté
+        run: |
+          COMPLETE=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=${COMPLETE%%+*}
+          CONSTRUCTION=${COMPLETE#*+}
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "CONSTRUCTION=$CONSTRUCTION" >> "$GITHUB_ENV"
+          mkdir -p apk
+          for ABI in armeabi-v7a arm64-v8a x86_64; do
+            SOURCE="build/app/outputs/flutter-apk/app-$ABI-release.apk"
+            if [ -f "$SOURCE" ]; then cp "$SOURCE" "apk/carnet-$VERSION-$ABI.apk"; fi
+          done
+
+      - name: APK universel
+        run: flutter build apk --release
+
+      - name: Rassembler
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "apk/carnet-$VERSION-universel.apk"
+          ls -lh apk/
+
+      - name: Publier
+        uses: actions/upload-artifact@v4
+        with:
+          name: carnet-apk
+          path: apk/*.apk
+          retention-days: 90
+
+      # Une version publiée survit à l'expiration des artefacts, et porte un
+      # numéro qu'on peut mettre en face de celui qu'affiche le téléphone
+      # d'un commerçant qui appelle. Déclenchée par une étiquette, ou à la
+      # demande depuis l'onglet Actions.
+      - name: Version publiée
+        if: >
+          startsWith(github.ref, 'refs/tags/v')
+          || inputs.publier
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: >-
+            Carnet ${{ env.VERSION }} — construction
+            ${{ env.CONSTRUCTION }}${{ env.SIGNATURE }}
+          files: apk/*.apk
+          generate_release_notes: true
+          body: |
+            Le carnet du commerçant, prêt à installer.
+            Construction ${{ env.CONSTRUCTION }}.
+
+            | Fichier | Pour qui |
+            |---|---|
+            | `carnet-*-arm64-v8a.apk` | La quasi-totalité des téléphones vendus depuis 2016 |
+            | `carnet-*-armeabi-v7a.apk` | Les téléphones d'entrée de gamme plus anciens |
+            | `carnet-*-universel.apk` | Quand on ne sait pas quel téléphone est au bout du WhatsApp |
+            | `carnet-*-x86_64.apk` | Les émulateurs, pas les téléphones |
+
+            **Installer**
+
+            1. Télécharger `carnet-${{ env.VERSION }}-arm64-v8a.apk` — c'est
+               le bon fichier dans la quasi-totalité des cas.
+            2. Ouvrir le fichier téléchargé. Android demande d'autoriser
+               l'installation depuis cette source-là : c'est une case à
+               cocher, une seule fois.
+            3. Ouvrir Carnet. Il n'y a ni compte à créer, ni configuration :
+               la première vente s'enregistre tout de suite.
+
+            Le mode d'emploi est dans `docs/manuel.html` — un chapitre par
+            métier, une recette par situation.
+
+            ${{ env.AVERTISSEMENT }}
+
+  livrer:
+    name: Déposer l'APK sur la branche livraison
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ inputs.livrer }}
+
+    steps:
+      - name: Récupérer l'APK de la dernière version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/livraison
+          gh release download --repo "$GITHUB_REPOSITORY" \
+            --dir /tmp/livraison --pattern '*arm64-v8a.apk'
+          ls -lh /tmp/livraison/
+
+      - name: Déposer sur la branche
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ATELIER=$(mktemp -d)
+          cp /tmp/livraison/*.apk "$ATELIER/"
+          cd "$ATELIER"
+          git init -q -b livraison
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "APK déposé pour récupération hors du dépôt"
+          git push -q --force \
+            "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" livraison
+          echo "Déposé. À supprimer une fois récupéré :"
+          echo "  git push origin --delete livraison"
+
+  # La démonstration web, publiée par GitHub lui-même.
+  #
+  # Un iPhone n'installe pas d'APK. Le navigateur est donc la seule porte
+  # ouverte aujourd'hui, et elle suffit pour montrer les gestes. Le chemin de
+  # base doit valoir `/<dépôt>/` : c'est là que Pages sert un site de projet,
+  # et une valeur qui ne correspond pas donne une page blanche sans message.
+  #
+  # Le site n'est pas déposé par l'API Pages : elle refuse le jeton dont ce
+  # workflow dispose (« Create Pages site failed — Resource not accessible by
+  # integration »). Il l'est par une branche, ce que Pages sait aussi servir,
+  # et pousser une branche, ce jeton en a le droit.
+  #
+  # Une seule chose se fait à la main, une seule fois :
+  #   Settings → Pages → Source : « Deploy from a branch » → gh-pages / (root)
+  # Ensuite, chaque exécution remplace le contenu et le site se refait seul.
+  demo:
+    name: Publier la démonstration web
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: ${{ inputs.demo }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Code généré
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Compiler pour le navigateur
+        run: |
+          flutter build web --release --no-web-resources-cdn \
+            --base-href "/${GITHUB_REPOSITORY#*/}/"
+          touch build/web/.nojekyll
+          ls -lh build/web/index.html
+
+      - name: Déposer sur la branche gh-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ATELIER=$(mktemp -d)
+          cp -a build/web/. "$ATELIER/"
+          cd "$ATELIER"
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Démonstration web, compilée depuis $GITHUB_SHA"
+          git push -q --force \
+            "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" gh-pages
+
+      - name: L'adresse
+        run: |
+          DEPOT="${GITHUB_REPOSITORY#*/}"
+          PROPRIETAIRE="${GITHUB_REPOSITORY%%/*}"
+          {
+            echo "### La démonstration est déposée"
+            echo ""
+            echo "Branche \`gh-pages\`, prête à être servie."
+            echo ""
+            echo "**À faire une seule fois** : Settings → Pages → Source :"
+            echo "« Deploy from a branch » → \`gh-pages\` → \`/ (root)\` → Save."
+            echo ""
+            echo "Ensuite, et à chaque exécution :"
+            echo ""
+            echo "https://${PROPRIETAIRE,,}.github.io/${DEPOT}/"
+            echo ""
+            echo "Sur un dépôt privé, Pages demande un plan payant. Si le"
+            echo "réglage n'est pas disponible, la branche reste prête pour"
+            echo "un dépôt public."
+          } >> "$GITHUB_STEP_SUMMARY"

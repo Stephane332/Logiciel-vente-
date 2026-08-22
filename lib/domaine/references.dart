@@ -1,0 +1,296 @@
+/// Tables de référence de la facturation électronique certifiée.
+///
+/// Valeurs issues de la note de service n° 2025-0889/MEF/SG/DGI/DLC du
+/// 29 décembre 2025, spécification version 2.0.
+///
+/// Ces tables sont paramétrables (§2.35) : les taux changent, et les groupes
+/// O et P sont explicitement réservés pour un usage futur.
+library;
+
+/// Groupe de taxation (§2.15). Seize groupes, de A à P.
+class GroupeTaxation {
+  final String etiquette;
+  final String description;
+
+  /// Taux de TVA applicable, exprimé en millièmes (18 % vaut 180).
+  /// Nul lorsqu'aucun taux ne s'applique.
+  final int? tauxMillieme;
+
+  const GroupeTaxation(this.etiquette, this.description, this.tauxMillieme);
+
+  bool get estTaxe => tauxMillieme != null && tauxMillieme! > 0;
+
+  static const a = GroupeTaxation('A', 'Exonéré', null);
+  static const b = GroupeTaxation('B', 'TVA taxable 1', 180);
+  static const c = GroupeTaxation('C', 'TVA taxable 2', 100);
+  static const d = GroupeTaxation('D', 'Exportation de produits taxables', null);
+  static const e = GroupeTaxation('E', 'TVA régime dérogatoire', null);
+  static const f = GroupeTaxation('F', 'TVA régime dérogatoire', 180);
+  static const g = GroupeTaxation('G', 'TVA régime dérogatoire', 100);
+  static const h = GroupeTaxation('H', 'Régime synthétique', null);
+  static const i = GroupeTaxation('I', "Consignation d'emballage", null);
+  static const j = GroupeTaxation('J', 'Dépôts, garantie et caution', null);
+  static const k = GroupeTaxation('K', 'Débours', null);
+  static const l = GroupeTaxation('L', 'TDT - Taxe de développement touristique', 100);
+  static const m = GroupeTaxation(
+      'M', 'Taxe de séjour hôtelier perçue par les communes', 100);
+  static const n = GroupeTaxation(
+      'N', 'PBA - Droits fixes en fonction de la destination et de la classe', null);
+  static const o = GroupeTaxation('O', 'Réservé', null);
+  static const p = GroupeTaxation('P', 'Réservé', null);
+
+  static const tous = <GroupeTaxation>[
+    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p,
+  ];
+
+  static GroupeTaxation parEtiquette(String etiquette) =>
+      tous.firstWhere((g) => g.etiquette == etiquette,
+          orElse: () => throw ArgumentError(
+              'Groupe de taxation inconnu : $etiquette'));
+
+  @override
+  String toString() => etiquette;
+}
+
+/// Groupe de prélèvement à la source sur vente de biens (§2.16).
+class GroupePsvb {
+  final String etiquette;
+
+  /// Taux exprimé en dix-millièmes (2 % vaut 200, 0,2 % vaut 20).
+  final int tauxDixMillieme;
+
+  const GroupePsvb(this.etiquette, this.tauxDixMillieme);
+
+  static const a = GroupePsvb('A', 200); // 2 %
+  static const b = GroupePsvb('B', 100); // 1 %
+  static const c = GroupePsvb('C', 20); //  0,2 %
+  static const d = GroupePsvb('D', 0); //   0 %
+
+  static const tous = <GroupePsvb>[a, b, c, d];
+
+  static GroupePsvb parEtiquette(String etiquette) =>
+      tous.firstWhere((g) => g.etiquette == etiquette,
+          orElse: () => throw ArgumentError('Groupe PSVB inconnu : $etiquette'));
+
+  @override
+  String toString() => etiquette;
+}
+
+/// Type de facture (§2.7).
+enum TypeFacture {
+  vente('FV', 'Facture de vente'),
+  acompte('FT', "Facture d'acompte ou d'avance"),
+  avoir('FA', "Facture d'avoir"),
+  venteExport('EV', "Facture de vente à l'exportation"),
+  acompteExport('ET', "Facture d'acompte à l'exportation"),
+  avoirExport('EA', "Facture d'avoir à l'exportation");
+
+  final String etiquette;
+  final String libelle;
+  const TypeFacture(this.etiquette, this.libelle);
+
+  bool get estAvoir => this == avoir || this == avoirExport;
+  bool get estExport =>
+      this == venteExport || this == acompteExport || this == avoirExport;
+}
+
+/// Type de client (§2.14).
+enum TypeClient {
+  comptant('CC', 'Client comptant', nomRequis: false, ifuRequis: false),
+  personneMorale('PM', 'Personne morale', nomRequis: true, ifuRequis: true),
+  personnePhysique('PP', 'Personne physique', nomRequis: true, ifuRequis: false),
+  personnePhysiqueCommercant('PC', 'Personne physique commerçant',
+      nomRequis: true, ifuRequis: true);
+
+  final String etiquette;
+  final String libelle;
+  final bool nomRequis;
+  final bool ifuRequis;
+  const TypeClient(this.etiquette, this.libelle,
+      {required this.nomRequis, required this.ifuRequis});
+}
+
+/// Type d'article.
+enum TypeArticle {
+  bienLocal('LOCBIE', 'Bien local', null),
+  serviceLocal('LOCSER', 'Service local', null),
+  bienImporte('IMPBIE', 'Bien (importation)', null),
+  serviceImporte('IMPSERV', 'Service (importation)', '[IMPSER]');
+
+  final String etiquette;
+  final String libelle;
+
+  /// Mention à porter sur la facture, le cas échéant.
+  final String? mention;
+  const TypeArticle(this.etiquette, this.libelle, this.mention);
+}
+
+/// Nature de facture d'avoir (§2.28).
+enum NatureAvoir {
+  correction('COR', 'Correction', 'Correction'),
+  annulation('RAN', 'Annulation', 'Annulation'),
+  reprise('RAM', 'Avoir suite reprise de biens/services', 'Avoir suite reprise'),
+  remise('RRR', 'Remise, ristourne, rabais', 'RRR');
+
+  final String code;
+  final String libelle;
+
+  /// Mention obligatoire à porter sur la facture.
+  final String mention;
+  const NatureAvoir(this.code, this.libelle, this.mention);
+}
+
+/// Mode de paiement (§2.21).
+enum ModePaiement {
+  virement('Virement'),
+  carteBancaire('Carte bancaire'),
+  mobileMoney('Mobile money'),
+  cheque('Chèque'),
+  especes('Espèces'),
+  credit('Crédit');
+
+  final String libelle;
+  const ModePaiement(this.libelle);
+}
+
+/// Mode de saisie du prix unitaire (§6.3).
+enum ModePrix {
+  horsTaxe('HT'),
+  toutesTaxesComprises('TTC');
+
+  final String etiquette;
+  const ModePrix(this.etiquette);
+}
+
+/// Comment le stock d'un article est suivi.
+///
+/// Tous les commerces n'ont pas le même rapport au stock. Une boutique vend
+/// ce qu'elle achète, tel quel. Un restaurant vend des plats mais achète des
+/// ingrédients : compter un stock de plats n'a aucun sens. Un prestataire de
+/// services n'a pas de stock du tout.
+enum SuiviStock {
+  /// Aucun suivi. C'est le défaut, et le cas des services.
+  aucun('aucun'),
+
+  /// L'article est vendu tel qu'il est acheté : chaque vente le décrémente.
+  direct('direct'),
+
+  /// L'article est composé d'ingrédients. Le vendre consomme autre chose que
+  /// lui-même. Traité par le module métier restaurant.
+  recette('recette');
+
+  final String cle;
+  const SuiviStock(this.cle);
+
+  static SuiviStock parCle(String cle) => values.firstWhere(
+        (s) => s.cle == cle,
+        orElse: () => aucun,
+      );
+}
+
+/// Ce qui fait bouger un stock, hors vente.
+///
+/// La DGI impose un contrôle d'inventaire avec entrées, sorties et rapport
+/// d'état (§2.20). Mais l'exigence légale rejoint ici un vrai besoin : la
+/// question qu'un commerçant se pose n'est pas « combien j'en ai », c'est
+/// « où est passée la différence ». Sans trace des mouvements, il n'y a pas
+/// de réponse — et c'est exactement là que l'argent disparaît.
+///
+/// Les ventes n'y figurent pas : elles sont déjà dans les lignes de vente,
+/// et les redoubler ici ferait grossir la table pour rien.
+enum NatureMouvementStock {
+  /// Réception de marchandise. S'ajoute au stock connu.
+  entree('entree', 'Reçu'),
+
+  /// Comptage physique. Remplace le stock connu, quel qu'il soit.
+  inventaire('inventaire', 'Compté'),
+
+  /// Casse, vol, péremption, cadeau. Retire du stock et laisse une trace.
+  ///
+  /// C'est la ligne que personne n'aime remplir et que tout le monde devrait
+  /// tenir : sans elle, une perte devient un écart inexpliqué.
+  perte('perte', 'Perdu');
+
+  final String cle;
+  final String libelle;
+  const NatureMouvementStock(this.cle, this.libelle);
+
+  static NatureMouvementStock parCle(String cle) => values.firstWhere(
+        (n) => n.cle == cle,
+        orElse: () => inventaire,
+      );
+}
+
+/// Où en est une vente.
+///
+/// Ce qui distingue les commerces n'est pas leur métier mais l'ordre de trois
+/// moments : commander, servir, payer. Une vente au comptoir les traverse en
+/// un seul geste ; une note de restaurant reste ouverte le temps du repas ;
+/// une vente à crédit est servie sans être soldée.
+enum EtatVente {
+  /// Des lignes peuvent encore s'ajouter : note de restaurant, commande en
+  /// préparation, devis en cours.
+  ouverte('ouverte'),
+
+  /// La marchandise est remise ou le service rendu, mais tout n'est pas
+  /// encaissé. C'est l'état d'une vente à crédit.
+  servie('servie'),
+
+  /// La somme des règlements égale le total.
+  soldee('soldee');
+
+  final String cle;
+  const EtatVente(this.cle);
+
+  static EtatVente parCle(String cle) => values.firstWhere(
+        (e) => e.cle == cle,
+        orElse: () => soldee,
+      );
+}
+
+/// Ce qui regroupe les lignes d'une vente tant qu'elle est ouverte.
+///
+/// Même champ, rempli différemment selon le métier. Au comptoir, il ne sert
+/// pas du tout.
+enum TypeContenant {
+  /// Restaurant, maquis.
+  table('table', 'Table'),
+
+  /// Fast-food, vente à emporter.
+  ticket('ticket', 'Ticket'),
+
+  /// Réservation, crédit, livraison à une personne connue.
+  client('client', 'Client'),
+
+  /// Livraison à une adresse.
+  livraison('livraison', 'Livraison');
+
+  final String cle;
+  final String libelle;
+  const TypeContenant(this.cle, this.libelle);
+
+  static TypeContenant? parCle(String? cle) {
+    if (cle == null) return null;
+    for (final type in values) {
+      if (type.cle == cle) return type;
+    }
+    return null;
+  }
+}
+
+/// Étiquettes des lignes de commentaire (§2.27). Huit lignes au minimum.
+enum LigneCommentaire {
+  referenceExoneration('A', 'Réf. exo.', "Référence du certificat d'exonération"),
+  baseJuridique('B', 'Base juridique', 'Base juridique'),
+  reserveC('C', 'Réservé', ''),
+  reserveD('D', 'Réservé', ''),
+  reserveE('E', 'Réservé', ''),
+  reserveF('F', 'Réservé', ''),
+  reserveG('G', 'Réservé', ''),
+  reserveH('H', 'Réservé', '');
+
+  final String code;
+  final String etiquette;
+  final String description;
+  const LigneCommentaire(this.code, this.etiquette, this.description);
+}

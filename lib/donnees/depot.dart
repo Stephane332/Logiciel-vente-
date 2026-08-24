@@ -172,26 +172,22 @@ class Depot {
       final total = resolues.total;
       final remise = resolues.remise;
 
-      final evenement = await journal.ajouter(
-        TypeEvenement.venteEnregistree,
-        {
-          'lignes': resolues.lignes,
-          'paiements': [
-            for (final p in paiements)
-              {
-                'mode': p.mode.name,
-                'montant': p.montant.centimes,
-                'reference': p.reference,
-                'expediteur': p.expediteur,
-              }
-          ],
-          'clientId': clientId,
-          'operateur': operateur,
-          'total': total.centimes,
-          'remise': remise.centimes,
-        },
-        horodatage: quand,
-      );
+      final evenement = await journal.ajouter(TypeEvenement.venteEnregistree, {
+        'lignes': resolues.lignes,
+        'paiements': [
+          for (final p in paiements)
+            {
+              'mode': p.mode.name,
+              'montant': p.montant.centimes,
+              'reference': p.reference,
+              'expediteur': p.expediteur,
+            },
+        ],
+        'clientId': clientId,
+        'operateur': operateur,
+        'total': total.centimes,
+        'remise': remise.centimes,
+      }, horodatage: quand);
 
       await _appliquerVente(evenement);
       return evenement.id;
@@ -203,7 +199,9 @@ class Depot {
     final charge = evenement.charge;
     final venteId = evenement.id;
 
-    await base.into(base.ventes).insert(
+    await base
+        .into(base.ventes)
+        .insert(
           VentesCompanion.insert(
             id: venteId,
             horodatage: evenement.horodatage,
@@ -222,8 +220,8 @@ class Depot {
 
     await _poserPaiements(
       venteId: venteId,
-      paiements:
-          (charge['paiements'] as List? ?? const []).cast<Map<String, Object?>>(),
+      paiements: (charge['paiements'] as List? ?? const [])
+          .cast<Map<String, Object?>>(),
       clientId: charge['clientId'] as String?,
       quand: evenement.horodatage,
     );
@@ -231,15 +229,18 @@ class Depot {
 
   /// Résout des lignes brutes en lignes prêtes à écrire : code d'article
   /// déduit si besoin, désignation retrouvée, montants calculés.
-  Future<_LignesResolues> _resoudreLignes(List<LigneAEnregistrer> lignes) async {
+  Future<_LignesResolues> _resoudreLignes(
+    List<LigneAEnregistrer> lignes,
+  ) async {
     final resolues = <Map<String, Object?>>[];
     var total = const Montant.zero();
     var remise = const Montant.zero();
 
     for (final ligne in lignes) {
-      final code = ligne.codeArticle ??
-          await _codeAutomatiquePour(ligne.prixUnitaire);
-      final designation = ligne.designation ??
+      final code =
+          ligne.codeArticle ?? await _codeAutomatiquePour(ligne.prixUnitaire);
+      final designation =
+          ligne.designation ??
           await _designationConnue(code) ??
           'Article à ${ligne.prixUnitaire.enFrancs}';
 
@@ -280,7 +281,9 @@ class Depot {
       final ligne = lignes[i];
       final code = ligne['code']! as String;
 
-      await base.into(base.lignesVente).insert(
+      await base
+          .into(base.lignesVente)
+          .insert(
             LignesVenteCompanion.insert(
               id: '$venteId-${decalage + i}',
               venteId: venteId,
@@ -315,7 +318,9 @@ class Depot {
   }) async {
     for (var i = 0; i < paiements.length; i++) {
       final paiement = paiements[i];
-      await base.into(base.paiements).insert(
+      await base
+          .into(base.paiements)
+          .insert(
             PaiementsCompanion.insert(
               id: '$venteId-p${decalage + i}',
               venteId: venteId,
@@ -345,18 +350,18 @@ class Depot {
   /// (§2.28). Les projections, elles, sont remises comme avant : le stock
   /// revient, la dette du client redescend, les compteurs reculent.
   Future<void> annulerVente(String venteId, {String? motif}) async {
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingleOrNull();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingleOrNull();
 
     // Annuler deux fois ne doit pas rendre le stock deux fois.
     if (vente == null || vente.annulee) return;
 
     await base.transaction(() async {
-      final evenement = await journal.ajouter(
-        TypeEvenement.venteAnnulee,
-        {'venteId': venteId, 'motif': motif},
-      );
+      final evenement = await journal.ajouter(TypeEvenement.venteAnnulee, {
+        'venteId': venteId,
+        'motif': motif,
+      });
       await _appliquerAnnulation(evenement);
     });
   }
@@ -381,16 +386,17 @@ class Depot {
     TypeFacture type = TypeFacture.vente,
     DateTime? horodatage,
   }) async {
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingleOrNull();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingleOrNull();
     if (vente == null) {
       throw ArgumentError('Vente inconnue : $venteId');
     }
     if (vente.annulee) {
       throw StateError(
-          "Une vente annulée ne se facture pas : elle se solde par un avoir "
-          "(§2.28).");
+        "Une vente annulée ne se facture pas : elle se solde par un avoir "
+        "(§2.28).",
+      );
     }
 
     final deja = await referenceFacture(venteId);
@@ -400,19 +406,16 @@ class Depot {
     final annee = Numerotation.anneeDe(quand);
 
     return base.transaction(() async {
-      final rang = const Numerotation()
-          .rangSuivant(await _rangsAttribues(type: type, annee: annee));
-
-      final evenement = await journal.ajouter(
-        TypeEvenement.factureEmise,
-        {
-          'venteId': venteId,
-          'type': type.etiquette,
-          'annee': annee,
-          'rang': rang,
-        },
-        horodatage: quand,
+      final rang = const Numerotation().rangSuivant(
+        await _rangsAttribues(type: type, annee: annee),
       );
+
+      final evenement = await journal.ajouter(TypeEvenement.factureEmise, {
+        'venteId': venteId,
+        'type': type.etiquette,
+        'annee': annee,
+        'rang': rang,
+      }, horodatage: quand);
       await _appliquerEmissionFacture(evenement);
 
       return ReferenceFacture(type: type.etiquette, annee: annee, rang: rang);
@@ -421,8 +424,7 @@ class Depot {
 
   /// La référence de la facture d'une vente, si elle en a une.
   Future<ReferenceFacture?> referenceFacture(String venteId) async {
-    for (final evenement
-        in await journal.parType(TypeEvenement.factureEmise)) {
+    for (final evenement in await journal.parType(TypeEvenement.factureEmise)) {
       if (evenement.charge['venteId'] != venteId) continue;
       return ReferenceFacture(
         type: evenement.charge['type']! as String,
@@ -441,8 +443,7 @@ class Depot {
     required int annee,
   }) async {
     final rangs = <int>[];
-    for (final evenement
-        in await journal.parType(TypeEvenement.factureEmise)) {
+    for (final evenement in await journal.parType(TypeEvenement.factureEmise)) {
       if (evenement.charge['type'] != type.etiquette) continue;
       if (evenement.charge['annee'] != annee) continue;
       rangs.add(evenement.charge['rang']! as int);
@@ -458,9 +459,9 @@ class Depot {
   Future<List<int>> trousDeSerie({
     TypeFacture type = TypeFacture.vente,
     required int annee,
-  }) async =>
-      const Numerotation()
-          .trous(await _rangsAttribues(type: type, annee: annee));
+  }) async => const Numerotation().trous(
+    await _rangsAttribues(type: type, annee: annee),
+  );
 
   Future<void> _appliquerEmissionFacture(Evenement evenement) async {
     final venteId = evenement.charge['venteId']! as String;
@@ -476,20 +477,21 @@ class Depot {
   Future<void> _appliquerAnnulation(Evenement evenement) async {
     final venteId = evenement.charge['venteId']! as String;
 
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingleOrNull();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingleOrNull();
     if (vente == null || vente.annulee) return;
 
-    await (base.update(base.ventes)..where((v) => v.id.equals(venteId)))
-        .write(const VentesCompanion(annulee: Value(true)));
+    await (base.update(base.ventes)..where((v) => v.id.equals(venteId))).write(
+      const VentesCompanion(annulee: Value(true)),
+    );
 
     // Le stock revient et le compteur de ventes recule : sinon un article
     // annulé continuerait de peser dans « ce qui rapporte » et de manquer à
     // l'étagère.
-    final lignes = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.equals(venteId)))
-        .get();
+    final lignes = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.equals(venteId))).get();
     for (final ligne in lignes) {
       await _decrementerArticle(ligne.codeArticle, ligne.quantiteMilliemes);
     }
@@ -497,9 +499,9 @@ class Depot {
     // Une dette effacée doit disparaître du cahier, sinon le commerçant
     // réclamerait de l'argent qu'on ne lui doit pas.
     if (vente.clientId case final clientId?) {
-      final reglements = await (base.select(base.paiements)
-            ..where((p) => p.venteId.equals(venteId)))
-          .get();
+      final reglements = await (base.select(
+        base.paiements,
+      )..where((p) => p.venteId.equals(venteId))).get();
       final aCredit = reglements
           .where((p) => p.mode == ModePaiement.credit.name)
           .fold(0, (somme, p) => somme + p.montantCentimes);
@@ -511,22 +513,25 @@ class Depot {
   }
 
   Future<void> _decrementerArticle(String code, int quantiteMilliemes) async {
-    final article = await (base.select(base.articles)
-          ..where((a) => a.code.equals(code)))
-        .getSingleOrNull();
+    final article = await (base.select(
+      base.articles,
+    )..where((a) => a.code.equals(code))).getSingleOrNull();
     if (article == null) return;
 
     final stock = article.stockMilliemes;
     final suitLeStock =
         article.suiviStock == SuiviStock.direct.cle && stock != null;
 
-    await (base.update(base.articles)..where((a) => a.code.equals(code)))
-        .write(ArticlesCompanion(
-      nombreVentes: Value(
-          article.nombreVentes > 0 ? article.nombreVentes - 1 : 0),
-      stockMilliemes:
-          suitLeStock ? Value(stock + quantiteMilliemes) : const Value.absent(),
-    ));
+    await (base.update(base.articles)..where((a) => a.code.equals(code))).write(
+      ArticlesCompanion(
+        nombreVentes: Value(
+          article.nombreVentes > 0 ? article.nombreVentes - 1 : 0,
+        ),
+        stockMilliemes: suitLeStock
+            ? Value(stock + quantiteMilliemes)
+            : const Value.absent(),
+      ),
+    );
   }
 
   /// Ce que chacun a encaissé sur une période.
@@ -535,8 +540,9 @@ class Depot {
   /// demande qui a vendu combien, et si quelqu'un accorde plus de remises que
   /// les autres. C'est tout, et c'est déjà ce que le cahier ne dira jamais.
   Future<List<PartDeVendeur>> parVendeur(DateTime debut, DateTime fin) async {
-    final lignes = await base.customSelect(
-      '''
+    final lignes = await base
+        .customSelect(
+          '''
       SELECT COALESCE(v.operateur, '')     AS vendeur,
              COUNT(*)                      AS ventes,
              SUM(v.total_centimes)         AS total,
@@ -548,9 +554,10 @@ class Depot {
       GROUP BY COALESCE(v.operateur, '')
       ORDER BY total DESC
       ''',
-      variables: [Variable<DateTime>(debut), Variable<DateTime>(fin)],
-      readsFrom: {base.ventes},
-    ).get();
+          variables: [Variable<DateTime>(debut), Variable<DateTime>(fin)],
+          readsFrom: {base.ventes},
+        )
+        .get();
 
     return [
       for (final ligne in lignes)
@@ -559,7 +566,7 @@ class Depot {
           nombreVentes: ligne.read<int>('ventes'),
           total: Montant(ligne.read<int>('total')),
           remises: Montant(ligne.read<int>('remises')),
-        )
+        ),
     ];
   }
 
@@ -587,16 +594,19 @@ class Depot {
     final reference = maintenant ?? DateTime.now();
     final depuis = reference.subtract(const Duration(days: 30));
 
-    final ventes = await (base.select(base.ventes)
-          ..where((v) =>
-              v.horodatage.isBiggerOrEqualValue(depuis) &
-              v.annulee.equals(false)))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)..where(
+              (v) =>
+                  v.horodatage.isBiggerOrEqualValue(depuis) &
+                  v.annulee.equals(false),
+            ))
+            .get();
 
     if (ventes.length < ventesAvantDeJuger) return plancherDeVigilance;
 
-    final plusGrosse =
-        ventes.map((v) => v.totalCentimes).reduce((a, b) => a > b ? a : b);
+    final plusGrosse = ventes
+        .map((v) => v.totalCentimes)
+        .reduce((a, b) => a > b ? a : b);
     final relatif = Montant(plusGrosse * 10);
 
     return relatif.centimes > plancherDeVigilance.centimes
@@ -605,8 +615,10 @@ class Depot {
   }
 
   /// Vrai quand le montant mérite une confirmation avant d'être encaissé.
-  Future<bool> montantInhabituel(Montant montant,
-      {DateTime? maintenant}) async {
+  Future<bool> montantInhabituel(
+    Montant montant, {
+    DateTime? maintenant,
+  }) async {
     final seuil = await seuilDeVigilance(maintenant: maintenant);
     return montant.centimes > seuil.centimes;
   }
@@ -629,12 +641,14 @@ class Depot {
     required int quantiteMilliemes,
     required DateTime quand,
   }) async {
-    final existant = await (base.select(base.articles)
-          ..where((a) => a.code.equals(code)))
-        .getSingleOrNull();
+    final existant = await (base.select(
+      base.articles,
+    )..where((a) => a.code.equals(code))).getSingleOrNull();
 
     if (existant == null) {
-      await base.into(base.articles).insert(
+      await base
+          .into(base.articles)
+          .insert(
             ArticlesCompanion.insert(
               code: code,
               designation: designation,
@@ -660,19 +674,26 @@ class Depot {
       ArticlesCompanion(
         nombreVentes: Value(existant.nombreVentes + 1),
         derniereVente: Value(quand),
-        stockMilliemes:
-            suitLeStock ? Value(stock - quantiteMilliemes) : const Value.absent(),
+        stockMilliemes: suitLeStock
+            ? Value(stock - quantiteMilliemes)
+            : const Value.absent(),
       ),
     );
   }
 
-  Future<void> _ajusterEncours(String clientId, int delta, DateTime quand) async {
-    final client = await (base.select(base.clients)
-          ..where((c) => c.id.equals(clientId)))
-        .getSingleOrNull();
+  Future<void> _ajusterEncours(
+    String clientId,
+    int delta,
+    DateTime quand,
+  ) async {
+    final client = await (base.select(
+      base.clients,
+    )..where((c) => c.id.equals(clientId))).getSingleOrNull();
     if (client == null) return;
 
-    await (base.update(base.clients)..where((c) => c.id.equals(clientId))).write(
+    await (base.update(
+      base.clients,
+    )..where((c) => c.id.equals(clientId))).write(
       ClientsCompanion(
         encoursCentimes: Value(client.encoursCentimes + delta),
         derniereActivite: Value(quand),
@@ -702,10 +723,11 @@ class Depot {
   Future<String> _codeAutomatiquePour(Montant prix) async {
     final racine = 'AUTO-${prix.centimes}';
 
-    final auPrix = await (base.select(base.articles)
-          ..where((a) =>
-              a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull()))
-        .get();
+    final auPrix =
+        await (base.select(base.articles)..where(
+              (a) => a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull(),
+            ))
+            .get();
 
     // Le premier article anonyme de ce prix reprend la vente : sans ça, on
     // ouvrirait un article neuf à chaque montant libre, et le catalogue
@@ -717,12 +739,25 @@ class Depot {
     if (auPrix.isEmpty) return racine;
 
     // Tous nommés : on en ouvre un de plus, sous un code encore libre.
+    //
+    // Le code porte l'appareil, et ce n'est pas de la décoration. Deux
+    // caisses hors réseau qui ouvrent chacune un article à ce prix
+    // choisiraient toutes les deux « AUTO-50000-2 » — elles ne se voient pas.
+    // À la réunion des carnets, les deux codes n'en feraient plus qu'un : le
+    // pain de l'une et les beignets de l'autre deviendraient la même ligne,
+    // avec un seul nom et un stock mélangé. Le même défaut qu'avec le prix,
+    // un cran plus loin.
+    //
+    // Le tout premier article d'un prix garde le code nu, sans appareil :
+    // c'est le seau du montant libre, et deux caisses qui tapent « 500 F »
+    // sans rien nommer vendent bien la même chose anonyme.
     final pris = auPrix.map((a) => a.code).toSet();
+    final marque = '$racine-${journal.appareil}';
     var rang = 2;
-    while (pris.contains('$racine-$rang')) {
+    while (pris.contains('$marque-$rang')) {
       rang++;
     }
-    return '$racine-$rang';
+    return '$marque-$rang';
   }
 
   /// Les articles vendus à ce prix, nommés ou non, hors retirés.
@@ -731,15 +766,16 @@ class Depot {
   /// déjà des articles nommés, on lui demande lequel plutôt que de deviner.
   Future<List<LigneArticle>> articlesAuPrix(Montant prix) =>
       (base.select(base.articles)
-            ..where((a) =>
-                a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull())
+            ..where(
+              (a) => a.prixCentimes.equals(prix.centimes) & a.retireLe.isNull(),
+            )
             ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]))
           .get();
 
   Future<String?> _designationConnue(String code) async {
-    final article = await (base.select(base.articles)
-          ..where((a) => a.code.equals(code)))
-        .getSingleOrNull();
+    final article = await (base.select(
+      base.articles,
+    )..where((a) => a.code.equals(code))).getSingleOrNull();
     return article?.designation;
   }
 
@@ -759,23 +795,21 @@ class Depot {
     DateTime? horodatage,
   }) async {
     return base.transaction(() async {
-      final evenement = await journal.ajouter(
-        TypeEvenement.venteOuverte,
-        {
-          'contenant': contenant,
-          'typeContenant': typeContenant?.cle,
-          'clientId': clientId,
-          'operateur': operateur,
-        },
-        horodatage: horodatage,
-      );
+      final evenement = await journal.ajouter(TypeEvenement.venteOuverte, {
+        'contenant': contenant,
+        'typeContenant': typeContenant?.cle,
+        'clientId': clientId,
+        'operateur': operateur,
+      }, horodatage: horodatage);
       await _appliquerOuverture(evenement);
       return evenement.id;
     });
   }
 
   Future<void> _appliquerOuverture(Evenement evenement) async {
-    await base.into(base.ventes).insert(
+    await base
+        .into(base.ventes)
+        .insert(
           VentesCompanion.insert(
             id: evenement.id,
             horodatage: evenement.horodatage,
@@ -793,19 +827,23 @@ class Depot {
   ///
   /// C'est le geste du serveur qui rapporte une commande supplémentaire à une
   /// table déjà servie.
-  Future<void> ajouterAVente(String venteId, List<LigneAEnregistrer> lignes) async {
+  Future<void> ajouterAVente(
+    String venteId,
+    List<LigneAEnregistrer> lignes,
+  ) async {
     if (lignes.isEmpty) return;
 
     await base.transaction(() async {
-      final vente = await (base.select(base.ventes)
-            ..where((v) => v.id.equals(venteId)))
-          .getSingleOrNull();
+      final vente = await (base.select(
+        base.ventes,
+      )..where((v) => v.id.equals(venteId))).getSingleOrNull();
       if (vente == null) {
         throw ArgumentError('Vente inconnue : $venteId');
       }
       if (vente.etat != EtatVente.ouverte.cle) {
         throw StateError(
-            "On ne peut ajouter qu'à une vente ouverte (état : ${vente.etat}).");
+          "On ne peut ajouter qu'à une vente ouverte (état : ${vente.etat}).",
+        );
       }
 
       final resolues = await _resoudreLignes(lignes);
@@ -821,27 +859,30 @@ class Depot {
 
   Future<void> _appliquerAjoutLignes(Evenement evenement) async {
     final venteId = evenement.charge['venteId']! as String;
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingle();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingle();
 
-    final depart = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.equals(venteId)))
-        .get();
+    final depart = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.equals(venteId))).get();
 
     await _poserLignes(
       venteId: venteId,
-      lignes: (evenement.charge['lignes']! as List).cast<Map<String, Object?>>(),
+      lignes: (evenement.charge['lignes']! as List)
+          .cast<Map<String, Object?>>(),
       quand: evenement.horodatage,
       decalage: depart.length,
     );
 
     await (base.update(base.ventes)..where((v) => v.id.equals(venteId))).write(
       VentesCompanion(
-        totalCentimes:
-            Value(vente.totalCentimes + (evenement.charge['total']! as int)),
-        remiseCentimes:
-            Value(vente.remiseCentimes + (evenement.charge['remise'] as int? ?? 0)),
+        totalCentimes: Value(
+          vente.totalCentimes + (evenement.charge['total']! as int),
+        ),
+        remiseCentimes: Value(
+          vente.remiseCentimes + (evenement.charge['remise'] as int? ?? 0),
+        ),
       ),
     );
   }
@@ -858,7 +899,10 @@ class Depot {
   }
 
   /// Solde une vente ouverte par un ou plusieurs règlements.
-  Future<void> solder(String venteId, List<PaiementAEnregistrer> paiements) async {
+  Future<void> solder(
+    String venteId,
+    List<PaiementAEnregistrer> paiements,
+  ) async {
     await base.transaction(() async {
       final evenement = await journal.ajouter(TypeEvenement.venteSoldee, {
         'venteId': venteId,
@@ -869,7 +913,7 @@ class Depot {
               'montant': p.montant.centimes,
               'reference': p.reference,
               'expediteur': p.expediteur,
-            }
+            },
         ],
       });
       await _appliquerSolde(evenement);
@@ -878,18 +922,18 @@ class Depot {
 
   Future<void> _appliquerSolde(Evenement evenement) async {
     final venteId = evenement.charge['venteId']! as String;
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingle();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingle();
 
-    final existants = await (base.select(base.paiements)
-          ..where((p) => p.venteId.equals(venteId)))
-        .get();
+    final existants = await (base.select(
+      base.paiements,
+    )..where((p) => p.venteId.equals(venteId))).get();
 
     await _poserPaiements(
       venteId: venteId,
-      paiements:
-          (evenement.charge['paiements']! as List).cast<Map<String, Object?>>(),
+      paiements: (evenement.charge['paiements']! as List)
+          .cast<Map<String, Object?>>(),
       clientId: vente.clientId,
       quand: evenement.horodatage,
       decalage: existants.length,
@@ -908,8 +952,9 @@ class Depot {
   /// préparation.
   Future<List<LigneVente>> ventesOuvertes() {
     final requete = base.select(base.ventes)
-      ..where((v) =>
-          v.etat.equals(EtatVente.ouverte.cle) & v.annulee.equals(false))
+      ..where(
+        (v) => v.etat.equals(EtatVente.ouverte.cle) & v.annulee.equals(false),
+      )
       ..orderBy([(v) => OrderingTerm.asc(v.horodatage)]);
     return requete.get();
   }
@@ -917,8 +962,9 @@ class Depot {
   /// Les ventes servies mais pas encore payées.
   Future<List<LigneVente>> ventesAEncaisser() {
     final requete = base.select(base.ventes)
-      ..where((v) =>
-          v.etat.equals(EtatVente.servie.cle) & v.annulee.equals(false))
+      ..where(
+        (v) => v.etat.equals(EtatVente.servie.cle) & v.annulee.equals(false),
+      )
       ..orderBy([(v) => OrderingTerm.asc(v.horodatage)]);
     return requete.get();
   }
@@ -940,11 +986,12 @@ class Depot {
     final code = evenement.charge['code']! as String;
     final designation = evenement.charge['designation']! as String;
 
-    await (base.update(base.articles)..where((a) => a.code.equals(code)))
-        .write(ArticlesCompanion(
-      designation: Value(designation),
-      nomme: const Value(true),
-    ));
+    await (base.update(base.articles)..where((a) => a.code.equals(code))).write(
+      ArticlesCompanion(
+        designation: Value(designation),
+        nomme: const Value(true),
+      ),
+    );
 
     // Les ventes déjà enregistrées gardent leur libellé d'origine : le
     // journal ne se réécrit pas. Seul le catalogue est mis à jour.
@@ -959,14 +1006,13 @@ class Depot {
     Quantite quantite, {
     String? motif,
     DateTime? horodatage,
-  }) =>
-      _bougerStock(
-        code: code,
-        nature: NatureMouvementStock.inventaire,
-        quantite: quantite,
-        motif: motif,
-        horodatage: horodatage,
-      );
+  }) => _bougerStock(
+    code: code,
+    nature: NatureMouvementStock.inventaire,
+    quantite: quantite,
+    motif: motif,
+    horodatage: horodatage,
+  );
 
   /// Enregistre une réception de marchandise.
   ///
@@ -978,14 +1024,13 @@ class Depot {
     Quantite quantite, {
     String? motif,
     DateTime? horodatage,
-  }) =>
-      _bougerStock(
-        code: code,
-        nature: NatureMouvementStock.entree,
-        quantite: quantite,
-        motif: motif,
-        horodatage: horodatage,
-      );
+  }) => _bougerStock(
+    code: code,
+    nature: NatureMouvementStock.entree,
+    quantite: quantite,
+    motif: motif,
+    horodatage: horodatage,
+  );
 
   /// Enregistre une perte : casse, vol, péremption, cadeau.
   ///
@@ -997,14 +1042,13 @@ class Depot {
     Quantite quantite, {
     String? motif,
     DateTime? horodatage,
-  }) =>
-      _bougerStock(
-        code: code,
-        nature: NatureMouvementStock.perte,
-        quantite: quantite,
-        motif: motif,
-        horodatage: horodatage,
-      );
+  }) => _bougerStock(
+    code: code,
+    nature: NatureMouvementStock.perte,
+    quantite: quantite,
+    motif: motif,
+    horodatage: horodatage,
+  );
 
   Future<void> _bougerStock({
     required String code,
@@ -1018,16 +1062,12 @@ class Depot {
     }
 
     await base.transaction(() async {
-      final evenement = await journal.ajouter(
-        TypeEvenement.stockAjuste,
-        {
-          'code': code,
-          'nature': nature.cle,
-          'quantite': quantite.milliemes,
-          'motif': motif,
-        },
-        horodatage: horodatage,
-      );
+      final evenement = await journal.ajouter(TypeEvenement.stockAjuste, {
+        'code': code,
+        'nature': nature.cle,
+        'quantite': quantite.milliemes,
+        'motif': motif,
+      }, horodatage: horodatage);
       await _appliquerAjustementStock(evenement);
     });
   }
@@ -1040,11 +1080,12 @@ class Depot {
     // Les événements écrits avant l'introduction des natures sont des
     // inventaires : c'est tout ce que le dépôt savait faire à l'époque.
     final nature = NatureMouvementStock.parCle(
-        charge['nature'] as String? ?? NatureMouvementStock.inventaire.cle);
+      charge['nature'] as String? ?? NatureMouvementStock.inventaire.cle,
+    );
 
-    final article = await (base.select(base.articles)
-          ..where((a) => a.code.equals(code)))
-        .getSingleOrNull();
+    final article = await (base.select(
+      base.articles,
+    )..where((a) => a.code.equals(code))).getSingleOrNull();
     if (article == null) return;
 
     final avant = article.stockMilliemes ?? 0;
@@ -1054,14 +1095,17 @@ class Depot {
       NatureMouvementStock.perte => avant - quantite,
     };
 
-    await (base.update(base.articles)..where((a) => a.code.equals(code)))
-        .write(ArticlesCompanion(
-      stockMilliemes: Value(apres),
-      // Déclarer un stock, c'est décider de le suivre.
-      suiviStock: Value(SuiviStock.direct.cle),
-    ));
+    await (base.update(base.articles)..where((a) => a.code.equals(code))).write(
+      ArticlesCompanion(
+        stockMilliemes: Value(apres),
+        // Déclarer un stock, c'est décider de le suivre.
+        suiviStock: Value(SuiviStock.direct.cle),
+      ),
+    );
 
-    await base.into(base.mouvementsStock).insert(
+    await base
+        .into(base.mouvementsStock)
+        .insert(
           MouvementsStockCompanion.insert(
             id: evenement.id,
             codeArticle: code,
@@ -1075,8 +1119,10 @@ class Depot {
   }
 
   /// L'historique des mouvements d'un article, du plus récent au plus ancien.
-  Future<List<LigneMouvementStock>> mouvementsDe(String code,
-      {int limite = 20}) {
+  Future<List<LigneMouvementStock>> mouvementsDe(
+    String code, {
+    int limite = 20,
+  }) {
     final requete = base.select(base.mouvementsStock)
       ..where((m) => m.codeArticle.equals(code))
       ..orderBy([(m) => OrderingTerm.desc(m.horodatage)])
@@ -1100,14 +1146,16 @@ class Depot {
 
   Future<void> _appliquerModeSuivi(Evenement evenement) async {
     final suivi = evenement.charge['suivi']! as String;
-    await (base.update(base.articles)
-          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
-        .write(ArticlesCompanion(
-      suiviStock: Value(suivi),
-      stockMilliemes: suivi == SuiviStock.aucun.cle
-          ? const Value(null)
-          : const Value.absent(),
-    ));
+    await (base.update(
+      base.articles,
+    )..where((a) => a.code.equals(evenement.charge['code']! as String))).write(
+      ArticlesCompanion(
+        suiviStock: Value(suivi),
+        stockMilliemes: suivi == SuiviStock.aucun.cle
+            ? const Value(null)
+            : const Value.absent(),
+      ),
+    );
   }
 
   /// Le commerçant dit qu'un même prix recouvre plusieurs produits.
@@ -1140,17 +1188,18 @@ class Depot {
     Evenement evenement, {
     required bool retire,
   }) async {
-    await (base.update(base.articles)
-          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
-        .write(ArticlesCompanion(
-      retireLe: Value(retire ? evenement.horodatage : null),
-    ));
+    await (base.update(
+      base.articles,
+    )..where((a) => a.code.equals(evenement.charge['code']! as String))).write(
+      ArticlesCompanion(retireLe: Value(retire ? evenement.horodatage : null)),
+    );
   }
 
   Future<void> refuserNommage(String code) async {
     await base.transaction(() async {
-      final evenement =
-          await journal.ajouter(TypeEvenement.nommageRefuse, {'code': code});
+      final evenement = await journal.ajouter(TypeEvenement.nommageRefuse, {
+        'code': code,
+      });
       await _appliquerRefusNommage(evenement);
     });
   }
@@ -1158,19 +1207,19 @@ class Depot {
   Future<void> _appliquerRefusNommage(Evenement evenement) async {
     await (base.update(base.articles)
           ..where((a) => a.code.equals(evenement.charge['code']! as String)))
-        .write(ArticlesCompanion(
-      nommageRefuseLe: Value(evenement.horodatage),
-    ));
+        .write(ArticlesCompanion(nommageRefuseLe: Value(evenement.horodatage)));
   }
 
   /// Les articles vendus assez souvent pour mériter un nom.
   Future<List<LigneArticle>> articlesANommer() {
     final requete = base.select(base.articles)
-      ..where((a) =>
-          a.retireLe.isNull() &
-          a.nomme.equals(false) &
-          a.nommageRefuseLe.isNull() &
-          a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage))
+      ..where(
+        (a) =>
+            a.retireLe.isNull() &
+            a.nomme.equals(false) &
+            a.nommageRefuseLe.isNull() &
+            a.nombreVentes.isBiggerOrEqualValue(seuilDeNommage),
+      )
       ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
     return requete.get();
   }
@@ -1219,7 +1268,9 @@ class Depot {
   Future<void> _appliquerCreationArticle(Evenement evenement) async {
     final charge = evenement.charge;
 
-    await base.into(base.articles).insertOnConflictUpdate(
+    await base
+        .into(base.articles)
+        .insertOnConflictUpdate(
           ArticlesCompanion.insert(
             code: charge['code']! as String,
             designation: charge['designation']! as String,
@@ -1239,21 +1290,20 @@ class Depot {
     }
 
     await base.transaction(() async {
-      final evenement =
-          await journal.ajouter(TypeEvenement.articlePrixModifie, {
-        'code': code,
-        'prix': prix.centimes,
-      });
+      final evenement = await journal.ajouter(
+        TypeEvenement.articlePrixModifie,
+        {'code': code, 'prix': prix.centimes},
+      );
       await _appliquerPrix(evenement);
     });
   }
 
   Future<void> _appliquerPrix(Evenement evenement) async {
-    await (base.update(base.articles)
-          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
-        .write(ArticlesCompanion(
-      prixCentimes: Value(evenement.charge['prix']! as int),
-    ));
+    await (base.update(
+      base.articles,
+    )..where((a) => a.code.equals(evenement.charge['code']! as String))).write(
+      ArticlesCompanion(prixCentimes: Value(evenement.charge['prix']! as int)),
+    );
   }
 
   /// Un code lisible dérivé du nom, pour un article saisi à la main.
@@ -1261,9 +1311,9 @@ class Depot {
   /// Les accents et la ponctuation sautent : le code voyagera un jour dans
   /// des échanges où ils poseraient problème.
   static String _codeDepuisNom(String nom) {
-    final base = sansAccents(nom.toLowerCase())
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final base = sansAccents(
+      nom.toLowerCase(),
+    ).replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
 
     final racine = base.isEmpty ? 'article' : base;
     // Le suffixe évite qu'un même nom écrase un article existant portant un
@@ -1278,18 +1328,22 @@ class Depot {
   /// erreur ne coûte donc rien, et un changement d'avis non plus.
   Future<void> reporterPropositionSuivi(String code) async {
     await base.transaction(() async {
-      final evenement = await journal
-          .ajouter(TypeEvenement.propositionSuiviReportee, {'code': code});
+      final evenement = await journal.ajouter(
+        TypeEvenement.propositionSuiviReportee,
+        {'code': code},
+      );
       await _appliquerReport(evenement);
     });
   }
 
   Future<void> _appliquerReport(Evenement evenement) async {
-    await (base.update(base.articles)
-          ..where((a) => a.code.equals(evenement.charge['code']! as String)))
-        .write(ArticlesCompanion(
-      propositionSuiviReporteeLe: Value(evenement.horodatage),
-    ));
+    await (base.update(
+      base.articles,
+    )..where((a) => a.code.equals(evenement.charge['code']! as String))).write(
+      ArticlesCompanion(
+        propositionSuiviReporteeLe: Value(evenement.horodatage),
+      ),
+    );
   }
 
   /// Nombre de ventes au-delà duquel on propose de compter le stock.
@@ -1305,12 +1359,14 @@ class Depot {
   /// nom, ensuite la quantité. Jamais un inventaire à saisir d'un coup.
   Future<List<LigneArticle>> articlesASuivre() {
     final requete = base.select(base.articles)
-      ..where((a) =>
-          a.retireLe.isNull() &
-          a.nomme.equals(true) &
-          a.suiviStock.equals(SuiviStock.aucun.cle) &
-          a.propositionSuiviReporteeLe.isNull() &
-          a.nombreVentes.isBiggerOrEqualValue(seuilDeSuiviStock))
+      ..where(
+        (a) =>
+            a.retireLe.isNull() &
+            a.nomme.equals(true) &
+            a.suiviStock.equals(SuiviStock.aucun.cle) &
+            a.propositionSuiviReporteeLe.isNull() &
+            a.nombreVentes.isBiggerOrEqualValue(seuilDeSuiviStock),
+      )
       ..orderBy([(a) => OrderingTerm.desc(a.nombreVentes)]);
     return requete.get();
   }
@@ -1323,7 +1379,8 @@ class Depot {
   Future<List<LigneArticle>> articlesSansSuivi({int limite = 60}) {
     final requete = base.select(base.articles)
       ..where(
-          (a) => a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.aucun.cle))
+        (a) => a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.aucun.cle),
+      )
       ..orderBy([
         (a) => OrderingTerm.desc(a.nombreVentes),
         (a) => OrderingTerm.desc(a.derniereVente),
@@ -1335,8 +1392,9 @@ class Depot {
   /// Les articles dont le stock est réellement suivi, les plus bas d'abord.
   Future<List<LigneArticle>> articlesEnStock() {
     final requete = base.select(base.articles)
-      ..where((a) =>
-          a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.direct.cle))
+      ..where(
+        (a) => a.retireLe.isNull() & a.suiviStock.equals(SuiviStock.direct.cle),
+      )
       ..orderBy([(a) => OrderingTerm.asc(a.stockMilliemes)]);
     return requete.get();
   }
@@ -1385,8 +1443,10 @@ class Depot {
   /// Nombre d'articles au catalogue, pour savoir s'il faut une recherche.
   Future<int> nombreDArticles() async {
     final ligne = await base
-        .customSelect('SELECT COUNT(*) AS n FROM articles WHERE retire_le IS NULL',
-            readsFrom: {base.articles})
+        .customSelect(
+          'SELECT COUNT(*) AS n FROM articles WHERE retire_le IS NULL',
+          readsFrom: {base.articles},
+        )
         .getSingle();
     return ligne.read<int>('n');
   }
@@ -1414,13 +1474,16 @@ class Depot {
   }
 
   Future<void> _appliquerCreationClient(Evenement evenement) async {
-    await base.into(base.clients).insert(
+    await base
+        .into(base.clients)
+        .insert(
           ClientsCompanion.insert(
             id: evenement.id,
             nom: evenement.charge['nom']! as String,
             telephone: Value(evenement.charge['telephone'] as String?),
-            telephoneNormalise:
-                Value(evenement.charge['telephoneNormalise'] as String?),
+            telephoneNormalise: Value(
+              evenement.charge['telephoneNormalise'] as String?,
+            ),
             typeClient: Value(evenement.charge['type'] as String? ?? 'CC'),
             ifu: Value(evenement.charge['ifu'] as String?),
             derniereActivite: Value(evenement.horodatage),
@@ -1454,9 +1517,9 @@ class Depot {
   Future<LigneClient?> clientParTelephone(String telephone) async {
     final normalise = normaliserTelephone(telephone);
     if (normalise == null) return null;
-    return (base.select(base.clients)
-          ..where((c) => c.telephoneNormalise.equals(normalise)))
-        .getSingleOrNull();
+    return (base.select(
+      base.clients,
+    )..where((c) => c.telephoneNormalise.equals(normalise))).getSingleOrNull();
   }
 
   /// Enregistre le consentement du client à ce que son historique le suive
@@ -1513,24 +1576,26 @@ class Depot {
   /// Les lignes sortent du plus récent au plus ancien : la contestation porte
   /// presque toujours sur le dernier achat.
   Future<List<MouvementDeCompte>> compteDe(String clientId) async {
-    final ventes = await (base.select(base.ventes)
-          ..where((v) => v.clientId.equals(clientId))
-          ..orderBy([(v) => OrderingTerm.desc(v.horodatage)]))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)
+              ..where((v) => v.clientId.equals(clientId))
+              ..orderBy([(v) => OrderingTerm.desc(v.horodatage)]))
+            .get();
 
     final identifiants = [for (final vente in ventes) vente.id];
     final lignes = identifiants.isEmpty
         ? <LigneDeVente>[]
-        : await (base.select(base.lignesVente)
-              ..where((l) => l.venteId.isIn(identifiants)))
-            .get();
+        : await (base.select(
+            base.lignesVente,
+          )..where((l) => l.venteId.isIn(identifiants))).get();
     final aCredit = identifiants.isEmpty
         ? <LignePaiement>[]
-        : await (base.select(base.paiements)
-              ..where((p) =>
-                  p.venteId.isIn(identifiants) &
-                  p.mode.equals(ModePaiement.credit.name)))
-            .get();
+        : await (base.select(base.paiements)..where(
+                (p) =>
+                    p.venteId.isIn(identifiants) &
+                    p.mode.equals(ModePaiement.credit.name),
+              ))
+              .get();
 
     final mouvements = <MouvementDeCompte>[];
 
@@ -1546,36 +1611,40 @@ class Depot {
       final siennes = lignes.where((l) => l.venteId == vente.id).toList()
         ..sort((a, b) => a.id.compareTo(b.id));
 
-      mouvements.add(MouvementDeCompte(
-        quand: vente.horodatage,
-        montant: Montant(part),
-        sens: SensDeCompte.achat,
-        annule: vente.annulee,
-        detail: [
-          for (final ligne in siennes)
-            DetailDAchat(
-              designation: ligne.designation,
-              quantite: Quantite(ligne.quantiteMilliemes),
-              total: Montant(ligne.montantCentimes),
-            )
-        ],
-      ));
+      mouvements.add(
+        MouvementDeCompte(
+          quand: vente.horodatage,
+          montant: Montant(part),
+          sens: SensDeCompte.achat,
+          annule: vente.annulee,
+          detail: [
+            for (final ligne in siennes)
+              DetailDAchat(
+                designation: ligne.designation,
+                quantite: Quantite(ligne.quantiteMilliemes),
+                total: Montant(ligne.montantCentimes),
+              ),
+          ],
+        ),
+      );
     }
 
     // Les remboursements ne sont pas des ventes : ils ne vivent que dans le
     // journal, et c'est là qu'il faut aller les chercher.
-    final remboursements = await (base.select(base.evenements)
-          ..where((e) => e.type.equals(TypeEvenement.creditRembourse.cle)))
-        .get();
+    final remboursements = await (base.select(
+      base.evenements,
+    )..where((e) => e.type.equals(TypeEvenement.creditRembourse.cle))).get();
 
     for (final ligne in remboursements) {
       final charge = Evenement.chargeDepuisJson(ligne.charge);
       if (charge['clientId'] != clientId) continue;
-      mouvements.add(MouvementDeCompte(
-        quand: ligne.horodatage,
-        montant: Montant(charge['montant']! as int),
-        sens: SensDeCompte.remboursement,
-      ));
+      mouvements.add(
+        MouvementDeCompte(
+          quand: ligne.horodatage,
+          montant: Montant(charge['montant']! as int),
+          sens: SensDeCompte.remboursement,
+        ),
+      );
     }
 
     // Le journal arrondit à la seconde : un remboursement encaissé juste
@@ -1610,7 +1679,9 @@ class Depot {
   }
 
   Future<void> _appliquerMouvementCaisse(Evenement evenement) async {
-    await base.into(base.mouvementsCaisse).insert(
+    await base
+        .into(base.mouvementsCaisse)
+        .insert(
           MouvementsCaisseCompanion.insert(
             id: evenement.id,
             horodatage: evenement.horodatage,
@@ -1636,19 +1707,21 @@ class Depot {
   /// Le patron absent regarde souvent le lendemain matin : à minuit une, sa
   /// journée d'hier ne doit pas disparaître.
   Future<RapportDuJour> rapportSurPeriode(DateTime debut, DateTime fin) async {
-    final ventes = await (base.select(base.ventes)
-          ..where((v) =>
-              v.horodatage.isBiggerOrEqualValue(debut) &
-              v.horodatage.isSmallerThanValue(fin) &
-              v.annulee.equals(false)))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)..where(
+              (v) =>
+                  v.horodatage.isBiggerOrEqualValue(debut) &
+                  v.horodatage.isSmallerThanValue(fin) &
+                  v.annulee.equals(false),
+            ))
+            .get();
 
     final identifiants = ventes.map((v) => v.id).toList();
     final reglements = identifiants.isEmpty
         ? <LignePaiement>[]
-        : await (base.select(base.paiements)
-              ..where((p) => p.venteId.isIn(identifiants)))
-            .get();
+        : await (base.select(
+            base.paiements,
+          )..where((p) => p.venteId.isIn(identifiants))).get();
 
     var encaisse = 0;
     var credit = 0;
@@ -1660,20 +1733,21 @@ class Depot {
       }
     }
 
-    final ruptures = await (base.select(base.articles)
-          ..where((a) =>
-              a.retireLe.isNull() &
-              a.suiviStock.equals(SuiviStock.direct.cle) &
-              a.stockMilliemes.isSmallerOrEqualValue(0)))
-        .get();
+    final ruptures =
+        await (base.select(base.articles)..where(
+              (a) =>
+                  a.retireLe.isNull() &
+                  a.suiviStock.equals(SuiviStock.direct.cle) &
+                  a.stockMilliemes.isSmallerOrEqualValue(0),
+            ))
+            .get();
 
     return RapportDuJour(
       encaisse: Montant(encaisse),
       aCredit: Montant(credit),
       nombreVentes: ventes.length,
       articlesEnRupture: ruptures.length,
-      remisesAccordees:
-          Montant(ventes.fold(0, (s, v) => s + v.remiseCentimes)),
+      remisesAccordees: Montant(ventes.fold(0, (s, v) => s + v.remiseCentimes)),
     );
   }
 
@@ -1770,13 +1844,18 @@ class Depot {
           // Une clôture ne modifie aucune projection : elle borne une période
           // et fige des totaux dans le journal. La rejouer n'a rien à faire.
           case TypeEvenement.clotureTiree:
+          // La réunion de deux caisses n'ajoute aucun fait de commerce : les
+          // ventes reçues portent déjà les leurs, et c'est en les rejouant
+          // que les projections les prennent. L'événement ne dit que la date
+          // d'arrivée, pour le jour où le patron demandera quand la deuxième
+          // caisse est remontée.
+          case TypeEvenement.journalFusionne:
             break;
         }
       }
     });
   }
 }
-
 
 /// Lignes résolues, prêtes à être écrites.
 class _LignesResolues {

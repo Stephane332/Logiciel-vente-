@@ -25,11 +25,32 @@ class Parametres {
 
   static const _nomCommerce = 'commerce.nom';
   static const _prefixeMarchand = 'marchand.';
-  static const _vendeurs = 'vendeurs';
+  static const _vendeurs = cleVendeurs;
   static const _vendeurActif = 'vendeur.actif';
   static const _temoin = 'stockage.temoin';
   static const _derniereSauvegarde = 'sauvegarde.derniere';
   static const _codePatron = 'patron.code';
+
+  /// La liste de l'équipe. Publique parce que la réunion de deux caisses en
+  /// prend l'union au lieu d'en garder une seule : deux téléphones de la même
+  /// boutique doivent finir avec les mêmes vendeurs, pas avec la liste du
+  /// dernier fichier reçu.
+  static const cleVendeurs = 'vendeurs';
+
+  /// Les réglages qui appartiennent au téléphone et pas au commerce.
+  ///
+  /// Ils ne voyagent pas quand deux caisses se réunissent. Chacun dit quelque
+  /// chose de cet appareil-ci et de rien d'autre : qui tient *cette* caisse,
+  /// si *ce* stockage a déjà servi, quand *ce* téléphone a sorti son dernier
+  /// fichier, quel code ouvre les chiffres *sur ce téléphone*. Les importer
+  /// mettrait le nom d'une vendeuse sur les ventes d'une autre, et
+  /// remplacerait le code du patron par celui du fichier qu'on lui tend.
+  static const clesPropresAuTelephone = <String>{
+    _vendeurActif,
+    _temoin,
+    _derniereSauvegarde,
+    _codePatron,
+  };
 
   /// Les mentions de la fiche entreprise. Une clé par mention plutôt qu'un
   /// bloc JSON : ça s'ajoute et ça se retire sans migration, et une valeur
@@ -50,7 +71,11 @@ class Parametres {
   /// Ce qui sépare deux noms de vendeurs dans la valeur enregistrée. Un nom
   /// qui en contiendrait un couperait la liste en deux : il est retiré à
   /// l'écriture.
-  static const _separateur = '\n';
+  static const _separateur = separateurVendeurs;
+
+  /// Publique pour la même raison que [cleVendeurs] : la réunion de deux
+  /// caisses découpe et recompose la liste.
+  static const separateurVendeurs = '\n';
 
   /// Tous les réglages d'un coup.
   ///
@@ -163,7 +188,7 @@ class Parametres {
     if (valeur == null) return const [];
     return [
       for (final nom in valeur.split(_separateur))
-        if (nom.trim().isNotEmpty) nom.trim()
+        if (nom.trim().isNotEmpty) nom.trim(),
     ];
   }
 
@@ -193,9 +218,9 @@ class Parametres {
   /// du navigateur ne vaut rien — celle de drift disait « persistant » alors
   /// que rien n'était écrit.
   Future<bool> temoinRetrouve() async {
-    final ligne = await (base.select(base.reglages)
-          ..where((r) => r.cle.equals(_temoin)))
-        .getSingleOrNull();
+    final ligne = await (base.select(
+      base.reglages,
+    )..where((r) => r.cle.equals(_temoin))).getSingleOrNull();
     if (ligne == null) {
       await _ecrire(_temoin, DateTime.now().toIso8601String());
       return false;
@@ -208,9 +233,9 @@ class Parametres {
   /// Nul tant que ça n'est jamais arrivé — et c'est le cas le plus inquiétant,
   /// pas une absence de donnée sans importance.
   Future<DateTime?> derniereSauvegarde() async {
-    final ligne = await (base.select(base.reglages)
-          ..where((r) => r.cle.equals(_derniereSauvegarde)))
-        .getSingleOrNull();
+    final ligne = await (base.select(
+      base.reglages,
+    )..where((r) => r.cle.equals(_derniereSauvegarde))).getSingleOrNull();
     if (ligne == null) return null;
     return DateTime.tryParse(ligne.valeur);
   }
@@ -259,23 +284,24 @@ class Parametres {
       sha256.convert(utf8.encode('carnet.patron.$code')).toString();
 
   Future<String?> _lire(String cle) async {
-    final ligne = await (base.select(base.reglages)
-          ..where((r) => r.cle.equals(cle)))
-        .getSingleOrNull();
+    final ligne = await (base.select(
+      base.reglages,
+    )..where((r) => r.cle.equals(cle))).getSingleOrNull();
     return ligne?.valeur;
   }
 
   Future<void> _effacer(String cle) =>
       (base.delete(base.reglages)..where((r) => r.cle.equals(cle))).go();
 
-  Future<void> _ecrire(String cle, String valeur) =>
-      base.into(base.reglages).insertOnConflictUpdate(
-            ReglagesCompanion.insert(
-              cle: cle,
-              valeur: valeur,
-              modifieLe: DateTime.now(),
-            ),
-          );
+  Future<void> _ecrire(String cle, String valeur) => base
+      .into(base.reglages)
+      .insertOnConflictUpdate(
+        ReglagesCompanion.insert(
+          cle: cle,
+          valeur: valeur,
+          modifieLe: DateTime.now(),
+        ),
+      );
 }
 
 /// L'état courant des réglages.

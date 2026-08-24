@@ -142,12 +142,14 @@ sections.append(profil(
     ["Tout ce que fait la boutique",
      "<b>Qui tient la caisse</b> : chaque vente retient son vendeur",
      "Le compte de chacun dans le rapport, remises comprises",
+     "Un téléphone par vendeuse, et les carnets qui se réunissent",
      "La sauvegarde, parce qu'il y a plus à perdre"],
     ["Rien de particulier — c'est la boutique, avec un chapitre en plus"],
     "chacun choisit son nom en prenant la caisse. Le soir, le rapport dit qui "
     "a encaissé combien et qui a lâché combien de remises. C'est ce dernier "
     "chiffre qui est intéressant.",
     'Va voir : <a href="#equipe">déclarer qui tient la caisse</a>, '
+    '<a href="#deux-caisses">deux téléphones dans la même boutique</a>, '
     '<a href="#rapport">le rapport du soir</a>, '
     '<a href="#cloture">arrêter la caisse le soir</a>, '
     '<a href="#sauvegarde">changer de téléphone</a>.'))
@@ -442,13 +444,14 @@ sections.append(recette(
      "Un appui pour en changer.",
      "Le soir, le rapport donne le compte de chacun. Le nom figure aussi "
      "sur le reçu du client."],
-    "<b>Un téléphone, une caisse.</b> Ce ne sont pas des comptes : ce sont "
-    "des noms. Il n'y a ni mot de passe ni application séparée — les vendeurs "
-    "se relaient sur le même téléphone, et chacun choisit son nom en prenant "
-    "la caisse. Deux téléphones font deux carnets qui ne se rejoignent pas, "
-    "et la sauvegarde ne les fusionne pas : elle remplace. La caisse à "
-    "plusieurs appareils viendra avec le serveur, elle n'est pas encore là. "
-    "Sache-le avant de promettre à quelqu'un qu'il aura la sienne."
+    "<b>Ce ne sont pas des comptes : ce sont des noms.</b> Il n'y a ni mot "
+    "de passe ni application séparée — les vendeurs se relaient sur le même "
+    "téléphone, et chacun choisit son nom en prenant la caisse."
+    "<br><br>"
+    "<b>Si chacun a son propre téléphone</b>, c'est possible aussi : chaque "
+    "appareil tient sa caisse, et on réunit les carnets quand on veut. "
+    "Voir <a href=\"#deux-caisses\">deux téléphones dans la même "
+    "boutique</a>."
     "<br><br>"
     "Comme n'importe qui peut choisir n'importe quel nom, le compte du soir "
     "éclaire une journée honnête et permet de comparer dans le temps ; il "
@@ -477,6 +480,56 @@ sections.append(recette(
     "appuie.",
     [('17-rapport-du-soir', 'Ce que le patron voit le soir'),
      ('equipe-07-semaine', 'La même chose sur sept jours')]))
+
+sections.append(recette(
+    'deux-caisses', 'Deux téléphones dans la même boutique',
+    "Deux vendeuses, deux comptoirs, deux téléphones — et un seul commerce.",
+    ["Chacune vend de son côté, même sans réseau, toute la journée.",
+     "Quand tu veux : sur un des deux téléphones, "
+     "<b>Réglages</b> → <b>Sauvegarder ou restaurer</b> → "
+     "<b>Sauvegarder et envoyer</b>. Le fichier part par WhatsApp ou "
+     "Bluetooth.",
+     "Sur l'autre téléphone : <b>Réunir avec une autre caisse</b>, et tu "
+     "ouvres le fichier reçu.",
+     "Refais-le dans l'autre sens, et les deux téléphones voient la même "
+     "chose."],
+    "<b>Rien n'est effacé.</b> C'est toute la différence avec "
+    "<b>Ouvrir un fichier reçu</b>, juste en dessous, qui lui remplace tout. "
+    "Réunir ajoute ce qui manque : les ventes de l'autre caisse, ses "
+    "nouveaux clients, ce qu'ils doivent, les articles qu'elle a nommés. "
+    "Après ça, le catalogue, les ardoises et le stock sont les mêmes des deux "
+    "côtés, et chaque vente garde le nom de celle qui l'a faite."
+    "<br><br>"
+    "<b>Réunis quand tu veux, autant de fois que tu veux.</b> Le soir en "
+    "fermant, ou trois fois dans la journée. Réunir deux fois le même fichier "
+    "ne double rien : l'application reconnaît ce qu'elle a déjà."
+    "<br><br>"
+    "<b>Mets les deux téléphones à la même heure.</b> C'est la seule chose à "
+    "surveiller. L'application classe tout par l'heure ; si un téléphone "
+    "avance de deux heures, les journées se coupent au mauvais endroit et le "
+    "stock peut se tromper. Quand elle voit le décalage, elle te le dit."
+    "<br><br>"
+    "<b>Une seule caisse fait les factures.</b> Si une entreprise te demande "
+    "une vraie facture, fais-la toujours sur le même téléphone. Les numéros "
+    "de facture doivent se suivre sans trou et sans doublon — c'est la loi — "
+    "et deux caisses qui ne se voient pas comptent chacune à partir de un. "
+    "Si ça arrive quand même, l'application te le dit au moment de réunir, en "
+    "donnant les numéros pris deux fois."
+    "<br><br>"
+    "<b>Ce que ça ne fait pas.</b> Rien ne remonte tout seul : c'est un "
+    "fichier, quelqu'un l'envoie, quelqu'un l'ouvre. Et tant que les carnets "
+    "ne sont pas réunis, une caisse ignore ce que l'autre a vendu — deux "
+    "vendeuses peuvent promettre le même dernier sac de riz. Le stock sera "
+    "juste après la réunion, mais personne ne l'aura su sur le moment. C'est "
+    "le prix du hors-ligne, et je le préfère à une caisse qui refuse de "
+    "vendre parce qu'il n'y a pas de réseau."
+    "<br><br>"
+    "<b>Si l'application refuse</b>, elle dit pourquoi et n'a rien touché. Le "
+    "refus le plus sérieux : « les deux carnets ne racontent pas la même "
+    "histoire ». Ça veut dire que le fichier ne vient pas d'un deuxième "
+    "téléphone, mais d'une copie du premier qui a continué à vendre de son "
+    "côté. Les réunir effacerait des ventes réelles.",
+    []))
 
 sections.append(recette(
     'sauvegarde', 'Changer de téléphone, ou se protéger du vol',

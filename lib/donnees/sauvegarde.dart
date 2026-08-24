@@ -13,6 +13,12 @@
 ///
 /// Les réglages voyagent avec, parce qu'ils ne sont pas des événements : le
 /// nom du commerce, les numéros marchands, l'équipe.
+///
+/// Le même fichier sert deux gestes très différents, et il ne faut pas les
+/// confondre. **Restaurer** remplace tout : c'est le geste du téléphone perdu.
+/// **Réunir** ajoute sans rien retirer : c'est le geste des deux caisses
+/// d'une même boutique, qui doivent finir avec le même catalogue, les mêmes
+/// ardoises et le même stock, chacune gardant ses propres ventes.
 library;
 
 import 'dart:convert';
@@ -20,9 +26,11 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../domaine/evenements.dart';
+import '../domaine/numerotation.dart';
 import 'base.dart';
 import 'coffre.dart';
 import 'journal.dart';
+import 'parametres.dart';
 
 /// Numéro de format du fichier.
 ///
@@ -63,12 +71,12 @@ class ResultatRestauration {
   final String? motif;
 
   const ResultatRestauration.reussie(this.evenementsRestaures)
-      : reussie = true,
-        motif = null;
+    : reussie = true,
+      motif = null;
 
   const ResultatRestauration.refusee(this.motif)
-      : reussie = false,
-        evenementsRestaures = 0;
+    : reussie = false,
+      evenementsRestaures = 0;
 }
 
 /// Le fichier de sauvegarde ouvert, prêt à être examiné puis restauré.
@@ -77,11 +85,99 @@ class Sauvegarde {
   final List<Evenement> evenements;
   final Map<String, String> reglages;
 
+  /// Quand chaque réglage a été touché pour la dernière fois.
+  ///
+  /// Une restauration n'en a pas besoin — elle remplace tout. Une réunion,
+  /// si : quand deux caisses portent chacune une valeur pour la même clé, il
+  /// faut départager, et la seule chose qui départage honnêtement, c'est la
+  /// date. Sans elle, la dernière personne à avoir tendu son fichier gagne,
+  /// ce qui n'a rien à voir avec la dernière personne à avoir corrigé l'IFU.
+  ///
+  /// Vide quand le fichier vient d'une version qui ne l'écrivait pas : la
+  /// réunion se replie alors sur « je ne prends que ce qui me manque ».
+  final Map<String, DateTime> reglagesModifies;
+
   const Sauvegarde({
     required this.apercu,
     required this.evenements,
     required this.reglages,
+    this.reglagesModifies = const {},
   });
+}
+
+/// Ce qu'une réunion a ajouté, ou pourquoi elle n'a rien ajouté.
+class ResultatFusion {
+  final bool reussie;
+
+  /// Écritures reçues qui n'étaient pas déjà là.
+  final int evenementsAjoutes;
+
+  /// Les caisses dont des écritures sont arrivées.
+  final List<String> caissesRecues;
+
+  /// Réglages repris du fichier — ceux qui manquaient, et ceux que l'autre
+  /// téléphone avait corrigés plus récemment.
+  final int reglagesAdoptes;
+
+  /// De combien l'autre téléphone est en avance sur celui-ci, quand ça se
+  /// voit. Nul quand les deux horloges s'accordent.
+  ///
+  /// Ça ne bloque rien — la réunion se fait quand même — mais il faut le
+  /// dire : les projections se rejouent dans l'ordre des horodatages, et
+  /// deux téléphones qui ne sont pas à la même heure rejouent dans un ordre
+  /// qui n'est pas celui des faits. Une déclaration de stock peut alors
+  /// passer après une vente qui l'a précédée, et le stock affiché se met à
+  /// mentir. Les journées et les rapports Z se coupent au mauvais endroit
+  /// pour la même raison.
+  ///
+  /// Seule l'avance se détecte : un fichier ne peut pas avoir été écrit
+  /// après maintenant. Un téléphone en retard ressemble à un fichier ancien,
+  /// et rien ne les distingue.
+  final Duration? decalageHorloge;
+
+  /// En deçà, ça ne vaut pas la peine d'en parler : les rapports se comptent
+  /// par journée, et quelques minutes ne déplacent rien.
+  static const seuilDecalage = Duration(minutes: 5);
+
+  /// Les références de facture que les deux caisses ont attribuées chacune de
+  /// son côté au même numéro.
+  ///
+  /// La note de service impose une série **ascendante et ininterrompue par
+  /// année**, une référence par facture (§2.18). Or chaque caisse calcule son
+  /// rang suivant dans son propre journal : deux caisses hors réseau qui
+  /// facturent le même jour sortent toutes les deux `FV-2026-000001`, et la
+  /// réunion des carnets ne peut pas les renuméroter — le journal ne se
+  /// réécrit pas, et le client est déjà reparti avec sa facture.
+  ///
+  /// Je ne bloque donc pas la réunion : les deux factures existent déjà dans
+  /// le monde, refuser ne les défait pas, et refuser cacherait le problème
+  /// au lieu de le montrer. Je le dis, et fort. La règle qui va avec tient en
+  /// une ligne : **une seule caisse fait les factures.**
+  final List<String> facturesEnDouble;
+
+  final String? motif;
+
+  const ResultatFusion.reussie({
+    required this.evenementsAjoutes,
+    required this.caissesRecues,
+    required this.reglagesAdoptes,
+    this.decalageHorloge,
+    this.facturesEnDouble = const [],
+  }) : reussie = true,
+       motif = null;
+
+  const ResultatFusion.refusee(this.motif)
+    : reussie = false,
+      evenementsAjoutes = 0,
+      caissesRecues = const [],
+      reglagesAdoptes = 0,
+      decalageHorloge = null,
+      facturesEnDouble = const [];
+
+  /// Vrai quand la réunion a marché mais que les deux caisses étaient déjà
+  /// à jour l'une de l'autre. Ce n'est pas un échec, et l'écran ne doit pas
+  /// le présenter comme tel.
+  bool get rienDeNouveau => reussie && evenementsAjoutes == 0;
 }
 
 /// Lecture et écriture du fichier de sauvegarde.
@@ -122,7 +218,10 @@ class Sauvegardes {
     DateTime? quand,
     String? motDePasse,
   }) async {
-    final clair = await _composerEnClair(nomCommerce: nomCommerce, quand: quand);
+    final clair = await _composerEnClair(
+      nomCommerce: nomCommerce,
+      quand: quand,
+    );
     if (motDePasse == null || motDePasse.isEmpty) return clair;
 
     return Coffre.fermer(
@@ -148,7 +247,10 @@ class Sauvegardes {
     return clair == null ? null : ouvrir(clair);
   }
 
-  Future<String> _composerEnClair({String? nomCommerce, DateTime? quand}) async {
+  Future<String> _composerEnClair({
+    String? nomCommerce,
+    DateTime? quand,
+  }) async {
     final evenements = await journal.tous();
     final lignes = await base.select(base.reglages).get();
 
@@ -159,6 +261,14 @@ class Sauvegardes {
       'faiteLe': (quand ?? DateTime.now()).toIso8601String(),
       'nomCommerce': nomCommerce ?? '',
       'reglages': {for (final ligne in lignes) ligne.cle: ligne.valeur},
+      // Une clé en plus, pas un format en plus : une application ancienne
+      // relit le fichier sans la voir, une récente s'en sert pour départager
+      // deux caisses. Changer le numéro de format aurait rendu tous les
+      // fichiers d'aujourd'hui illisibles par les téléphones d'hier.
+      'reglagesModifies': {
+        for (final ligne in lignes)
+          ligne.cle: ligne.modifieLe.toIso8601String(),
+      },
       'evenements': [
         for (final evenement in evenements)
           {
@@ -170,7 +280,7 @@ class Sauvegardes {
             'charge': evenement.charge,
             'empreinte': evenement.empreinte,
             'empreintePrecedente': evenement.empreintePrecedente,
-          }
+          },
       ],
     });
   }
@@ -212,12 +322,23 @@ class Sauvegardes {
       });
     }
 
+    final reglagesModifies = <String, DateTime>{};
+    final brutModifies = brut['reglagesModifies'];
+    if (brutModifies is Map) {
+      brutModifies.forEach((cle, valeur) {
+        if (cle is! String || valeur is! String) return;
+        final quand = DateTime.tryParse(valeur);
+        if (quand != null) reglagesModifies[cle] = quand;
+      });
+    }
+
     final dates = [for (final e in evenements) e.horodatage]..sort();
 
     return Sauvegarde(
       apercu: ApercuSauvegarde(
         nomCommerce: brut['nomCommerce'] as String? ?? '',
-        faiteLe: DateTime.tryParse(brut['faiteLe'] as String? ?? '') ??
+        faiteLe:
+            DateTime.tryParse(brut['faiteLe'] as String? ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0),
         nombreEvenements: evenements.length,
         version: brut['version'] as String? ?? '?',
@@ -226,6 +347,7 @@ class Sauvegardes {
       ),
       evenements: evenements,
       reglages: reglages,
+      reglagesModifies: reglagesModifies,
     );
   }
 
@@ -235,10 +357,10 @@ class Sauvegardes {
   /// contrôler ensuite reviendrait à détruire des données en place pour
   /// découvrir que le fichier était abîmé.
   ///
-  /// Une restauration écrase. Ce n'est pas une fusion : deux journaux qui se
-  /// mélangeraient donneraient des doublons de ventes, et un commerçant ne
-  /// pourrait plus démêler lesquelles sont réelles. La fusion viendra avec la
-  /// synchronisation, où chaque appareil garde sa propre chaîne.
+  /// Une restauration écrase, et c'est voulu : c'est le geste du téléphone
+  /// perdu, où ce qui est en place ne vaut rien. Pour deux caisses qui
+  /// travaillent en même temps, ce geste est le mauvais — il effacerait les
+  /// ventes de celle qui reçoit. C'est [fusionner] qu'il faut.
   Future<ResultatRestauration> restaurer(Sauvegarde sauvegarde) async {
     if (sauvegarde.evenements.isEmpty) {
       return const ResultatRestauration.refusee(
@@ -277,7 +399,7 @@ class Sauvegardes {
               charge: evenement.chargeJson,
               empreinte: evenement.empreinte,
               empreintePrecedente: Value(evenement.empreintePrecedente),
-            )
+            ),
         ]);
         lot.insertAll(base.reglages, [
           for (final entree in sauvegarde.reglages.entries)
@@ -285,12 +407,282 @@ class Sauvegardes {
               cle: entree.key,
               valeur: entree.value,
               modifieLe: DateTime.now(),
-            )
+            ),
         ]);
       });
     });
 
     return ResultatRestauration.reussie(sauvegarde.evenements.length);
+  }
+
+  /// Réunit le carnet d'une autre caisse à celui-ci, sans rien effacer.
+  ///
+  /// C'est la réponse à une boutique qui a deux vendeuses, deux téléphones,
+  /// et un seul commerce. Chacune encaisse de son côté — y compris hors
+  /// réseau, y compris toute la journée — puis on réunit les deux le soir.
+  /// Les deux téléphones finissent avec le même catalogue, les mêmes
+  /// ardoises, le même stock et **toutes** les ventes des deux.
+  ///
+  /// Ça marche sans serveur parce que le journal a été bâti pour : les
+  /// empreintes se chaînent **par appareil**, pas à travers tout le journal.
+  /// Deux caisses qui écrivent en même temps ne se marchent donc pas dessus,
+  /// et réunir leurs journaux revient à poser deux chaînes côte à côte — pas
+  /// à en recoudre une seule, ce qui serait impossible sans arbitre commun.
+  ///
+  /// L'échange reste **manuel** : un fichier qui passe par WhatsApp, par
+  /// Bluetooth ou par une carte mémoire, et quelqu'un qui l'ouvre ici. Ce
+  /// n'est pas une synchronisation automatique, et je préfère le dire que le
+  /// laisser croire : personne ne remonte rien tout seul.
+  ///
+  /// Trois refus, tous avant la moindre écriture :
+  ///
+  /// * le fichier est vide — il n'y a rien à réunir ;
+  /// * une chaîne reçue ne tient pas debout — le fichier a été abîmé ;
+  /// * les deux carnets se contredisent sur une même caisse — deux
+  ///   téléphones portent le même nom d'appareil et n'ont pas écrit la même
+  ///   chose. Réunir effacerait des ventes réelles, donc on ne réunit pas.
+  ///
+  /// Les projections ne sont pas touchées ici : l'appelant enchaîne sur
+  /// `reconstruireProjections()`, comme après une restauration.
+  Future<ResultatFusion> fusionner(Sauvegarde autre) async {
+    if (autre.evenements.isEmpty) {
+      return const ResultatFusion.refusee(
+        "Ce fichier ne porte aucune écriture : il n'y a rien à réunir.",
+      );
+    }
+
+    // Chaque caisse reçue doit tenir debout toute seule, avant qu'on écrive
+    // quoi que ce soit.
+    final recues = <String, List<Evenement>>{};
+    for (final evenement in autre.evenements) {
+      recues.putIfAbsent(evenement.appareil, () => []).add(evenement);
+    }
+    for (final chaine in recues.values) {
+      chaine.sort((a, b) => a.sequence.compareTo(b.sequence));
+      final verification = Journal.verifierChaine(chaine);
+      if (!verification.intact) {
+        return ResultatFusion.refusee(
+          'Ce fichier a été abîmé ou modifié : ${verification.motif}',
+        );
+      }
+    }
+
+    // Et aucune ne doit contredire ce qui est déjà là.
+    final aEcrire = <Evenement>[];
+    final caissesRecues = <String>[];
+
+    for (final entree in recues.entries) {
+      final ici = await journal.chaine(entree.key);
+      final connues = {for (final evenement in ici) evenement.sequence};
+      final empreintes = {
+        for (final evenement in ici) evenement.sequence: evenement.empreinte,
+      };
+
+      var nouveaux = 0;
+      for (final evenement in entree.value) {
+        if (!connues.contains(evenement.sequence)) {
+          aEcrire.add(evenement);
+          nouveaux++;
+          continue;
+        }
+        if (empreintes[evenement.sequence] != evenement.empreinte) {
+          return ResultatFusion.refusee(
+            'Les deux carnets ne racontent pas la même histoire pour la '
+            'caisse « ${entree.key} ». Les réunir effacerait des ventes '
+            "réelles : rien n'a été touché.",
+          );
+        }
+      }
+      if (nouveaux > 0) caissesRecues.add(entree.key);
+    }
+
+    final reglages = await _reglagesAAdopter(autre);
+    final decalage = _decalage(autre);
+    final doublons = await _facturesEnDouble(aEcrire);
+
+    if (aEcrire.isEmpty && reglages.isEmpty) {
+      return ResultatFusion.reussie(
+        evenementsAjoutes: 0,
+        caissesRecues: const [],
+        reglagesAdoptes: 0,
+        decalageHorloge: decalage,
+      );
+    }
+
+    caissesRecues.sort();
+
+    await base.transaction(() async {
+      if (aEcrire.isNotEmpty) {
+        await base.batch((lot) {
+          lot.insertAll(
+            base.evenements,
+            [
+              for (final evenement in aEcrire)
+                EvenementsCompanion.insert(
+                  id: evenement.id,
+                  appareil: evenement.appareil,
+                  sequence: evenement.sequence,
+                  horodatage: evenement.horodatage,
+                  type: evenement.type.cle,
+                  charge: evenement.chargeJson,
+                  empreinte: evenement.empreinte,
+                  empreintePrecedente: Value(evenement.empreintePrecedente),
+                ),
+            ],
+            // Le même fichier réuni deux fois ne doit pas casser. Les
+            // événements déjà là ont été comparés empreinte par empreinte
+            // juste au-dessus : les réécrire à l'identique ne change rien.
+            mode: InsertMode.insertOrIgnore,
+          );
+        });
+      }
+
+      for (final entree in reglages.entries) {
+        await base
+            .into(base.reglages)
+            .insertOnConflictUpdate(
+              ReglagesCompanion.insert(
+                cle: entree.key,
+                valeur: entree.value.$1,
+                modifieLe: entree.value.$2,
+              ),
+            );
+      }
+
+      // La trace de la réunion, écrite sur la chaîne de cette caisse-ci.
+      //
+      // Seulement quand quelque chose est arrivé : sans ce garde-fou, deux
+      // téléphones qui se réunissent à tour de rôle s'échangeraient des
+      // événements de réunion sans fin, chacun réagissant à celui de l'autre.
+      if (aEcrire.isNotEmpty) {
+        await journal.ajouter(TypeEvenement.journalFusionne, {
+          'caisses': caissesRecues,
+          'ajoutes': aEcrire.length,
+          'reglages': reglages.length,
+        });
+      }
+    });
+
+    return ResultatFusion.reussie(
+      evenementsAjoutes: aEcrire.length,
+      caissesRecues: caissesRecues,
+      reglagesAdoptes: reglages.length,
+      decalageHorloge: decalage,
+      facturesEnDouble: doublons,
+    );
+  }
+
+  /// Les références qu'une facture d'ici et une facture d'ailleurs se
+  /// disputent.
+  ///
+  /// Comparées par (type, année, rang), c'est-à-dire par ce qui est imprimé
+  /// sur le papier, et rapportées à la vente couverte : la même facture reçue
+  /// deux fois n'est pas un doublon, deux ventes différentes sous le même
+  /// numéro en sont un.
+  Future<List<String>> _facturesEnDouble(List<Evenement> recus) async {
+    final ventesParReference = <String, Set<String>>{};
+
+    void poser(Evenement evenement) {
+      final reference = ReferenceFacture(
+        type: evenement.charge['type']! as String,
+        annee: evenement.charge['annee']! as int,
+        rang: evenement.charge['rang']! as int,
+      ).texte;
+      final vente = evenement.charge['venteId'] as String? ?? evenement.id;
+      ventesParReference.putIfAbsent(reference, () => <String>{}).add(vente);
+    }
+
+    for (final evenement in await journal.parType(TypeEvenement.factureEmise)) {
+      poser(evenement);
+    }
+    for (final evenement in recus) {
+      if (evenement.type == TypeEvenement.factureEmise) poser(evenement);
+    }
+
+    final doubles = [
+      for (final entree in ventesParReference.entries)
+        if (entree.value.length > 1) entree.key,
+    ]..sort();
+    return doubles;
+  }
+
+  /// De combien l'autre téléphone avance sur celui-ci.
+  ///
+  /// On regarde deux choses : la date d'écriture du fichier, et son dernier
+  /// événement. Ni l'une ni l'autre ne peut se situer après maintenant. Ce
+  /// qui dépasse est de l'avance, et c'est l'horloge de l'autre appareil.
+  static Duration? _decalage(Sauvegarde autre) {
+    final maintenant = DateTime.now();
+    var avance = Duration.zero;
+
+    for (final quand in [autre.apercu.faiteLe, autre.apercu.dernierEvenement]) {
+      if (quand == null) continue;
+      final ecart = quand.difference(maintenant);
+      if (ecart > avance) avance = ecart;
+    }
+
+    return avance < ResultatFusion.seuilDecalage ? null : avance;
+  }
+
+  /// Les réglages à reprendre du fichier, avec la date à leur donner.
+  ///
+  /// Trois traitements, parce que les réglages ne sont pas tous de la même
+  /// nature :
+  ///
+  /// * ceux qui décrivent **ce téléphone-ci** ne bougent jamais — voir
+  ///   [Parametres.clesPropresAuTelephone] ;
+  /// * l'**équipe** prend l'union des deux listes. C'est le seul réglage où
+  ///   choisir un camp serait faux : une boutique qui a embauché sur un
+  ///   téléphone et sur l'autre a bien tous ces vendeurs-là ;
+  /// * le **reste** revient au plus récent des deux. À défaut de date dans le
+  ///   fichier, on ne prend que ce qui manque ici : un fichier ancien ne doit
+  ///   pas écraser une correction d'aujourd'hui.
+  Future<Map<String, (String, DateTime)>> _reglagesAAdopter(
+    Sauvegarde autre,
+  ) async {
+    final lignes = await base.select(base.reglages).get();
+    final ici = {for (final ligne in lignes) ligne.cle: ligne};
+    final aPoser = <String, (String, DateTime)>{};
+
+    for (final entree in autre.reglages.entries) {
+      final cle = entree.key;
+      if (Parametres.clesPropresAuTelephone.contains(cle)) continue;
+      if (cle == Parametres.cleVendeurs) continue;
+
+      final quand = autre.reglagesModifies[cle] ?? DateTime.now();
+      final present = ici[cle];
+      if (present == null) {
+        aPoser[cle] = (entree.value, quand);
+        continue;
+      }
+      if (present.valeur == entree.value) continue;
+      if (autre.reglagesModifies[cle] case final datee?
+          when datee.isAfter(present.modifieLe)) {
+        aPoser[cle] = (entree.value, datee);
+      }
+    }
+
+    final equipe = _vendeurs(ici[Parametres.cleVendeurs]?.valeur);
+    final avant = equipe.length;
+    for (final nom in _vendeurs(autre.reglages[Parametres.cleVendeurs])) {
+      if (!equipe.contains(nom)) equipe.add(nom);
+    }
+    if (equipe.length > avant) {
+      aPoser[Parametres.cleVendeurs] = (
+        equipe.join(Parametres.separateurVendeurs),
+        DateTime.now(),
+      );
+    }
+
+    return aPoser;
+  }
+
+  static List<String> _vendeurs(String? valeur) {
+    if (valeur == null) return [];
+    return [
+      for (final nom in valeur.split(Parametres.separateurVendeurs))
+        if (nom.trim().isNotEmpty) nom.trim(),
+    ];
   }
 
   /// Un événement du fichier, ou `null` si la ligne est inexploitable.
@@ -333,7 +725,7 @@ class Sauvegardes {
       horodatage: horodatage,
       type: lu,
       charge: {
-        for (final entree in charge.entries) '${entree.key}': entree.value
+        for (final entree in charge.entries) '${entree.key}': entree.value,
       },
       empreinte: empreinte,
       empreintePrecedente: ligne['empreintePrecedente'] as String?,

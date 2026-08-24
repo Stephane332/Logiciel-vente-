@@ -84,15 +84,30 @@ enum TypeEvenement {
   /// identiques à maintenir.
   clotureTiree('cloture_tiree'),
 
-  ventecertifiee('vente_certifiee');
+  ventecertifiee('vente_certifiee'),
+
+  /// Le journal d'une autre caisse a été réuni à celui-ci.
+  ///
+  /// Deux caisses de la même boutique tiennent chacune sa propre chaîne
+  /// d'empreintes et écrivent chacune ses ventes. Les réunir n'ajoute aucun
+  /// fait de commerce : les ventes reçues portent déjà les leurs. Cet
+  /// événement n'existe donc que pour dire **quand** les données d'une autre
+  /// caisse sont arrivées ici, et combien.
+  ///
+  /// C'est ce que réclame la question du patron le jour où un total ne
+  /// correspond pas : « la caisse de la deuxième vendeuse, elle est remontée
+  /// quand ? ». Sans trace de la réunion, la réponse se devine.
+  ///
+  /// Il ne touche aucune projection — la rejouer ne fait rien.
+  journalFusionne('journal_fusionne');
 
   final String cle;
   const TypeEvenement(this.cle);
 
   static TypeEvenement parCle(String cle) => values.firstWhere(
-        (t) => t.cle == cle,
-        orElse: () => throw ArgumentError("Type d'événement inconnu : $cle"),
-      );
+    (t) => t.cle == cle,
+    orElse: () => throw ArgumentError("Type d'événement inconnu : $cle"),
+  );
 }
 
 /// Un événement du journal, tel qu'il est écrit et relu.

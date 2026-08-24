@@ -214,5 +214,24 @@ const constat = (quoi, vrai) => {
   await pause(p, 2000);
   constat('la sauvegarde sort bien un fichier', !!(await telecharge));
 
+  // --- Réunir deux caisses.
+  //
+  // Le geste qui suit ouvre un sélecteur de fichier du système : il ne se
+  // pilote pas ici. Ce que je vérifie, c'est ce que l'écran promet — et
+  // surtout qu'il ne promet pas la même chose que la restauration, qui est
+  // juste en dessous et qui, elle, efface tout.
+  await p.mouse.move(TEL.width / 2, TEL.height / 2);
+  await p.mouse.wheel(0, 700);
+  await pause(p, 900);
+  constat('la réunion des caisses a sa propre section',
+    await present(p, 'Deux caisses, une boutique', { exact: false }));
+  constat("elle promet de ne rien effacer",
+    await present(p, "Rien n'est effacé", { exact: false }));
+  constat('le bouton est là',
+    await present(p, 'Réunir avec une autre caisse', { exact: false }));
+  constat('la restauration dit le contraire, juste en dessous',
+    await present(p, 'remplace tout ce qui est là', { exact: false }));
+  await capture(p, 'carnet-08-reunir');
+
   await n.close();
 })();

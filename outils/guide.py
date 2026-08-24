@@ -212,6 +212,49 @@ près. C'est écrit dans mon protocole de vérification, avant la première
 installation.</p>
 """, [('carnet-07-sauvegarde', "Sauvegarder, et sortir le fichier")]))
 
+sections.append(bloc('Deux caisses dans la même boutique, sans serveur', """
+<p>Une boutique qui marche a rarement un seul téléphone. Deux vendeuses, deux
+comptoirs, parfois le patron qui encaisse aussi. Chacune tient sa caisse, mais
+le commerce est un seul : le catalogue, les ardoises et le stock doivent être
+les mêmes partout.</p>
+<p>Ça marche <b>sans serveur</b>, et ce n'est pas un tour de passe-passe : le
+journal a été bâti pour. Les empreintes se chaînent <b>par appareil</b>, pas à
+travers tout le journal. Deux caisses qui écrivent en même temps hors réseau ne
+peuvent pas se marcher dessus, parce qu'elles n'écrivent jamais dans la même
+chaîne. Réunir deux carnets revient alors à poser deux chaînes côte à côte —
+pas à en recoudre une seule, ce qui demanderait un arbitre commun.</p>
+<p>Le geste : <b>Sauvegarde → Réunir avec une autre caisse</b>, et on ouvre le
+fichier de l'autre appareil, reçu par WhatsApp ou Bluetooth. Les écritures qui
+manquent s'ajoutent, le reste est reconnu et ignoré. <b>Rien n'est effacé</b> —
+c'est toute la différence avec une restauration, qui elle remplace tout, et
+c'est pour ça que les deux gestes ne se ressemblent ni par la place, ni par les
+mots, ni par la couleur.</p>
+<p>L'application refuse dans trois cas, et toujours avant d'écrire quoi que ce
+soit : le fichier est vide, une chaîne reçue ne se vérifie plus, ou les deux
+carnets se contredisent sur une même caisse. Ce dernier refus est le plus
+important : il veut dire que le fichier ne vient pas d'un deuxième téléphone
+mais d'une copie du premier qui a continué à vendre de son côté. Les réunir
+effacerait des ventes réelles.</p>
+<p>Une règle vient avec, et elle n'est pas négociable : <b>une seule caisse
+fait les factures</b>. Chaque caisse calcule son rang suivant dans son propre
+journal, donc deux caisses hors réseau sortent toutes les deux
+<code>FV-2026-000001</code>. La note de service impose une série ascendante et
+ininterrompue, une référence par facture. Je ne peux pas renuméroter à la
+réunion — le journal ne se réécrit pas, et le client est déjà parti avec son
+papier. Je détecte donc le doublon au moment de réunir, je donne les numéros
+concernés, et je ne bloque pas : les deux factures existent déjà dans le monde,
+refuser la réunion ne les défait pas, ça les cacherait. La sortie propre est une
+facture d'avoir.</p>
+<p class="note">Deux limites, que je préfère écrire que laisser découvrir.
+L'échange est <b>manuel</b> : un fichier, quelqu'un qui l'envoie, quelqu'un qui
+l'ouvre. Rien ne remonte tout seul, et la vue temps réel du patron attend
+toujours le serveur. Et les <b>horloges doivent s'accorder</b> : tout se rejoue
+dans l'ordre des horodatages, donc un téléphone qui avance de deux heures coupe
+les journées au mauvais endroit. L'application détecte l'appareil en avance et
+le dit ; celui qui retarde ressemble à un vieux fichier, et rien ne les
+distingue.</p>
+""", []))
+
 sections.append(bloc('Vendre un carton sans compter les appuis', """
 <p>Douze sachets d'eau, c'était douze appuis, pendant que le client regarde.</p>
 <p>Un <b>appui long</b> sur un article ouvre les conditionnements courants — la
@@ -386,9 +429,10 @@ sections.append(bloc("Ce qui n'existe pas encore", """
   attente qui n'existe pas.</li>
   <li><b>L'impression Bluetooth.</b> Il faut une imprimante 58 mm en main pour
   l'écrire : le jeu de caractères se vérifie sur du papier, pas dans un test.</li>
-  <li><b>La synchronisation et la console du patron à distance.</b> Tout vit sur
-  le téléphone. La sauvegarde exportable est là, le serveur non — et c'était
-  bien l'ordre à tenir.</li>
+  <li><b>La synchronisation automatique et la console du patron à
+  distance.</b> Deux téléphones de la même boutique se réunissent, mais par un
+  fichier qu'on porte à la main. Rien ne remonte tout seul, et voir ses trois
+  boutiques depuis chez soi attend toujours le serveur.</li>
   <li><b>La facturation certifiée.</b> Le modèle de données suit déjà le
   vocabulaire de la DGI, mais le dialogue avec le module de contrôle n'est pas
   écrit — et le protocole reste à obtenir.</li>

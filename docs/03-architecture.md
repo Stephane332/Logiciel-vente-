@@ -116,10 +116,74 @@ toujours la même teinte, ce qui permet de le reconnaître d'un coup d'œil sans
 chargée depuis le réseau. Le rendu doit être identique sur Android et sur iPhone, et
 fonctionner hors ligne comme le reste de l'application.
 
-## Synchronisation
+## Plusieurs caisses dans la même boutique
 
-Le principe est simple et volontairement peu bavard, parce que la bande passante est chère
-et rare.
+Une boutique qui marche a rarement un seul téléphone. Deux vendeuses, deux comptoirs,
+parfois le patron qui encaisse aussi. Chacune tient sa caisse et ses ventes, mais le
+commerce est un seul : le catalogue, les ardoises et le stock doivent être les mêmes
+partout.
+
+### Ce qui marche aujourd'hui, sans serveur
+
+Chaque téléphone tient sa propre chaîne d'empreintes. C'est le choix qui rend tout le
+reste possible : les empreintes se chaînent **par appareil**, pas à travers tout le
+journal. Deux caisses qui écrivent en même temps hors réseau ne peuvent pas se marcher
+dessus, parce qu'elles n'écrivent jamais dans la même chaîne.
+
+Réunir deux carnets revient alors à poser deux chaînes côte à côte — pas à en recoudre
+une seule, ce qui demanderait un arbitre commun, donc un serveur.
+
+Le geste, sur le téléphone : **Sauvegarde → Réunir avec une autre caisse**. On ouvre le
+fichier `.carnet` de l'autre appareil, reçu par WhatsApp, par Bluetooth ou sur une carte
+mémoire. Les écritures qui manquent s'ajoutent, les projections se refabriquent, et les
+deux téléphones voient la même chose. Rien n'est effacé — c'est toute la différence avec
+une restauration, qui elle remplace tout.
+
+Trois refus, tous prononcés avant la moindre écriture :
+
+- le fichier est vide ;
+- une chaîne reçue ne se vérifie pas — le fichier a été abîmé ou modifié ;
+- les deux carnets se contredisent sur une même caisse. Deux téléphones portent alors le
+  même identifiant d'appareil et ont écrit chacun leur propre séquence. Réunir effacerait
+  des ventes réelles, donc je refuse.
+
+Les réglages voyagent avec, mais pas tous de la même façon. La liste de l'équipe prend
+l'**union** des deux téléphones. Ce qui décrit *cet appareil-ci* ne bouge jamais : qui
+tient cette caisse, le code du patron sur ce téléphone, la date de sa dernière
+sauvegarde. Le reste revient au plus récent des deux, en s'appuyant sur la date de
+modification que le fichier transporte désormais.
+
+### Ce que ça ne fait pas, et il faut le dire
+
+**L'échange est manuel.** Un fichier, quelqu'un qui l'envoie, quelqu'un qui l'ouvre.
+Rien ne remonte tout seul. Pour une boutique qui réunit ses caisses le soir, c'est
+suffisant ; pour un patron qui veut voir ses trois boutiques en temps réel, non.
+
+**Les horloges doivent s'accorder.** Le rejeu suit l'ordre des horodatages. Deux
+téléphones qui ne sont pas à la même heure rejouent dans un ordre qui n'est pas celui des
+faits : un stock déclaré peut repasser par-dessus une vente qui l'a précédé, et les
+journées se coupent au mauvais endroit. L'application détecte l'appareil **en avance** —
+un fichier ne peut pas avoir été écrit après maintenant — et le dit. Un appareil en
+retard ressemble à un vieux fichier, et rien ne les distingue.
+
+**Une seule caisse fait les factures.** Chaque appareil calcule le rang suivant de sa
+série dans son propre journal ; deux caisses hors réseau émettent donc toutes les deux
+`FV-2026-000001`, ce que le §2.18 interdit. La réunion ne peut pas renuméroter — le
+journal ne se réécrit pas, et le papier est déjà chez le client — alors elle **détecte le
+doublon et le nomme**, sans bloquer : les deux factures existent déjà, refuser la réunion
+les cacherait au lieu de les corriger. La sortie propre est une facture d'avoir. Une
+numérotation par caisse réglerait le problème à la source, mais le format de la référence
+dépend du protocole MCF que je n'ai pas encore : je ne l'invente pas.
+
+**Il n'y a pas de verrou entre deux caisses.** Deux vendeuses peuvent vendre le dernier
+sac de riz en même temps. Le stock sera juste après la réunion — il descendra de deux —
+mais personne n'aura été prévenu sur le moment. C'est le prix du hors-ligne, et je le
+préfère à une caisse qui refuse de vendre parce qu'elle n'a pas de réseau.
+
+### Ce qui viendra avec le serveur
+
+Le même journal, la même forme d'événements, envoyés en continu au lieu d'être portés à
+la main :
 
 1. Toute opération produit un **événement** écrit dans le journal local, avec un
    identifiant, un horodatage et l'identifiant de l'appareil.
@@ -128,6 +192,10 @@ et rare.
 4. Le serveur applique les événements, les ordonne, et renvoie ceux que l'appareil n'a pas.
 5. Les conflits se résolvent par entité, en s'appuyant sur l'horodatage et l'appareil
    émetteur. Les événements de vente ne sont jamais en conflit : ils s'additionnent.
+
+C'est la même opération que la réunion par fichier, faite automatiquement et dans les
+deux sens. Le serveur apportera aussi l'heure de référence, qui réglera le décalage
+d'horloges, et la vue temps réel du patron.
 
 Un appareil doit pouvoir rester des semaines hors ligne sans rien perdre.
 

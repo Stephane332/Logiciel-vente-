@@ -7,6 +7,12 @@
 /// L'écran dit donc deux choses et pas une : faire une sauvegarde, et
 /// **la sortir du téléphone**. Un fichier qui reste sur l'appareil disparaît
 /// avec lui — c'est la moitié qu'on oublie, et c'est celle qui sauve.
+///
+/// Le même fichier sert un troisième geste, et l'écran doit le séparer très
+/// nettement des deux autres : **réunir** deux caisses de la même boutique.
+/// Restaurer remplace tout ; réunir n'enlève rien. Une vendeuse qui se
+/// tromperait de bouton effacerait sa journée, donc les deux gestes ne se
+/// ressemblent ni par la place, ni par les mots, ni par la couleur.
 library;
 
 import 'package:flutter/material.dart';
@@ -46,13 +52,15 @@ class EcranSauvegardes extends StatefulWidget {
     required String nomCommerce,
     Parametres? parametres,
   }) async =>
-      await Navigator.of(context).push<bool>(MaterialPageRoute(
-        builder: (_) => EcranSauvegardes(
-          depot: depot,
-          nomCommerce: nomCommerce,
-          parametres: parametres,
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => EcranSauvegardes(
+            depot: depot,
+            nomCommerce: nomCommerce,
+            parametres: parametres,
+          ),
         ),
-      )) ??
+      ) ??
       false;
 
   @override
@@ -78,6 +86,19 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
   /// Vrai dès qu'une restauration a eu lieu : l'appelant doit tout relire.
   bool _restaure = false;
 
+  /// Vrai quand le téléphone ne dit pas ce qu'il a dans son dossier.
+  ///
+  /// Ça arrive — stockage plein, dossier perdu, permission retirée par une
+  /// mise à jour du système, carte mémoire qui met dix secondes à répondre.
+  /// L'écran doit alors s'afficher quand même : les boutons qui sortent le
+  /// carnet du téléphone sont justement ceux dont on a le plus besoin ce
+  /// jour-là. Rester sur un rond qui tourne, c'est fermer la porte de secours
+  /// au moment où on y frappe.
+  bool _listeIllisible = false;
+
+  /// Au-delà, on n'attend plus le stockage et on affiche la page.
+  static const _patience = Duration(seconds: 3);
+
   @override
   void initState() {
     super.initState();
@@ -88,14 +109,21 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
     // On compte, on ne relit pas : l'écran n'affiche qu'un nombre, et tout
     // relire pour en connaître la longueur charge une année de ventes en
     // mémoire à chaque ouverture.
-    final (fichiers, evenements) = await (
-      sauvegardesLocales(),
-      widget.depot.journal.nombreDepuis(null),
-    ).wait;
+    final evenements = await widget.depot.journal.nombreDepuis(null);
+
+    var fichiers = const <FichierSauvegarde>[];
+    var illisible = false;
+    try {
+      fichiers = await sauvegardesLocales().timeout(_patience);
+    } catch (_) {
+      illisible = true;
+    }
+
     if (!mounted) return;
     setState(() {
       _fichiers = fichiers;
       _evenements = evenements;
+      _listeIllisible = illisible;
       _chargement = false;
     });
   }
@@ -104,12 +132,14 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: alerte ? Couleurs.alerte : null,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: alerte ? 6 : 4),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: alerte ? Couleurs.alerte : null,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: alerte ? 6 : 4),
+        ),
+      );
   }
 
   /// Demande un mot de passe. `null` si le commerçant renonce.
@@ -149,8 +179,9 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
             child: const Text('Annuler'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(contexte).pop(
-                saisie.text.isEmpty ? null : saisie.text),
+            onPressed: () => Navigator.of(
+              contexte,
+            ).pop(saisie.text.isEmpty ? null : saisie.text),
             child: Text(pourFermer ? 'Protéger' : 'Ouvrir'),
           ),
         ],
@@ -220,8 +251,10 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
 
       sauvegarde = await Sauvegardes.ouvrirAvec(contenu, motDePasse);
       if (sauvegarde == null) {
-        _dire('Mot de passe refusé, ou fichier abîmé. Rien n’a été touché.',
-            alerte: true);
+        _dire(
+          'Mot de passe refusé, ou fichier abîmé. Rien n’a été touché.',
+          alerte: true,
+        );
         return;
       }
     } else {
@@ -254,6 +287,203 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
     }
   }
 
+  /// Réunit le carnet d'une autre caisse à celui-ci.
+  ///
+  /// Le chemin est le même que pour une restauration jusqu'à l'ouverture du
+  /// fichier — c'est le même format — et tout diffère ensuite : la question
+  /// posée, l'écriture, et ce qu'on dit à la fin.
+  Future<void> _reunir() async {
+    if (_occupe) return;
+
+    final contenu = await choisirSauvegarde();
+    if (contenu == null || contenu.isEmpty) return;
+
+    final Sauvegarde? sauvegarde;
+    if (Sauvegardes.estChiffree(contenu)) {
+      if (!mounted) return;
+      final motDePasse = await _demanderMotDePasse();
+      if (motDePasse == null) return;
+
+      sauvegarde = await Sauvegardes.ouvrirAvec(contenu, motDePasse);
+      if (sauvegarde == null) {
+        _dire(
+          'Mot de passe refusé, ou fichier abîmé. Rien n’a été touché.',
+          alerte: true,
+        );
+        return;
+      }
+    } else {
+      sauvegarde = Sauvegardes.ouvrir(contenu);
+      if (sauvegarde == null) {
+        _dire("Ce fichier n'est pas une sauvegarde de Carnet.", alerte: true);
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    final confirme = await _confirmerReunion(sauvegarde.apercu);
+    if (confirme != true) return;
+
+    setState(() => _occupe = true);
+    try {
+      final resultat = await _sauvegardes.fusionner(sauvegarde);
+      if (!resultat.reussie) {
+        _dire(resultat.motif!, alerte: true);
+        return;
+      }
+
+      if (resultat.rienDeNouveau) {
+        _dire('Les deux caisses étaient déjà à jour. Rien à ajouter.');
+        return;
+      }
+
+      await widget.depot.reconstruireProjections();
+      // Tout ce que l'écran précédent affichait est périmé : il y a des
+      // ventes, des clients et du stock en plus.
+      _restaure = true;
+      await _relire();
+      _dire(
+        'Caisses réunies · ${resultat.evenementsAjoutes} écritures '
+        'reçues de ${resultat.caissesRecues.join(', ')}',
+      );
+
+      // Deux choses se disent à part, et plus fort qu'un bandeau qui passe :
+      // ce sont les seules de cette page qui peuvent rendre un chiffre ou un
+      // papier faux sans que personne ne s'en aperçoive.
+      if (resultat.facturesEnDouble.isNotEmpty && mounted) {
+        await _direLesFacturesEnDouble(resultat.facturesEnDouble);
+      }
+      if (resultat.decalageHorloge != null && mounted) {
+        await _direLHeureFausse(resultat.decalageHorloge!);
+      }
+    } finally {
+      if (mounted) setState(() => _occupe = false);
+    }
+  }
+
+  /// Demande confirmation, en disant ce qui va s'ajouter.
+  ///
+  /// Le contraire mot pour mot de [_confirmer] : ici rien ne disparaît, et
+  /// c'est justement ce qu'il faut dire — sinon le commerçant hésite au même
+  /// endroit qu'avec une restauration, et finit par ne rien faire.
+  Future<bool?> _confirmerReunion(ApercuSauvegarde apercu) {
+    final textes = Theme.of(context).textTheme;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: const Text('Réunir les deux caisses ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Le fichier de l'autre caisse porte ${apercu.nombreEvenements} "
+              'écritures'
+              '${apercu.dernierEvenement == null ? '' : ', '
+                        'la dernière du ${_date(apercu.dernierEvenement!)}'}.',
+              style: textes.bodyMedium,
+            ),
+            const SizedBox(height: Espace.m),
+            Container(
+              padding: const EdgeInsets.all(Espace.m),
+              decoration: BoxDecoration(
+                color: Couleurs.accentClair,
+                borderRadius: BorderRadius.circular(Rayon.m),
+              ),
+              child: Text(
+                _evenements == 0
+                    ? "Ce carnet est vide : il recevra tout."
+                    : 'Rien ne sera effacé. Les $_evenements écritures qui '
+                          'sont dans ce téléphone restent, et celles de '
+                          "l'autre caisse s'y ajoutent.",
+                style: textes.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(false),
+            child: const Text('Pas maintenant'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(true),
+            child: const Text('Réunir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dit que deux factures portent le même numéro.
+  ///
+  /// Le plus grave que cette page puisse annoncer : une série de factures
+  /// doit être ascendante et ininterrompue, une référence par facture. Deux
+  /// papiers sous le même numéro sont déjà partis chez des clients, et
+  /// personne ne peut les rappeler. Il faut que le commerçant le sache le
+  /// jour même, pas au contrôle.
+  Future<void> _direLesFacturesEnDouble(List<String> references) {
+    final combien = references.length;
+    final liste = references.take(5).join(', ');
+
+    return showDialog<void>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text(
+          combien == 1
+              ? 'Deux factures portent le même numéro'
+              : '$combien numéros de facture sont pris deux fois',
+        ),
+        content: Text(
+          '$liste${combien > 5 ? '…' : ''}\n\n'
+          'Les deux caisses ont fait des factures chacune de son côté, et '
+          'elles ont compté à partir de un toutes les deux. Un numéro de '
+          "facture doit être unique : c'est la loi, et l'application ne peut "
+          'pas renuméroter un papier déjà remis à un client.\n\n'
+          "À partir de maintenant : qu'une seule caisse fasse les factures. "
+          "Pour celles qui sont déjà sorties, il faut passer par une facture "
+          "d'avoir.",
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            style: FilledButton.styleFrom(backgroundColor: Couleurs.alerte),
+            child: const Text("J'ai compris"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dit que l'autre téléphone n'est pas à l'heure, et pourquoi ça compte.
+  Future<void> _direLHeureFausse(Duration avance) {
+    final heures = avance.inHours;
+    final combien = heures >= 1
+        ? '$heures heure${heures > 1 ? 's' : ''}'
+        : '${avance.inMinutes} minutes';
+
+    return showDialog<void>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: const Text("L'autre téléphone n'est pas à l'heure"),
+        content: Text(
+          "Il avance d'environ $combien sur celui-ci.\n\n"
+          'Les écritures ont bien été reçues, mais elles portent cette '
+          "heure-là. Tant que les deux téléphones ne sont pas à la même "
+          'heure, les journées se coupent au mauvais endroit et le stock '
+          "peut se tromper. Règle l'heure des deux appareils.",
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text("J'ai compris"),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Demande confirmation, en disant ce qui va disparaître.
   ///
   /// Une restauration écrase. C'est le seul geste de l'application qui
@@ -273,7 +503,7 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
             Text(
               'La sauvegarde porte ${apercu.nombreEvenements} écritures'
               '${apercu.dernierEvenement == null ? '' : ', '
-                  'la dernière du ${_date(apercu.dernierEvenement!)}'}.',
+                        'la dernière du ${_date(apercu.dernierEvenement!)}'}.',
               style: textes.bodyMedium,
             ),
             const SizedBox(height: Espace.m),
@@ -287,8 +517,8 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                 _evenements == 0
                     ? "Le carnet est vide : rien ne sera perdu."
                     : 'Les $_evenements écritures qui sont dans ce téléphone '
-                        'seront effacées et remplacées. Fais une sauvegarde '
-                        "d'abord si tu n'es pas sûr.",
+                          'seront effacées et remplacées. Fais une sauvegarde '
+                          "d'abord si tu n'es pas sûr.",
                 style: textes.bodyMedium,
               ),
             ),
@@ -336,7 +566,10 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
             : ListView(
                 padding: const EdgeInsets.all(Espace.l),
                 children: [
-                  Text('Sortir le carnet du téléphone', style: textes.titleLarge),
+                  Text(
+                    'Sortir le carnet du téléphone',
+                    style: textes.titleLarge,
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     "Un téléphone se vole, se casse, se reformate. Tant que la "
@@ -362,8 +595,9 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                   // définitivement illisible, et on échangerait une perte
                   // contre une autre. Le choix est donc offert, et expliqué.
                   OutlinedButton.icon(
-                    onPressed:
-                        _occupe ? null : () => _sauvegarder(protegee: true),
+                    onPressed: _occupe
+                        ? null
+                        : () => _sauvegarder(protegee: true),
                     icon: const Icon(Icons.lock_outline_rounded, size: 20),
                     label: const Text('Protéger par un mot de passe'),
                     style: OutlinedButton.styleFrom(
@@ -372,7 +606,9 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                   ),
                   const SizedBox(height: Espace.s),
                   OutlinedButton.icon(
-                    onPressed: _occupe ? null : () => _sauvegarder(puisPartager: false),
+                    onPressed: _occupe
+                        ? null
+                        : () => _sauvegarder(puisPartager: false),
                     icon: const Icon(Icons.save_outlined, size: 20),
                     label: const Text('Garder seulement sur le téléphone'),
                     style: OutlinedButton.styleFrom(
@@ -387,6 +623,31 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                         : '$_evenements écritures dans le carnet.',
                     style: textes.labelSmall,
                   ),
+
+                  if (choixDeFichierDisponible) ...[
+                    const SizedBox(height: Espace.xxl),
+                    Text(
+                      'Deux caisses, une boutique',
+                      style: textes.titleLarge,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Deux vendeuses, deux téléphones : chacune encaisse de "
+                      "son côté, même sans réseau. Réunis les deux carnets et "
+                      "les deux téléphones auront les mêmes articles, les "
+                      "mêmes ardoises et le même stock. Rien n'est effacé.",
+                      style: textes.labelSmall,
+                    ),
+                    const SizedBox(height: Espace.m),
+                    OutlinedButton.icon(
+                      onPressed: _occupe ? null : _reunir,
+                      icon: const Icon(Icons.merge_rounded, size: 20),
+                      label: const Text("Réunir avec une autre caisse"),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: Espace.xxl),
                   Text('Restaurer', style: textes.titleLarge),
@@ -408,6 +669,16 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                       ),
                     ),
 
+                  if (_listeIllisible) ...[
+                    const SizedBox(height: Espace.l),
+                    Text(
+                      "Je n'arrive pas à lire les sauvegardes déjà posées sur "
+                      'ce téléphone. Tout le reste marche : tu peux toujours '
+                      'faire une sauvegarde et la partager.',
+                      style: textes.labelSmall,
+                    ),
+                  ],
+
                   if (_fichiers.isNotEmpty) ...[
                     const SizedBox(height: Espace.l),
                     Text('Sur ce téléphone', style: textes.labelSmall),
@@ -416,21 +687,27 @@ class _EcranSauvegardesState extends State<EcranSauvegardes> {
                       _LigneFichier(
                         fichier: fichier,
                         quand: _date(fichier.ecritLe),
-                        onRestaurer:
-                            _occupe ? null : () => _restaurerDepuis(fichier),
+                        onRestaurer: _occupe
+                            ? null
+                            : () => _restaurerDepuis(fichier),
                         onPartager: _occupe
                             ? null
-                            : () => partagerSauvegarde(fichier.chemin,
-                                texte: _messageDePartage),
+                            : () => partagerSauvegarde(
+                                fichier.chemin,
+                                texte: _messageDePartage,
+                              ),
                         onSupprimer: _occupe ? null : () => _supprimer(fichier),
                       ),
                   ],
 
                   const SizedBox(height: Espace.xxl),
                   Center(
-                    child: Text(empreinteVersion,
-                        style: textes.labelSmall
-                            ?.copyWith(color: Couleurs.encreLegere)),
+                    child: Text(
+                      empreinteVersion,
+                      style: textes.labelSmall?.copyWith(
+                        color: Couleurs.encreLegere,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: Espace.xl),
                 ],
@@ -462,7 +739,12 @@ class _LigneFichier extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: Espace.s),
-      padding: const EdgeInsets.fromLTRB(Espace.l, Espace.m, Espace.s, Espace.m),
+      padding: const EdgeInsets.fromLTRB(
+        Espace.l,
+        Espace.m,
+        Espace.s,
+        Espace.m,
+      ),
       decoration: BoxDecoration(
         color: Couleurs.surface,
         borderRadius: BorderRadius.circular(Rayon.m),
@@ -491,10 +773,7 @@ class _LigneFichier extends StatelessWidget {
             tooltip: 'Supprimer',
             color: Couleurs.encreDouce,
           ),
-          TextButton(
-            onPressed: onRestaurer,
-            child: const Text('Restaurer'),
-          ),
+          TextButton(onPressed: onRestaurer, child: const Text('Restaurer')),
         ],
       ),
     );

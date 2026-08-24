@@ -177,14 +177,14 @@ class DocumentClient {
       'à ${_deuxChiffres(date.hour)}h${_deuxChiffres(date.minute)}';
 
   String get _pied => switch (nature) {
-        NatureDocument.recu => 'Merci !',
-        NatureDocument.note => 'Bon appétit.',
-        NatureDocument.ardoise =>
-          'Une question sur ce montant ? Réponds à ce message.',
-        NatureDocument.historique => 'Merci de ta fidélité.',
-        NatureDocument.confirmation => 'À bientôt.',
-        NatureDocument.devis => 'Ce devis reste valable 30 jours.',
-      };
+    NatureDocument.recu => 'Merci !',
+    NatureDocument.note => 'Bon appétit.',
+    NatureDocument.ardoise =>
+      'Une question sur ce montant ? Réponds à ce message.',
+    NatureDocument.historique => 'Merci de ta fidélité.',
+    NatureDocument.confirmation => 'À bientôt.',
+    NatureDocument.devis => 'Ce devis reste valable 30 jours.',
+  };
 
   static const _largeur = 38;
   static String get _separateur => '─' * _largeur;
@@ -201,8 +201,9 @@ class DocumentClient {
         ? ligne.designation
         : '${ligne.designation}  $quantite';
     final place = _largeur - montant.length - 1;
-    final ajustee =
-        gauche.length > place ? '${gauche.substring(0, place - 1)}…' : gauche;
+    final ajustee = gauche.length > place
+        ? '${gauche.substring(0, place - 1)}…'
+        : gauche;
 
     return '$ajustee${' ' * (_largeur - ajustee.length - montant.length)}$montant';
   }
@@ -280,8 +281,10 @@ class Ardoise {
       resume.add('$nombreAchats achat${nombreAchats > 1 ? 's' : ''} à crédit');
     }
     if (nombreRemboursements > 0) {
-      resume.add('$nombreRemboursements remboursement'
-          '${nombreRemboursements > 1 ? 's' : ''}');
+      resume.add(
+        '$nombreRemboursements remboursement'
+        '${nombreRemboursements > 1 ? 's' : ''}',
+      );
     }
     if (resume.isNotEmpty) lignes.add(resume.join(' · '));
 
@@ -297,7 +300,6 @@ class Ardoise {
       '${DocumentClient._deuxChiffres(date.day)}/'
       '${DocumentClient._deuxChiffres(date.month)}/${date.year}';
 }
-
 
 /// L'historique des achats d'un client dans une boutique.
 ///
@@ -387,13 +389,15 @@ class AchatResume {
   });
 
   String get ligne {
-    final quand = '${DocumentClient._deuxChiffres(date.day)}/'
+    final quand =
+        '${DocumentClient._deuxChiffres(date.day)}/'
         '${DocumentClient._deuxChiffres(date.month)}';
     final valeur = montant.enFrancs;
     final gauche = '$quand  $resume';
     final place = DocumentClient._largeur - valeur.length - 1;
-    final ajustee =
-        gauche.length > place ? '${gauche.substring(0, place - 1)}…' : gauche;
+    final ajustee = gauche.length > place
+        ? '${gauche.substring(0, place - 1)}…'
+        : gauche;
     return '$ajustee${' ' * (DocumentClient._largeur - ajustee.length - valeur.length)}$valeur';
   }
 }
@@ -466,8 +470,7 @@ class RapportDuSoir {
     }
 
     lignes
-      ..add(DocumentClient.aligne(
-          'Ventes', '$nombreVentes'))
+      ..add(DocumentClient.aligne('Ventes', '$nombreVentes'))
       ..add(DocumentClient._separateur);
 
     if (parts.isNotEmpty) {

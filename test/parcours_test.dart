@@ -29,13 +29,17 @@ void main() {
 
   Montant f(num francs) => Montant.depuisDecimal(francs);
 
-  LigneAEnregistrer ligne(String code, String nom, num prix, {num quantite = 1}) =>
-      LigneAEnregistrer(
-        codeArticle: code,
-        designation: nom,
-        prixUnitaire: f(prix),
-        quantite: Quantite.depuisDecimal(quantite),
-      );
+  LigneAEnregistrer ligne(
+    String code,
+    String nom,
+    num prix, {
+    num quantite = 1,
+  }) => LigneAEnregistrer(
+    codeArticle: code,
+    designation: nom,
+    prixUnitaire: f(prix),
+    quantite: Quantite.depuisDecimal(quantite),
+  );
 
   Future<LigneVente> venteDe(String id) =>
       (base.select(base.ventes)..where((v) => v.id.equals(id))).getSingle();
@@ -45,7 +49,7 @@ void main() {
       final id = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz', 650)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650)),
         ],
       );
 
@@ -75,7 +79,7 @@ void main() {
 
       // Puis on encaisse.
       await depot.solder(table, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2500))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2500)),
       ]);
 
       final vente = await venteDe(table);
@@ -86,12 +90,16 @@ void main() {
 
     test('les tables en cours se retrouvent', () async {
       await depot.ouvrirVente(
-          contenant: 'Table 1', typeContenant: TypeContenant.table);
+        contenant: 'Table 1',
+        typeContenant: TypeContenant.table,
+      );
       final table2 = await depot.ouvrirVente(
-          contenant: 'Table 2', typeContenant: TypeContenant.table);
+        contenant: 'Table 2',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(table2, [ligne('TO', 'Tô', 500)]);
       await depot.solder(table2, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
       ]);
 
       final ouvertes = await depot.ventesOuvertes();
@@ -100,10 +108,12 @@ void main() {
 
     test('on ne peut pas ajouter à une vente déjà soldée', () async {
       final table = await depot.ouvrirVente(
-          contenant: 'Table 3', typeContenant: TypeContenant.table);
+        contenant: 'Table 3',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(table, [ligne('TO', 'Tô', 500)]);
       await depot.solder(table, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
       ]);
 
       expect(
@@ -114,18 +124,19 @@ void main() {
 
     test('un règlement partagé entre deux modes est enregistré', () async {
       final table = await depot.ouvrirVente(
-          contenant: 'Table 5', typeContenant: TypeContenant.table);
+        contenant: 'Table 5',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(table, [ligne('PLAT', 'Plat', 3000)]);
 
       await depot.solder(table, [
         PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1000)),
-        PaiementAEnregistrer(
-            mode: ModePaiement.mobileMoney, montant: f(2000)),
+        PaiementAEnregistrer(mode: ModePaiement.mobileMoney, montant: f(2000)),
       ]);
 
-      final reglements = await (base.select(base.paiements)
-            ..where((p) => p.venteId.equals(table)))
-          .get();
+      final reglements = await (base.select(
+        base.paiements,
+      )..where((p) => p.venteId.equals(table))).get();
       expect(reglements, hasLength(2));
       expect(
         reglements.fold(0, (s, p) => s + p.montantCentimes),
@@ -142,7 +153,7 @@ void main() {
       );
       await depot.ajouterAVente(commande, [ligne('BURGER', 'Burger', 2000)]);
       await depot.solder(commande, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2000))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2000)),
       ]);
 
       final vente = await venteDe(commande);
@@ -169,7 +180,7 @@ void main() {
 
       // Le client règle plus tard.
       await depot.solder(vente, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(5000))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(5000)),
       ]);
       expect(await depot.ventesAEncaisser(), isEmpty);
     });
@@ -179,7 +190,7 @@ void main() {
       final vente = await depot.ouvrirVente(clientId: awa);
       await depot.ajouterAVente(vente, [ligne('RIZ', 'Riz', 3000)]);
       await depot.solder(vente, [
-        PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(3000))
+        PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(3000)),
       ]);
 
       final debiteurs = await depot.clientsDebiteurs();
@@ -203,9 +214,9 @@ void main() {
         PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(30000)),
       ]);
 
-      final reglements = await (base.select(base.paiements)
-            ..where((p) => p.venteId.equals(reservation)))
-          .get();
+      final reglements = await (base.select(
+        base.paiements,
+      )..where((p) => p.venteId.equals(reservation))).get();
       expect(reglements.fold(0, (s, p) => s + p.montantCentimes), 5000000);
     });
   });
@@ -213,11 +224,13 @@ void main() {
   group('Journal et rejeu', () {
     test('un parcours en plusieurs temps reste vérifiable', () async {
       final table = await depot.ouvrirVente(
-          contenant: 'Table 7', typeContenant: TypeContenant.table);
+        contenant: 'Table 7',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(table, [ligne('TO', 'Tô', 500)]);
       await depot.ajouterAVente(table, [ligne('EAU', 'Eau', 200)]);
       await depot.solder(table, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(700))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(700)),
       ]);
 
       expect((await journal.verifier()).intact, isTrue);
@@ -225,15 +238,19 @@ void main() {
 
     test('le rejeu du journal restitue les états et les contenants', () async {
       final table = await depot.ouvrirVente(
-          contenant: 'Table 9', typeContenant: TypeContenant.table);
+        contenant: 'Table 9',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(table, [ligne('TO', 'Tô', 500, quantite: 2)]);
       await depot.ajouterAVente(table, [ligne('EAU', 'Eau', 200)]);
       await depot.solder(table, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1200))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1200)),
       ]);
 
       final ouverte = await depot.ouvrirVente(
-          contenant: 'Table 10', typeContenant: TypeContenant.table);
+        contenant: 'Table 10',
+        typeContenant: TypeContenant.table,
+      );
       await depot.ajouterAVente(ouverte, [ligne('TO', 'Tô', 500)]);
 
       final avant = await venteDe(table);
@@ -250,9 +267,9 @@ void main() {
       expect((await depot.ventesOuvertes()).map((v) => v.id), [ouverte]);
 
       // Et les lignes ne se sont pas dupliquées.
-      final lignes = await (base.select(base.lignesVente)
-            ..where((l) => l.venteId.equals(table)))
-          .get();
+      final lignes = await (base.select(
+        base.lignesVente,
+      )..where((l) => l.venteId.equals(table))).get();
       expect(lignes, hasLength(2));
     });
   });

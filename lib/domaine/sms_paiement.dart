@@ -53,7 +53,9 @@ class PaiementRecu {
 
   /// Ce qui s'affiche au commerçant : court, et ça tient sur une ligne.
   String get resume {
-    final qui = expediteur == null ? '' : ' de ${presenterTelephone(expediteur)}';
+    final qui = expediteur == null
+        ? ''
+        : ' de ${presenterTelephone(expediteur)}';
     return '${operateur.abrege} · ${montant.enFrancs}$qui';
   }
 }
@@ -106,7 +108,7 @@ class RegleSms {
     return RegleSms(
       operateur: operateur,
       expediteurs: [
-        for (final e in (brut['expediteurs'] as List? ?? const [])) '$e'
+        for (final e in (brut['expediteurs'] as List? ?? const [])) '$e',
       ],
       exige: [for (final e in (brut['exige'] as List? ?? const [])) '$e'],
       exclut: [for (final e in (brut['exclut'] as List? ?? const [])) '$e'],
@@ -117,14 +119,14 @@ class RegleSms {
   }
 
   Map<String, Object?> versJson() => {
-        'operateur': operateur.name,
-        'expediteurs': expediteurs,
-        if (exige.isNotEmpty) 'exige': exige,
-        if (exclut.isNotEmpty) 'exclut': exclut,
-        'montant': montant.pattern,
-        if (numero != null) 'numero': numero!.pattern,
-        if (reference != null) 'reference': reference!.pattern,
-      };
+    'operateur': operateur.name,
+    'expediteurs': expediteurs,
+    if (exige.isNotEmpty) 'exige': exige,
+    if (exclut.isNotEmpty) 'exclut': exclut,
+    'montant': montant.pattern,
+    if (numero != null) 'numero': numero!.pattern,
+    if (reference != null) 'reference': reference!.pattern,
+  };
 }
 
 /// Lit les SMS entrants et en tire les paiements.
@@ -144,58 +146,68 @@ class LecteurSms {
   /// Tant qu'elles n'ont pas été vérifiées au comptoir, un message non reconnu
   /// n'est pas une panne : le commerçant confirme à la main, comme avant.
   static LecteurSms get parDefaut => LecteurSms([
-        RegleSms(
-          operateur: OperateurMobile.orange,
-          expediteurs: const ['OrangeMoney', 'Orange Money', 'OM', '144'],
-          exige: const ['recu', 'reçu'],
-          exclut: const ['transfert vers', 'retrait', 'solde insuffisant'],
-          montant: RegExp(r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
-              caseSensitive: false),
-          numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
-          // Le séparateur est de la ponctuation, pas « n'importe quoi qui
-          // n'est pas un chiffre » : `\D` avalait le début d'une référence
-          // qui commence par des lettres.
-          reference: RegExp(
-              r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
-              caseSensitive: false),
-        ),
-        RegleSms(
-          operateur: OperateurMobile.moov,
-          expediteurs: const ['MoovMoney', 'Moov Money', 'Moov', '555'],
-          exige: const ['recu', 'reçu'],
-          exclut: const ['transfert vers', 'retrait'],
-          montant: RegExp(r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
-              caseSensitive: false),
-          numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
-          // Le séparateur est de la ponctuation, pas « n'importe quoi qui
-          // n'est pas un chiffre » : `\D` avalait le début d'une référence
-          // qui commence par des lettres.
-          reference: RegExp(
-              r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
-              caseSensitive: false),
-        ),
-        RegleSms(
-          operateur: OperateurMobile.telecel,
-          expediteurs: const ['TelecelMoney', 'Telecel Money', 'Telecel', '800'],
-          exige: const ['recu', 'reçu'],
-          exclut: const ['transfert vers', 'retrait'],
-          montant: RegExp(r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
-              caseSensitive: false),
-          numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
-          // Le séparateur est de la ponctuation, pas « n'importe quoi qui
-          // n'est pas un chiffre » : `\D` avalait le début d'une référence
-          // qui commence par des lettres.
-          reference: RegExp(
-              r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
-              caseSensitive: false),
-        ),
-      ]);
+    RegleSms(
+      operateur: OperateurMobile.orange,
+      expediteurs: const ['OrangeMoney', 'Orange Money', 'OM', '144'],
+      exige: const ['recu', 'reçu'],
+      exclut: const ['transfert vers', 'retrait', 'solde insuffisant'],
+      montant: RegExp(
+        r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
+        caseSensitive: false,
+      ),
+      numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
+      // Le séparateur est de la ponctuation, pas « n'importe quoi qui
+      // n'est pas un chiffre » : `\D` avalait le début d'une référence
+      // qui commence par des lettres.
+      reference: RegExp(
+        r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
+        caseSensitive: false,
+      ),
+    ),
+    RegleSms(
+      operateur: OperateurMobile.moov,
+      expediteurs: const ['MoovMoney', 'Moov Money', 'Moov', '555'],
+      exige: const ['recu', 'reçu'],
+      exclut: const ['transfert vers', 'retrait'],
+      montant: RegExp(
+        r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
+        caseSensitive: false,
+      ),
+      numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
+      // Le séparateur est de la ponctuation, pas « n'importe quoi qui
+      // n'est pas un chiffre » : `\D` avalait le début d'une référence
+      // qui commence par des lettres.
+      reference: RegExp(
+        r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
+        caseSensitive: false,
+      ),
+    ),
+    RegleSms(
+      operateur: OperateurMobile.telecel,
+      expediteurs: const ['TelecelMoney', 'Telecel Money', 'Telecel', '800'],
+      exige: const ['recu', 'reçu'],
+      exclut: const ['transfert vers', 'retrait'],
+      montant: RegExp(
+        r'([\d][\d\s., ]*)\s*(?:F\b|FCFA|XOF)',
+        caseSensitive: false,
+      ),
+      numero: RegExp(r'\b((?:226)?[2567]\d{7})\b'),
+      // Le séparateur est de la ponctuation, pas « n'importe quoi qui
+      // n'est pas un chiffre » : `\D` avalait le début d'une référence
+      // qui commence par des lettres.
+      reference: RegExp(
+        r'(?:ref|reference|transaction)[\s:=#]{0,5}([A-Z0-9.\-]{6,})',
+        caseSensitive: false,
+      ),
+    ),
+  ]);
 
   static LecteurSms depuisJson(String json) {
     final brut = jsonDecode(json);
     if (brut is! List) throw ArgumentError('Une liste de règles est attendue.');
     return LecteurSms([
-      for (final r in brut) RegleSms.depuisJson(Map<String, Object?>.from(r as Map))
+      for (final r in brut)
+        RegleSms.depuisJson(Map<String, Object?>.from(r as Map)),
     ]);
   }
 
@@ -217,7 +229,9 @@ class LecteurSms {
       if (texte.contains(_sansAccents(mot.toLowerCase()))) return null;
     }
     if (regle.exige.isNotEmpty &&
-        !regle.exige.any((m) => texte.contains(_sansAccents(m.toLowerCase())))) {
+        !regle.exige.any(
+          (m) => texte.contains(_sansAccents(m.toLowerCase())),
+        )) {
       return null;
     }
 

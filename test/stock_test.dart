@@ -38,13 +38,13 @@ void main() {
             designation: 'Riz 1 kg',
             prixUnitaire: f(650),
             quantite: q(quantite),
-          )
+          ),
         ],
         paiements: [
           PaiementAEnregistrer(
             mode: ModePaiement.especes,
             montant: f(650).multiplieParQuantite(q(quantite)),
-          )
+          ),
         ],
         horodatage: quand,
       );
@@ -168,10 +168,10 @@ void main() {
             LigneAEnregistrer(
               prixUnitaire: f(650),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
           paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650)),
           ],
         );
       }
@@ -227,10 +227,10 @@ void main() {
               designation: nom,
               prixUnitaire: f(500),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
           paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
           ],
         );
         await depot.ajusterStock(code, q(stock));
@@ -318,8 +318,11 @@ void main() {
     test('les pertes d\'hier ne polluent pas le rapport du jour', () async {
       await vendre('RIZ');
       await depot.ajusterStock('RIZ', q(40));
-      await depot.declarerPerte('RIZ', q(3),
-          horodatage: DateTime.now().subtract(const Duration(days: 2)));
+      await depot.declarerPerte(
+        'RIZ',
+        q(3),
+        horodatage: DateTime.now().subtract(const Duration(days: 2)),
+      );
 
       expect(await analyses.pertesEtEcarts(), const Montant.zero());
     });
@@ -337,8 +340,7 @@ void main() {
       }
     }
 
-    test('« plus tard » masque la proposition mais garde l\'article',
-        () async {
+    test('« plus tard » masque la proposition mais garde l\'article', () async {
       await vendreNFois(Depot.seuilDeSuiviStock);
       await depot.nommerArticle('RIZ', 'Riz 1 kg');
       await depot.reporterPropositionSuivi('RIZ');
@@ -367,8 +369,10 @@ void main() {
       await depot.definirSuiviStock('RIZ', SuiviStock.aucun);
 
       expect(await depot.articlesEnStock(), isEmpty);
-      expect((await depot.articlesSansSuivi()).map((a) => a.code),
-          contains('RIZ'));
+      expect(
+        (await depot.articlesSansSuivi()).map((a) => a.code),
+        contains('RIZ'),
+      );
     });
 
     test('le report se rejoue depuis le journal', () async {
@@ -422,10 +426,10 @@ void main() {
             designation: 'Riz 1 kg',
             prixUnitaire: f(650),
             quantite: q(2),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300)),
         ],
       );
 
@@ -438,8 +442,8 @@ void main() {
         throwsArgumentError,
       );
       expect(
-        () => depot.creerArticle(
-            designation: 'Riz', prix: const Montant.zero()),
+        () =>
+            depot.creerArticle(designation: 'Riz', prix: const Montant.zero()),
         throwsArgumentError,
       );
     });
@@ -454,10 +458,14 @@ void main() {
 
     test('deux articles du même nom ne s\'écrasent pas', () async {
       final premier = await depot.creerArticle(
-          designation: 'Sachet', prix: f(100));
+        designation: 'Sachet',
+        prix: f(100),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 2));
       final second = await depot.creerArticle(
-          designation: 'Sachet', prix: f(200));
+        designation: 'Sachet',
+        prix: f(200),
+      );
 
       expect(premier, isNot(second));
       expect((await depot.catalogue()).length, 2);
@@ -517,16 +525,16 @@ void main() {
   group('Quand le prix ne suffit pas à identifier', () {
     /// Une vente à montant libre : l'article est reconnu à son prix seul.
     Future<void> vendreAuPave(num prix) => depot.enregistrerVente(
-          lignes: [
-            LigneAEnregistrer(
-              prixUnitaire: f(prix),
-              quantite: const Quantite.unites(1),
-            )
-          ],
-          paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
-          ],
-        );
+      lignes: [
+        LigneAEnregistrer(
+          prixUnitaire: f(prix),
+          quantite: const Quantite.unites(1),
+        ),
+      ],
+      paiements: [
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
+      ],
+    );
 
     test('trois ventes du même montant déclenchent la proposition', () async {
       await vendreAuPave(500);
@@ -572,18 +580,20 @@ void main() {
       expect(await depot.articlesANommer(), isEmpty);
     });
 
-    test('un article refusé ne peut pas prendre de stock par surprise',
-        () async {
-      for (var i = 0; i < 3; i++) {
-        await vendreAuPave(500);
-      }
-      await depot.refuserNommage('AUTO-50000');
+    test(
+      'un article refusé ne peut pas prendre de stock par surprise',
+      () async {
+        for (var i = 0; i < 3; i++) {
+          await vendreAuPave(500);
+        }
+        await depot.refuserNommage('AUTO-50000');
 
-      // Sans nom, il n'entre pas dans les propositions de suivi : un stock
-      // déclaré sur un fourre-tout mentirait à chaque vente de l'autre
-      // produit.
-      expect(await depot.articlesASuivre(), isEmpty);
-    });
+        // Sans nom, il n'entre pas dans les propositions de suivi : un stock
+        // déclaré sur un fourre-tout mentirait à chaque vente de l'autre
+        // produit.
+        expect(await depot.articlesASuivre(), isEmpty);
+      },
+    );
 
     test('nommer un article le retire des propositions', () async {
       for (var i = 0; i < 3; i++) {
@@ -595,35 +605,43 @@ void main() {
       expect((await depot.catalogue()).single.designation, "Sachet d'eau");
     });
 
-    test('le montant libre ne tombe jamais sur un article déjà nommé',
-        () async {
-      // Le défaut que ce test remplace : une fois « Sachet d'eau » nommé à
-      // 500 F, **tout** ce qui se vendait à 500 F au montant libre était
-      // enregistré comme du sachet d'eau. Un pain à 500 F faisait baisser le
-      // stock d'eau, et le rapport disait qu'on avait vendu de l'eau.
-      //
-      // Une boutique a plusieurs produits au même prix : c'est la règle, pas
-      // l'exception. Le prix ne peut donc pas faire l'identité une fois qu'un
-      // nom a été donné — le montant libre ne prétend plus savoir ce qu'on
-      // vend, il ouvre un article anonyme de plus.
-      for (var i = 0; i < 3; i++) {
+    test(
+      'le montant libre ne tombe jamais sur un article déjà nommé',
+      () async {
+        // Le défaut que ce test remplace : une fois « Sachet d'eau » nommé à
+        // 500 F, **tout** ce qui se vendait à 500 F au montant libre était
+        // enregistré comme du sachet d'eau. Un pain à 500 F faisait baisser le
+        // stock d'eau, et le rapport disait qu'on avait vendu de l'eau.
+        //
+        // Une boutique a plusieurs produits au même prix : c'est la règle, pas
+        // l'exception. Le prix ne peut donc pas faire l'identité une fois qu'un
+        // nom a été donné — le montant libre ne prétend plus savoir ce qu'on
+        // vend, il ouvre un article anonyme de plus.
+        for (var i = 0; i < 3; i++) {
+          await vendreAuPave(500);
+        }
+        await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
+
         await vendreAuPave(500);
-      }
-      await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
 
-      await vendreAuPave(500);
+        final eau = (await depot.catalogue()).firstWhere(
+          (a) => a.code == 'AUTO-50000',
+        );
+        expect(eau.designation, "Sachet d'eau");
+        expect(
+          eau.nombreVentes,
+          3,
+          reason: 'le pain ne compte pas pour de l\'eau',
+        );
 
-      final eau = (await depot.catalogue())
-          .firstWhere((a) => a.code == 'AUTO-50000');
-      expect(eau.designation, "Sachet d'eau");
-      expect(eau.nombreVentes, 3, reason: 'le pain ne compte pas pour de l\'eau');
-
-      final autre = (await depot.catalogue())
-          .firstWhere((a) => a.code != 'AUTO-50000');
-      expect(autre.nomme, isFalse);
-      expect(autre.prixCentimes, 50000);
-      expect(autre.nombreVentes, 1);
-    });
+        final autre = (await depot.catalogue()).firstWhere(
+          (a) => a.code != 'AUTO-50000',
+        );
+        expect(autre.nomme, isFalse);
+        expect(autre.prixCentimes, 50000);
+        expect(autre.nombreVentes, 1);
+      },
+    );
 
     test('le nouvel article anonyme se fait nommer à son tour', () async {
       for (var i = 0; i < 3; i++) {
@@ -648,8 +666,9 @@ void main() {
       }
       await depot.nommerArticle('AUTO-50000', "Sachet d'eau");
       await vendreAuPave(500);
-      final pain = (await depot.articlesAuPrix(f(500)))
-          .firstWhere((a) => !a.nomme);
+      final pain = (await depot.articlesAuPrix(
+        f(500),
+      )).firstWhere((a) => !a.nomme);
       await depot.nommerArticle(pain.code, 'Pain');
 
       await vendreAuPave(500);
@@ -657,8 +676,10 @@ void main() {
       // Trois articles à 500 F : deux nommés, un anonyme tout neuf.
       final auPrix = await depot.articlesAuPrix(f(500));
       expect(auPrix, hasLength(3));
-      expect(auPrix.where((a) => a.nomme).map((a) => a.designation),
-          containsAll(["Sachet d'eau", 'Pain']));
+      expect(
+        auPrix.where((a) => a.nomme).map((a) => a.designation),
+        containsAll(["Sachet d'eau", 'Pain']),
+      );
       expect(auPrix.where((a) => !a.nomme), hasLength(1));
     });
 
@@ -676,15 +697,16 @@ void main() {
             codeArticle: 'AUTO-50000',
             prixUnitaire: f(500),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
         ],
       );
 
-      final eau = (await depot.catalogue())
-          .firstWhere((a) => a.code == 'AUTO-50000');
+      final eau = (await depot.catalogue()).firstWhere(
+        (a) => a.code == 'AUTO-50000',
+      );
       expect(eau.nombreVentes, 4);
       expect(await depot.articlesANommer(), isEmpty);
     });

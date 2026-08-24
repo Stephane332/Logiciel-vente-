@@ -23,7 +23,11 @@ class GroupeTaxation {
   static const a = GroupeTaxation('A', 'Exonéré', null);
   static const b = GroupeTaxation('B', 'TVA taxable 1', 180);
   static const c = GroupeTaxation('C', 'TVA taxable 2', 100);
-  static const d = GroupeTaxation('D', 'Exportation de produits taxables', null);
+  static const d = GroupeTaxation(
+    'D',
+    'Exportation de produits taxables',
+    null,
+  );
   static const e = GroupeTaxation('E', 'TVA régime dérogatoire', null);
   static const f = GroupeTaxation('F', 'TVA régime dérogatoire', 180);
   static const g = GroupeTaxation('G', 'TVA régime dérogatoire', 100);
@@ -31,22 +35,48 @@ class GroupeTaxation {
   static const i = GroupeTaxation('I', "Consignation d'emballage", null);
   static const j = GroupeTaxation('J', 'Dépôts, garantie et caution', null);
   static const k = GroupeTaxation('K', 'Débours', null);
-  static const l = GroupeTaxation('L', 'TDT - Taxe de développement touristique', 100);
+  static const l = GroupeTaxation(
+    'L',
+    'TDT - Taxe de développement touristique',
+    100,
+  );
   static const m = GroupeTaxation(
-      'M', 'Taxe de séjour hôtelier perçue par les communes', 100);
+    'M',
+    'Taxe de séjour hôtelier perçue par les communes',
+    100,
+  );
   static const n = GroupeTaxation(
-      'N', 'PBA - Droits fixes en fonction de la destination et de la classe', null);
+    'N',
+    'PBA - Droits fixes en fonction de la destination et de la classe',
+    null,
+  );
   static const o = GroupeTaxation('O', 'Réservé', null);
   static const p = GroupeTaxation('P', 'Réservé', null);
 
   static const tous = <GroupeTaxation>[
-    a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p,
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g,
+    h,
+    i,
+    j,
+    k,
+    l,
+    m,
+    n,
+    o,
+    p,
   ];
 
-  static GroupeTaxation parEtiquette(String etiquette) =>
-      tous.firstWhere((g) => g.etiquette == etiquette,
-          orElse: () => throw ArgumentError(
-              'Groupe de taxation inconnu : $etiquette'));
+  static GroupeTaxation parEtiquette(String etiquette) => tous.firstWhere(
+    (g) => g.etiquette == etiquette,
+    orElse: () =>
+        throw ArgumentError('Groupe de taxation inconnu : $etiquette'),
+  );
 
   @override
   String toString() => etiquette;
@@ -68,9 +98,10 @@ class GroupePsvb {
 
   static const tous = <GroupePsvb>[a, b, c, d];
 
-  static GroupePsvb parEtiquette(String etiquette) =>
-      tous.firstWhere((g) => g.etiquette == etiquette,
-          orElse: () => throw ArgumentError('Groupe PSVB inconnu : $etiquette'));
+  static GroupePsvb parEtiquette(String etiquette) => tous.firstWhere(
+    (g) => g.etiquette == etiquette,
+    orElse: () => throw ArgumentError('Groupe PSVB inconnu : $etiquette'),
+  );
 
   @override
   String toString() => etiquette;
@@ -98,16 +129,29 @@ enum TypeFacture {
 enum TypeClient {
   comptant('CC', 'Client comptant', nomRequis: false, ifuRequis: false),
   personneMorale('PM', 'Personne morale', nomRequis: true, ifuRequis: true),
-  personnePhysique('PP', 'Personne physique', nomRequis: true, ifuRequis: false),
-  personnePhysiqueCommercant('PC', 'Personne physique commerçant',
-      nomRequis: true, ifuRequis: true);
+  personnePhysique(
+    'PP',
+    'Personne physique',
+    nomRequis: true,
+    ifuRequis: false,
+  ),
+  personnePhysiqueCommercant(
+    'PC',
+    'Personne physique commerçant',
+    nomRequis: true,
+    ifuRequis: true,
+  );
 
   final String etiquette;
   final String libelle;
   final bool nomRequis;
   final bool ifuRequis;
-  const TypeClient(this.etiquette, this.libelle,
-      {required this.nomRequis, required this.ifuRequis});
+  const TypeClient(
+    this.etiquette,
+    this.libelle, {
+    required this.nomRequis,
+    required this.ifuRequis,
+  });
 }
 
 /// Type d'article.
@@ -129,7 +173,11 @@ enum TypeArticle {
 enum NatureAvoir {
   correction('COR', 'Correction', 'Correction'),
   annulation('RAN', 'Annulation', 'Annulation'),
-  reprise('RAM', 'Avoir suite reprise de biens/services', 'Avoir suite reprise'),
+  reprise(
+    'RAM',
+    'Avoir suite reprise de biens/services',
+    'Avoir suite reprise',
+  ),
   remise('RRR', 'Remise, ristourne, rabais', 'RRR');
 
   final String code;
@@ -182,10 +230,8 @@ enum SuiviStock {
   final String cle;
   const SuiviStock(this.cle);
 
-  static SuiviStock parCle(String cle) => values.firstWhere(
-        (s) => s.cle == cle,
-        orElse: () => aucun,
-      );
+  static SuiviStock parCle(String cle) =>
+      values.firstWhere((s) => s.cle == cle, orElse: () => aucun);
 }
 
 /// Ce qui fait bouger un stock, hors vente.
@@ -215,10 +261,8 @@ enum NatureMouvementStock {
   final String libelle;
   const NatureMouvementStock(this.cle, this.libelle);
 
-  static NatureMouvementStock parCle(String cle) => values.firstWhere(
-        (n) => n.cle == cle,
-        orElse: () => inventaire,
-      );
+  static NatureMouvementStock parCle(String cle) =>
+      values.firstWhere((n) => n.cle == cle, orElse: () => inventaire);
 }
 
 /// Où en est une vente.
@@ -242,10 +286,8 @@ enum EtatVente {
   final String cle;
   const EtatVente(this.cle);
 
-  static EtatVente parCle(String cle) => values.firstWhere(
-        (e) => e.cle == cle,
-        orElse: () => soldee,
-      );
+  static EtatVente parCle(String cle) =>
+      values.firstWhere((e) => e.cle == cle, orElse: () => soldee);
 }
 
 /// Ce qui regroupe les lignes d'une vente tant qu'elle est ouverte.
@@ -280,7 +322,11 @@ enum TypeContenant {
 
 /// Étiquettes des lignes de commentaire (§2.27). Huit lignes au minimum.
 enum LigneCommentaire {
-  referenceExoneration('A', 'Réf. exo.', "Référence du certificat d'exonération"),
+  referenceExoneration(
+    'A',
+    'Réf. exo.',
+    "Référence du certificat d'exonération",
+  ),
   baseJuridique('B', 'Base juridique', 'Base juridique'),
   reserveC('C', 'Réservé', ''),
   reserveD('D', 'Réservé', ''),

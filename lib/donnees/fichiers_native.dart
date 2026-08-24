@@ -57,12 +57,14 @@ Future<List<FichierSauvegarde>> sauvegardesLocales() async {
   await for (final entree in dossier.list()) {
     if (entree is! File || !entree.path.endsWith('.carnet')) continue;
     final infos = await entree.stat();
-    fichiers.add(FichierSauvegarde(
-      chemin: entree.path,
-      nom: chemin.basename(entree.path),
-      ecritLe: infos.modified,
-      octets: infos.size,
-    ));
+    fichiers.add(
+      FichierSauvegarde(
+        chemin: entree.path,
+        nom: chemin.basename(entree.path),
+        ecritLe: infos.modified,
+        octets: infos.size,
+      ),
+    );
   }
 
   fichiers.sort((a, b) => b.ecritLe.compareTo(a.ecritLe));
@@ -82,10 +84,12 @@ Future<void> supprimerSauvegarde(String chemin) async {
 /// téléphone disparaît avec lui. WhatsApp, Bluetooth, carte mémoire — peu
 /// importe, pourvu qu'il finisse ailleurs.
 Future<void> partagerSauvegarde(String chemin, {String? texte}) async {
-  await SharePlus.instance.share(ShareParams(
-    files: [XFile(chemin, mimeType: 'application/json')],
-    text: texte,
-  ));
+  await SharePlus.instance.share(
+    ShareParams(
+      files: [XFile(chemin, mimeType: 'application/json')],
+      text: texte,
+    ),
+  );
 }
 
 /// Demande au commerçant de désigner un fichier reçu de l'extérieur.

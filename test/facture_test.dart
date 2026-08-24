@@ -35,20 +35,19 @@ void main() {
     num quantite = 1,
     ModePrix mode = ModePrix.toutesTaxesComprises,
     Montant remise = const Montant.zero(),
-  }) =>
-      calculerFacture(
-        modePrix: mode,
-        lignes: [
-          LigneACalculer(
-            codeArticle: 'CIM',
-            designation: 'Ciment CPJ 45, sac de 50 kg',
-            groupeTaxation: groupe,
-            prixUnitaire: f(prix),
-            quantite: Quantite.depuisDecimal(quantite),
-            remise: remise,
-          )
-        ],
-      );
+  }) => calculerFacture(
+    modePrix: mode,
+    lignes: [
+      LigneACalculer(
+        codeArticle: 'CIM',
+        designation: 'Ciment CPJ 45, sac de 50 kg',
+        groupeTaxation: groupe,
+        prixUnitaire: f(prix),
+        quantite: Quantite.depuisDecimal(quantite),
+        remise: remise,
+      ),
+    ],
+  );
 
   Facture facture({
     ClientFacture? client,
@@ -61,27 +60,27 @@ void main() {
     String? origine,
     String? operateur,
     List<Commentaire> commentaires = const [],
-  }) =>
-      Facture(
-        reference: const ReferenceFacture(type: 'FV', annee: 2026, rang: 42),
-        type: type,
-        emetteur: emetteur,
-        client: client ??
-            const ClientFacture(
-              type: TypeClient.personneMorale,
-              nom: 'SONABEL',
-              ifu: '00099887B',
-            ),
-        calcul: calculee ?? calcul(),
-        date: DateTime(2026, 8, 16, 10, 5),
-        operateur: operateur,
-        reglements: reglements,
-        timbreQuittance: timbre,
-        duplicata: duplicata,
-        natureAvoir: nature,
-        factureOrigine: origine,
-        commentaires: commentaires,
-      );
+  }) => Facture(
+    reference: const ReferenceFacture(type: 'FV', annee: 2026, rang: 42),
+    type: type,
+    emetteur: emetteur,
+    client:
+        client ??
+        const ClientFacture(
+          type: TypeClient.personneMorale,
+          nom: 'SONABEL',
+          ifu: '00099887B',
+        ),
+    calcul: calculee ?? calcul(),
+    date: DateTime(2026, 8, 16, 10, 5),
+    operateur: operateur,
+    reglements: reglements,
+    timbreQuittance: timbre,
+    duplicata: duplicata,
+    natureAvoir: nature,
+    factureOrigine: origine,
+    commentaires: commentaires,
+  );
 
   group("Ce que la facture dit d'elle-même", () {
     test("une facture sans module de contrôle annonce qu'elle ne vaut pas "
@@ -125,16 +124,22 @@ void main() {
   group('Le client', () {
     test('un client comptant ne décline rien', () {
       expect(ClientFacture.comptant.defaut, isNull);
-      expect(facture(client: ClientFacture.comptant).texte,
-          contains('Client comptant'));
+      expect(
+        facture(client: ClientFacture.comptant).texte,
+        contains('Client comptant'),
+      );
     });
 
     test('une personne morale doit être nommée et porter un IFU', () {
-      expect(const ClientFacture(type: TypeClient.personneMorale).defaut,
-          contains('doit être nommé'));
       expect(
-        const ClientFacture(type: TypeClient.personneMorale, nom: 'SONABEL')
-            .defaut,
+        const ClientFacture(type: TypeClient.personneMorale).defaut,
+        contains('doit être nommé'),
+      );
+      expect(
+        const ClientFacture(
+          type: TypeClient.personneMorale,
+          nom: 'SONABEL',
+        ).defaut,
         contains('IFU'),
       );
       expect(
@@ -149,8 +154,10 @@ void main() {
 
     test('une personne physique se nomme sans IFU', () {
       expect(
-        const ClientFacture(type: TypeClient.personnePhysique, nom: 'Salif')
-            .defaut,
+        const ClientFacture(
+          type: TypeClient.personnePhysique,
+          nom: 'Salif',
+        ).defaut,
         isNull,
       );
     });
@@ -194,7 +201,8 @@ void main() {
       // reçu de comptoir on coupe pour garder l'alignement ; couper ici
       // reviendrait à ne pas tenir la règle, et une désignation amputée est
       // précisément ce qu'un client professionnel conteste.
-      const longue = 'Ciment Portland composé CPJ 45 en sac de cinquante '
+      const longue =
+          'Ciment Portland composé CPJ 45 en sac de cinquante '
           'kilogrammes, palette de quarante';
       expect(longue.length, greaterThan(64));
 
@@ -208,7 +216,7 @@ void main() {
               groupeTaxation: GroupeTaxation.b,
               prixUnitaire: f(10000),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
         ),
       ).texte;
@@ -246,19 +254,23 @@ void main() {
       );
       // Un encaissement mixte se recoupe aussi.
       expect(
-        facture(reglements: {
-          ModePaiement.especes: f(4000),
-          ModePaiement.mobileMoney: f(6000),
-        }).defaut,
+        facture(
+          reglements: {
+            ModePaiement.especes: f(4000),
+            ModePaiement.mobileMoney: f(6000),
+          },
+        ).defaut,
         isNull,
       );
     });
 
     test('les modes s\'impriment', () {
-      final texte = facture(reglements: {
-        ModePaiement.especes: f(4000),
-        ModePaiement.mobileMoney: f(6000),
-      }).texte;
+      final texte = facture(
+        reglements: {
+          ModePaiement.especes: f(4000),
+          ModePaiement.mobileMoney: f(6000),
+        },
+      ).texte;
 
       expect(texte, contains('Espèces'));
       expect(texte, contains('Mobile money'));
@@ -316,8 +328,10 @@ void main() {
     });
 
     test("une vente à l'exportation le dit", () {
-      expect(facture(type: TypeFacture.venteExport).texte,
-          contains('EXPORTATION'));
+      expect(
+        facture(type: TypeFacture.venteExport).texte,
+        contains('EXPORTATION'),
+      );
     });
   });
 
@@ -329,10 +343,12 @@ void main() {
     });
 
     test('seules les lignes remplies s\'impriment', () {
-      final texte = facture(commentaires: const [
-        Commentaire(LigneCommentaire.referenceExoneration, 'CE-2026-014'),
-        Commentaire(LigneCommentaire.reserveC, '   '),
-      ]).texte;
+      final texte = facture(
+        commentaires: const [
+          Commentaire(LigneCommentaire.referenceExoneration, 'CE-2026-014'),
+          Commentaire(LigneCommentaire.reserveC, '   '),
+        ],
+      ).texte;
 
       expect(texte, contains('Réf. exo. : CE-2026-014'));
       expect(texte, isNot(contains('Réservé :')));
@@ -342,8 +358,9 @@ void main() {
   group('Ce qui empêche d\'émettre', () {
     test('un client incomplet', () {
       expect(
-        facture(client: const ClientFacture(type: TypeClient.personneMorale))
-            .defaut,
+        facture(
+          client: const ClientFacture(type: TypeClient.personneMorale),
+        ).defaut,
         isNotNull,
       );
     });
@@ -356,15 +373,18 @@ void main() {
       // Le calcul refuse avant même qu'une facture existe : c'est le bon
       // endroit, une facture à zéro ne doit pas pouvoir être construite.
       expect(
-        () => calculerFacture(modePrix: ModePrix.toutesTaxesComprises, lignes: [
-          LigneACalculer(
-            codeArticle: 'X',
-            designation: 'Cadeau',
-            groupeTaxation: GroupeTaxation.a,
-            prixUnitaire: const Montant.zero(),
-            quantite: const Quantite.unites(1),
-          )
-        ]),
+        () => calculerFacture(
+          modePrix: ModePrix.toutesTaxesComprises,
+          lignes: [
+            LigneACalculer(
+              codeArticle: 'X',
+              designation: 'Cadeau',
+              groupeTaxation: GroupeTaxation.a,
+              prixUnitaire: const Montant.zero(),
+              quantite: const Quantite.unites(1),
+            ),
+          ],
+        ),
         throwsA(isA<ErreurConformite>()),
       );
     });

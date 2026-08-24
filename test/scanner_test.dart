@@ -37,14 +37,17 @@ void main() {
   final cle = GlobalKey<EcranVenteState>();
 
   Widget caisse() => MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(key: cle, depot: depot, documents: documents),
-      );
+    theme: themeClair(),
+    home: EcranVente(key: cle, depot: depot, documents: documents),
+  );
 
   group('Retrouver un article par son code', () {
     test("le code lu est le code de l'article", () async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Lait concentré', prix: f(750));
+        code: codeBarre,
+        designation: 'Lait concentré',
+        prix: f(750),
+      );
 
       final trouve = await depot.articleParCode(codeBarre);
 
@@ -58,7 +61,10 @@ void main() {
 
     test('un article retiré du catalogue ne remonte plus', () async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Lait concentré', prix: f(750));
+        code: codeBarre,
+        designation: 'Lait concentré',
+        prix: f(750),
+      );
       await depot.retirerArticle(codeBarre);
 
       // Retiré, pas supprimé : ses ventes passées restent au journal. Mais il
@@ -68,7 +74,10 @@ void main() {
 
     test('les espaces autour du code ne le rendent pas introuvable', () async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Lait concentré', prix: f(750));
+        code: codeBarre,
+        designation: 'Lait concentré',
+        prix: f(750),
+      );
 
       expect(await depot.articleParCode('  $codeBarre  '), isNotNull);
     });
@@ -81,7 +90,10 @@ void main() {
   group('Scanner à la caisse', () {
     testWidgets('un article connu tombe au panier', (tester) async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Lait concentré', prix: f(750));
+        code: codeBarre,
+        designation: 'Lait concentré',
+        prix: f(750),
+      );
 
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -93,35 +105,37 @@ void main() {
       expect(find.text('Encaisser'), findsOneWidget);
     });
 
-    testWidgets('un article inconnu demande son prix, puis entre au catalogue',
-        (tester) async {
-      await tester.pumpWidget(caisse());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'un article inconnu demande son prix, puis entre au catalogue',
+      (tester) async {
+        await tester.pumpWidget(caisse());
+        await tester.pumpAndSettle();
 
-      final scan = cle.currentState!.ajouterParCodeBarre(codeBarre);
-      await tester.pumpAndSettle();
+        final scan = cle.currentState!.ajouterParCodeBarre(codeBarre);
+        await tester.pumpAndSettle();
 
-      // Le pavé s'ouvre, et il dit pourquoi.
-      expect(find.text('Prix de cet article'), findsOneWidget);
-      expect(find.textContaining("pas encore au catalogue"), findsOneWidget);
+        // Le pavé s'ouvre, et il dit pourquoi.
+        expect(find.text('Prix de cet article'), findsOneWidget);
+        expect(find.textContaining("pas encore au catalogue"), findsOneWidget);
 
-      for (final touche in ['7', '5', '0']) {
-        await tester.tap(find.widgetWithText(InkWell, touche));
-        await tester.pump();
-      }
-      await tester.tap(find.text('Encaisser').last);
-      await tester.pumpAndSettle();
-      await scan;
-      await tester.pumpAndSettle();
+        for (final touche in ['7', '5', '0']) {
+          await tester.tap(find.widgetWithText(InkWell, touche));
+          await tester.pump();
+        }
+        await tester.tap(find.text('Encaisser').last);
+        await tester.pumpAndSettle();
+        await scan;
+        await tester.pumpAndSettle();
 
-      // Il est au panier, et il est au catalogue sous son code-barres — le
-      // commerçant n'a jamais saisi d'inventaire.
-      expect(find.text('1 article'), findsOneWidget);
+        // Il est au panier, et il est au catalogue sous son code-barres — le
+        // commerçant n'a jamais saisi d'inventaire.
+        expect(find.text('1 article'), findsOneWidget);
 
-      final cree = await depot.articleParCode(codeBarre);
-      expect(cree, isNotNull);
-      expect(cree!.prixCentimes, f(750).centimes);
-    });
+        final cree = await depot.articleParCode(codeBarre);
+        expect(cree, isNotNull);
+        expect(cree!.prixCentimes, f(750).centimes);
+      },
+    );
 
     testWidgets("renoncer au prix n'ajoute rien du tout", (tester) async {
       await tester.pumpWidget(caisse());
@@ -140,10 +154,14 @@ void main() {
       expect(await depot.articleParCode(codeBarre), isNull);
     });
 
-    testWidgets('scanner deux fois le même sachet en met deux au panier',
-        (tester) async {
+    testWidgets('scanner deux fois le même sachet en met deux au panier', (
+      tester,
+    ) async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Lait concentré', prix: f(750));
+        code: codeBarre,
+        designation: 'Lait concentré',
+        prix: f(750),
+      );
 
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -160,7 +178,10 @@ void main() {
   group("Ce que le scanner laisse au journal", () {
     test("un article créé par scan se rejoue depuis le journal", () async {
       await depot.creerArticle(
-          code: codeBarre, designation: 'Article à 750 F', prix: f(750));
+        code: codeBarre,
+        designation: 'Article à 750 F',
+        prix: f(750),
+      );
 
       await depot.reconstruireProjections();
 

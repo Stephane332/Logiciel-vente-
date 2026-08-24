@@ -191,7 +191,8 @@ class Paiements extends Table {
   TextColumn get expediteur => text().nullable()();
 
   /// `attendu`, `confirmeAutomatiquement` ou `confirmeManuellement`.
-  TextColumn get confirmation => text().withDefault(const Constant('attendu'))();
+  TextColumn get confirmation =>
+      text().withDefault(const Constant('attendu'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -254,7 +255,6 @@ class MouvementsCaisse extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-
 /// Les réglages de la boutique.
 ///
 /// Une simple table clé-valeur : ces paramètres sont peu nombreux, lus
@@ -301,17 +301,19 @@ class Reglages extends Table {
   Set<Column> get primaryKey => {cle};
 }
 
-@DriftDatabase(tables: [
-  Evenements,
-  Articles,
-  Ventes,
-  LignesVente,
-  Paiements,
-  Clients,
-  MouvementsCaisse,
-  MouvementsStock,
-  Reglages,
-])
+@DriftDatabase(
+  tables: [
+    Evenements,
+    Articles,
+    Ventes,
+    LignesVente,
+    Paiements,
+    Clients,
+    MouvementsCaisse,
+    MouvementsStock,
+    Reglages,
+  ],
+)
 class BaseLocale extends _$BaseLocale {
   BaseLocale(super.e);
 
@@ -320,78 +322,78 @@ class BaseLocale extends _$BaseLocale {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          // Le journal se lit presque toujours dans l'ordre, par appareil.
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_evenements_appareil_sequence '
-            'ON evenements (appareil, sequence)',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_evenements_synchronise '
-            'ON evenements (synchronise)',
-          );
-          // Les factures et les clôtures se cherchent par type. Sans cet
-          // index, les retrouver oblige à parcourir tout le journal — une
-          // année de ventes pour en retenir quelques dizaines.
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_evenements_type '
-            'ON evenements (type, horodatage)',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_ventes_horodatage '
-            'ON ventes (horodatage)',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_clients_telephone '
-            'ON clients (telephone_normalise)',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
-            'ON mouvements_stock (code_article, horodatage)',
-          );
-        },
-        onUpgrade: (m, depuis, vers) async {
-          if (depuis < 2) {
-            await m.addColumn(articles, articles.suiviStock);
-          }
-          if (depuis < 3) {
-            await m.addColumn(ventes, ventes.etat);
-            await m.addColumn(ventes, ventes.contenant);
-            await m.addColumn(ventes, ventes.typeContenant);
-          }
-          if (depuis < 4) {
-            await m.addColumn(clients, clients.telephoneNormalise);
-            await m.addColumn(clients, clients.consentementLe);
-          }
-          if (depuis < 5) {
-            await m.createTable(reglages);
-          }
-          if (depuis < 6) {
-            await m.createTable(mouvementsStock);
-            await customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
-              'ON mouvements_stock (code_article, horodatage)',
-            );
-          }
-          if (depuis < 7) {
-            await m.addColumn(articles, articles.propositionSuiviReporteeLe);
-          }
-          if (depuis < 8) {
-            await m.addColumn(articles, articles.nommageRefuseLe);
-          }
-          if (depuis < 9) {
-            await m.addColumn(articles, articles.retireLe);
-          }
-          if (depuis < 10) {
-            await customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_evenements_type '
-              'ON evenements (type, horodatage)',
-            );
-          }
-        },
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
+    onCreate: (m) async {
+      await m.createAll();
+      // Le journal se lit presque toujours dans l'ordre, par appareil.
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_evenements_appareil_sequence '
+        'ON evenements (appareil, sequence)',
       );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_evenements_synchronise '
+        'ON evenements (synchronise)',
+      );
+      // Les factures et les clôtures se cherchent par type. Sans cet
+      // index, les retrouver oblige à parcourir tout le journal — une
+      // année de ventes pour en retenir quelques dizaines.
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_evenements_type '
+        'ON evenements (type, horodatage)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_ventes_horodatage '
+        'ON ventes (horodatage)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_clients_telephone '
+        'ON clients (telephone_normalise)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
+        'ON mouvements_stock (code_article, horodatage)',
+      );
+    },
+    onUpgrade: (m, depuis, vers) async {
+      if (depuis < 2) {
+        await m.addColumn(articles, articles.suiviStock);
+      }
+      if (depuis < 3) {
+        await m.addColumn(ventes, ventes.etat);
+        await m.addColumn(ventes, ventes.contenant);
+        await m.addColumn(ventes, ventes.typeContenant);
+      }
+      if (depuis < 4) {
+        await m.addColumn(clients, clients.telephoneNormalise);
+        await m.addColumn(clients, clients.consentementLe);
+      }
+      if (depuis < 5) {
+        await m.createTable(reglages);
+      }
+      if (depuis < 6) {
+        await m.createTable(mouvementsStock);
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_mouvements_stock_article '
+          'ON mouvements_stock (code_article, horodatage)',
+        );
+      }
+      if (depuis < 7) {
+        await m.addColumn(articles, articles.propositionSuiviReporteeLe);
+      }
+      if (depuis < 8) {
+        await m.addColumn(articles, articles.nommageRefuseLe);
+      }
+      if (depuis < 9) {
+        await m.addColumn(articles, articles.retireLe);
+      }
+      if (depuis < 10) {
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_evenements_type '
+          'ON evenements (type, horodatage)',
+        );
+      }
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 }

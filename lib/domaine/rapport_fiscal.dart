@@ -43,10 +43,8 @@ enum NatureRapport {
   /// toute la différence entre regarder et clôturer.
   bool get cloture => this != x;
 
-  static NatureRapport parCode(String code) => values.firstWhere(
-        (n) => n.code == code,
-        orElse: () => x,
-      );
+  static NatureRapport parCode(String code) =>
+      values.firstWhere((n) => n.code == code, orElse: () => x);
 }
 
 /// Les totaux d'un ensemble de factures, par type puis par groupe.
@@ -168,8 +166,7 @@ class RapportFiscal {
   Montant get total => _cumul((t) => t.total);
   Montant get taxable => _cumul((t) => t.taxable);
   Montant get taxe => _cumul((t) => t.taxe);
-  int get nombreFactures =>
-      parType.fold(0, (somme, t) => somme + t.nombre);
+  int get nombreFactures => parType.fold(0, (somme, t) => somme + t.nombre);
 
   Montant _cumul(Montant Function(TotauxParType) quoi) {
     var somme = const Montant.zero();
@@ -210,8 +207,10 @@ class RapportFiscal {
     }
     for (final entree in parType) {
       sortie
-        ..add('${entree.type.etiquette} · ${entree.type.libelle}'
-            ' (${entree.nombre})')
+        ..add(
+          '${entree.type.etiquette} · ${entree.type.libelle}'
+          ' (${entree.nombre})',
+        )
         ..add(DocumentClient.aligne('  Total', entree.total.enFrancs))
         ..add(DocumentClient.aligne('  Taxable', entree.taxable.enFrancs))
         ..add(DocumentClient.aligne('  Taxe', entree.taxe.enFrancs));
@@ -225,8 +224,9 @@ class RapportFiscal {
     }
     for (final entree in parGroupe) {
       final taux = entree.groupe.tauxMillieme;
-      final tauxLisible =
-          taux == null || taux == 0 ? '—' : '${(taux / 10).toStringAsFixed(0)} %';
+      final tauxLisible = taux == null || taux == 0
+          ? '—'
+          : '${(taux / 10).toStringAsFixed(0)} %';
       sortie
         ..add('${entree.groupe.etiquette} · $tauxLisible')
         ..add(DocumentClient.aligne('  Taxable', entree.taxable.enFrancs))
@@ -240,18 +240,20 @@ class RapportFiscal {
       sortie.add('  Aucun.');
     }
     for (final entree in parMode.entries) {
-      sortie.add(DocumentClient.aligne(
-          '  ${entree.key.libelle}', entree.value.enFrancs));
+      sortie.add(
+        DocumentClient.aligne('  ${entree.key.libelle}', entree.value.enFrancs),
+      );
     }
 
     sortie
       ..add(_separateur)
-      ..add(DocumentClient.aligne(
-          'Réductions commerciales', reductions.enFrancs))
-      ..add(DocumentClient.aligne(
-          'Autres réductions', autresReductions.enFrancs))
-      ..add(DocumentClient.aligne(
-          'Ventes incomplètes', '$ventesIncompletes'))
+      ..add(
+        DocumentClient.aligne('Réductions commerciales', reductions.enFrancs),
+      )
+      ..add(
+        DocumentClient.aligne('Autres réductions', autresReductions.enFrancs),
+      )
+      ..add(DocumentClient.aligne('Ventes incomplètes', '$ventesIncompletes'))
       ..add(_separateur)
       ..add(DocumentClient.aligne('Nombre de factures', '$nombreFactures'))
       ..add(DocumentClient.aligne('Total taxable', taxable.enFrancs))
@@ -259,8 +261,9 @@ class RapportFiscal {
       ..add(DocumentClient.aligne('TOTAL', total.enFrancs))
       ..add('')
       // Le chiffre que le commerçant vient chercher, mis en évidence.
-      ..add(DocumentClient.aligne(
-          'À avoir en caisse (espèces)', especes.enFrancs));
+      ..add(
+        DocumentClient.aligne('À avoir en caisse (espèces)', especes.enFrancs),
+      );
 
     if (!certifie) {
       sortie
@@ -279,12 +282,13 @@ class RapportFiscal {
       final taux = article.tauxMillieme;
       sortie
         ..add(article.nom)
-        ..add('  ${article.code} · ${article.prixUnitaire.enFrancs}'
-            '${taux == null || taux == 0 ? '' : ' · ${(taux / 10).toStringAsFixed(0)} %'}')
+        ..add(
+          '  ${article.code} · ${article.prixUnitaire.enFrancs}'
+          '${taux == null || taux == 0 ? '' : ' · ${(taux / 10).toStringAsFixed(0)} %'}',
+        )
         ..add(DocumentClient.aligne('  Vendu', '${article.venduee}'));
       if (article.retournee.milliemes != 0) {
-        sortie.add(
-            DocumentClient.aligne('  Retourné', '${article.retournee}'));
+        sortie.add(DocumentClient.aligne('  Retourné', '${article.retournee}'));
       }
       if (article.enStock case final stock?) {
         sortie.add(DocumentClient.aligne('  En stock', '$stock'));

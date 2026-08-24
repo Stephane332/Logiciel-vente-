@@ -118,12 +118,12 @@ class TicketEscPos {
   /// couper au milieu rendrait le ticket illisible. Puis la quantité à gauche
   /// et le montant à droite, alignés — c'est ce que le client vérifie.
   List<int> _ligneArticle(LigneDocument ligne) => [
-        ..._ligne(_tronquer(ligne.designation, largeur)),
-        ..._colonnes(
-          '  ${ligne.quantite} x ${ligne.prixUnitaire.enFrancs}',
-          ligne.montant.enFrancs,
-        ),
-      ];
+    ..._ligne(_tronquer(ligne.designation, largeur)),
+    ..._colonnes(
+      '  ${ligne.quantite} x ${ligne.prixUnitaire.enFrancs}',
+      ligne.montant.enFrancs,
+    ),
+  ];
 
   /// Deux textes sur une ligne : l'un à gauche, l'autre collé à droite.
   ///
@@ -152,9 +152,9 @@ class TicketEscPos {
   // ------------------------------------------------------------- ESC/POS
 
   List<int> _initialiser() => [
-        _esc, 0x40, // ESC @ : remet l'imprimante à zéro
-        if (page.numero != null) ...[_esc, 0x74, page.numero!],
-      ];
+    _esc, 0x40, // ESC @ : remet l'imprimante à zéro
+    if (page.numero != null) ...[_esc, 0x74, page.numero!],
+  ];
 
   List<int> _gauche() => [_esc, 0x61, 0x00];
   List<int> _centre() => [_esc, 0x61, 0x01];
@@ -172,9 +172,9 @@ class TicketEscPos {
   /// donc plus que sur la moitié. Sans cette division, le nom d'un commerce un
   /// peu long débordait et l'imprimante coupait où ça tombait.
   List<int> _ligne(String texte, {bool large = false}) => [
-        ..._encoder(_tronquer(texte, large ? largeur ~/ 2 : largeur)),
-        0x0A,
-      ];
+    ..._encoder(_tronquer(texte, large ? largeur ~/ 2 : largeur)),
+    0x0A,
+  ];
 
   /// Encode un texte pour l'imprimante.
   ///
@@ -183,9 +183,7 @@ class TicketEscPos {
   /// plutôt qu'un octet au hasard, qui ferait dérailler l'imprimante.
   List<int> _encoder(String texte) {
     final prepare = page == PageDeCode.sansAccents ? sansAccents(texte) : texte;
-    return [
-      for (final unite in prepare.codeUnits) _octet(unite),
-    ];
+    return [for (final unite in prepare.codeUnits) _octet(unite)];
   }
 
   int _octet(int unite) {
@@ -208,13 +206,24 @@ class TicketEscPos {
       0x20AC: 0xD5, // €
     },
     PageDeCode.cp1252: {
-      0xE0: 0xE0, 0xE2: 0xE2, 0xE4: 0xE4,
+      0xE0: 0xE0,
+      0xE2: 0xE2,
+      0xE4: 0xE4,
       0xE7: 0xE7,
-      0xE9: 0xE9, 0xE8: 0xE8, 0xEA: 0xEA, 0xEB: 0xEB,
-      0xEE: 0xEE, 0xEF: 0xEF,
-      0xF4: 0xF4, 0xF6: 0xF6,
-      0xF9: 0xF9, 0xFB: 0xFB, 0xFC: 0xFC,
-      0xC0: 0xC0, 0xC7: 0xC7, 0xC9: 0xC9,
+      0xE9: 0xE9,
+      0xE8: 0xE8,
+      0xEA: 0xEA,
+      0xEB: 0xEB,
+      0xEE: 0xEE,
+      0xEF: 0xEF,
+      0xF4: 0xF4,
+      0xF6: 0xF6,
+      0xF9: 0xF9,
+      0xFB: 0xFB,
+      0xFC: 0xFC,
+      0xC0: 0xC0,
+      0xC7: 0xC7,
+      0xC9: 0xC9,
       0x20AC: 0x80,
     },
   };

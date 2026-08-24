@@ -14,10 +14,7 @@ void main() {
   final maintenant = DateTime(2026, 8, 16, 10);
   DateTime ilYA(int jours) => maintenant.subtract(Duration(days: jours));
 
-  RappelSauvegarde rappel({
-    required int nouveautes,
-    DateTime? derniere,
-  }) =>
+  RappelSauvegarde rappel({required int nouveautes, DateTime? derniere}) =>
       RappelSauvegarde(
         nouveautes: nouveautes,
         derniere: derniere,
@@ -40,11 +37,16 @@ void main() {
 
     test('la veille du seuil, on se tait encore', () {
       expect(
-          rappel(nouveautes: 50, derniere: ilYA(RappelSauvegarde.apresJours - 1))
-              .faut,
-          isFalse);
-      expect(rappel(nouveautes: RappelSauvegarde.avantLePremier - 1).faut,
-          isFalse);
+        rappel(
+          nouveautes: 50,
+          derniere: ilYA(RappelSauvegarde.apresJours - 1),
+        ).faut,
+        isFalse,
+      );
+      expect(
+        rappel(nouveautes: RappelSauvegarde.avantLePremier - 1).faut,
+        isFalse,
+      );
     });
   });
 
@@ -55,9 +57,9 @@ void main() {
 
     test('une sauvegarde qui date, et du travail depuis', () {
       expect(
-          rappel(nouveautes: 1, derniere: ilYA(RappelSauvegarde.apresJours))
-              .faut,
-          isTrue);
+        rappel(nouveautes: 1, derniere: ilYA(RappelSauvegarde.apresJours)).faut,
+        isTrue,
+      );
     });
   });
 
@@ -69,12 +71,17 @@ void main() {
     });
 
     test('compter les jours quand il y en a', () {
-      expect(rappel(nouveautes: 5, derniere: ilYA(12)).message,
-          contains('il y a 12 jours'));
+      expect(
+        rappel(nouveautes: 5, derniere: ilYA(12)).message,
+        contains('il y a 12 jours'),
+      );
     });
 
     test("« hier » se dit, « il y a 1 jours » ne se dit pas", () {
-      expect(rappel(nouveautes: 5, derniere: ilYA(1)).message, contains('hier'));
+      expect(
+        rappel(nouveautes: 5, derniere: ilYA(1)).message,
+        contains('hier'),
+      );
     });
   });
 

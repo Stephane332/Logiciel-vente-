@@ -13,8 +13,10 @@ import 'package:carnet/domaine/texte.dart';
 void main() {
   group('Sans accents', () {
     test('les accents français tombent, le reste ne bouge pas', () {
-      expect(sansAccents('Alimentation Nabonswendé'),
-          'Alimentation Nabonswende');
+      expect(
+        sansAccents('Alimentation Nabonswendé'),
+        'Alimentation Nabonswende',
+      );
       expect(sansAccents('À payer : 2 500 F'), 'A payer : 2 500 F');
       expect(sansAccents('Café éthiopien'), 'Cafe ethiopien');
     });
@@ -22,8 +24,10 @@ void main() {
     test('les codes USSD traversent intacts', () {
       // Une étoile ou un dièse transformés, et le client compose un code faux.
       expect(sansAccents('*144*10*70000000*2500#'), '*144*10*70000000*2500#');
-      expect(sansAccents('tel:*144*10*70000000*2500%23'),
-          'tel:*144*10*70000000*2500%23');
+      expect(
+        sansAccents('tel:*144*10*70000000*2500%23'),
+        'tel:*144*10*70000000*2500%23',
+      );
     });
 
     test('un texte déjà sans accent est rendu tel quel', () {
@@ -52,26 +56,37 @@ void main() {
       // minuscule, ni les guillemets français, ni le tiret long. Retirer les
       // accents à l'aveugle reste donc la règle sûre.
       for (final gratuit in ['é', 'è', 'à', 'É', 'ù', 'ö']) {
-        expect(nombreDeSms('${'a' * 100}$gratuit'), 1,
-            reason: '$gratuit est dans l\'alphabet GSM');
+        expect(
+          nombreDeSms('${'a' * 100}$gratuit'),
+          1,
+          reason: '$gratuit est dans l\'alphabet GSM',
+        );
       }
       for (final couteux in ['À', 'ç', '«', '»', '—', '·', 'ê']) {
-        expect(nombreDeSms('${'a' * 100}$couteux'), 2,
-            reason: '$couteux force le message en Unicode');
+        expect(
+          nombreDeSms('${'a' * 100}$couteux'),
+          2,
+          reason: '$couteux force le message en Unicode',
+        );
       }
     });
 
     test('le message de paiement complet tient en un SMS', () {
-      final message = sansAccents([
-        'ALIMENTATION NABONSWENDÉ',
-        'A payer: 2 500 F',
-        'Appuie: tel:*144*10*70000000*2500%23',
-        'Sinon compose: *144*10*70000000*2500#',
-      ].join('\n'));
+      final message = sansAccents(
+        [
+          'ALIMENTATION NABONSWENDÉ',
+          'A payer: 2 500 F',
+          'Appuie: tel:*144*10*70000000*2500%23',
+          'Sinon compose: *144*10*70000000*2500#',
+        ].join('\n'),
+      );
 
       expect(message.length, lessThanOrEqualTo(160));
-      expect(tientEnUnSms(message), isTrue,
-          reason: 'un message de paiement doit coûter un seul SMS');
+      expect(
+        tientEnUnSms(message),
+        isTrue,
+        reason: 'un message de paiement doit coûter un seul SMS',
+      );
     });
 
     test('le même message avec ses accents en coûterait deux', () {

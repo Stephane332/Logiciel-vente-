@@ -53,9 +53,11 @@ Future<Montant?> demanderMontant(
               : RaccourciMontant(
                   libelle: libellePlafond?.call(plafond) ?? plafond.enFrancs,
                   onPressed: () => rafraichir(
-                      () => saisie = (plafond.centimes ~/ 100).toString()),
+                    () => saisie = (plafond.centimes ~/ 100).toString(),
+                  ),
                 ),
-          surTouche: (touche) => rafraichir(() => saisie = _frappe(saisie, touche)),
+          surTouche: (touche) =>
+              rafraichir(() => saisie = _frappe(saisie, touche)),
           // Zéro ne valide pas. Sans ça, la touche « 00 » passait la garde du
           // zéro initial, le bouton s'activait, et le commerçant croyait avoir
           // encaissé alors que rien ne s'écrivait.
@@ -237,8 +239,11 @@ class _Touche extends StatelessWidget {
           height: cibleTactile,
           child: Center(
             child: effacement
-                ? const Icon(Icons.backspace_outlined,
-                    size: 22, color: Couleurs.alerte)
+                ? const Icon(
+                    Icons.backspace_outlined,
+                    size: 22,
+                    color: Couleurs.alerte,
+                  )
                 : Text(libelle, style: textes.headlineMedium),
           ),
         ),

@@ -55,20 +55,19 @@ class FeuilleDocument extends StatelessWidget {
     String? telephone,
     String? actionSecondaire,
     VoidCallback? surActionSecondaire,
-  }) =>
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => FeuilleDocument(
-          titre: titre,
-          texte: texte,
-          texteSms: texteSms,
-          telephone: telephone,
-          actionSecondaire: actionSecondaire,
-          surActionSecondaire: surActionSecondaire,
-        ),
-      );
+  }) => showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => FeuilleDocument(
+      titre: titre,
+      texte: texte,
+      texteSms: texteSms,
+      telephone: telephone,
+      actionSecondaire: actionSecondaire,
+      surActionSecondaire: surActionSecondaire,
+    ),
+  );
 
   Future<void> _ouvrir(String lien) =>
       launchUrl(Uri.parse(lien), mode: LaunchMode.externalApplication);
@@ -81,12 +80,14 @@ class FeuilleDocument extends StatelessWidget {
     final international = telephoneInternational(telephone);
     final destinataire = international == null ? '' : 'phone=$international&';
     return _ouvrir(
-        'https://wa.me/?${destinataire}text=${Uri.encodeComponent(texte)}');
+      'https://wa.me/?${destinataire}text=${Uri.encodeComponent(texte)}',
+    );
   }
 
   /// Ouvre l'application SMS avec le message pré-rempli.
   Future<void> _versSms() => _ouvrir(
-      'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texteSms ?? texte)}');
+    'sms:${telephone ?? ''}?body=${Uri.encodeComponent(texteSms ?? texte)}',
+  );
 
   @override
   Widget build(BuildContext context) {

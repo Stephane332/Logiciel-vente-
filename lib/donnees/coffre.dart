@@ -70,10 +70,7 @@ class Coffre {
     final sel = _sel();
     final cle = await _deriver(motDePasse, sel);
 
-    final scelle = await algorithme.encrypt(
-      utf8.encode(clair),
-      secretKey: cle,
-    );
+    final scelle = await algorithme.encrypt(utf8.encode(clair), secretKey: cle);
 
     return jsonEncode({
       'application': marque,
@@ -119,15 +116,13 @@ class Coffre {
     }
   }
 
-  static Future<SecretKey> _deriver(String motDePasse, List<int> sel) =>
-      Pbkdf2(
-        macAlgorithm: Hmac.sha256(),
-        iterations: _tours,
-        bits: 256,
-      ).deriveKeyFromPassword(password: motDePasse, nonce: sel);
+  static Future<SecretKey> _deriver(String motDePasse, List<int> sel) => Pbkdf2(
+    macAlgorithm: Hmac.sha256(),
+    iterations: _tours,
+    bits: 256,
+  ).deriveKeyFromPassword(password: motDePasse, nonce: sel);
 
-  static List<int> _sel() =>
-      SecretKeyData.random(length: _octetsDeSel).bytes;
+  static List<int> _sel() => SecretKeyData.random(length: _octetsDeSel).bytes;
 
   static Map<String, Object?>? _lire(String contenu) {
     try {

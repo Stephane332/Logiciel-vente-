@@ -23,10 +23,12 @@ class EcranScanner extends StatefulWidget {
 
   /// Ouvre le scanner. Rend le code lu, ou `null`.
   static Future<String?> lire(BuildContext context) =>
-      Navigator.of(context).push<String>(MaterialPageRoute(
-        builder: (_) => const EcranScanner(),
-        fullscreenDialog: true,
-      ));
+      Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => const EcranScanner(),
+          fullscreenDialog: true,
+        ),
+      );
 
   @override
   State<EcranScanner> createState() => _EcranScannerState();
@@ -64,7 +66,10 @@ class _EcranScannerState extends State<EcranScanner> {
     if (_rendu) return;
     final valeur = capture.barcodes
         .map((b) => b.rawValue)
-        .firstWhere((v) => v != null && v.trim().isNotEmpty, orElse: () => null);
+        .firstWhere(
+          (v) => v != null && v.trim().isNotEmpty,
+          orElse: () => null,
+        );
     if (valeur == null) return;
 
     _rendu = true;
@@ -136,8 +141,9 @@ class _EcranScannerState extends State<EcranScanner> {
         MobileScannerErrorCode.unsupported =>
           "Ce téléphone ne sait pas scanner. Tape le montant à la main : "
               "c'est ce que fait la caisse depuis toujours.",
-        _ => "L'appareil photo ne répond pas. Il est peut-être utilisé par "
-            'une autre application.',
+        _ =>
+          "L'appareil photo ne répond pas. Il est peut-être utilisé par "
+              'une autre application.',
       };
 }
 
@@ -160,8 +166,11 @@ class _Empechement extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.no_photography_outlined,
-              size: 44, color: Couleurs.encreLegere),
+          const Icon(
+            Icons.no_photography_outlined,
+            size: 44,
+            color: Couleurs.encreLegere,
+          ),
           const SizedBox(height: Espace.l),
           Text(motif, textAlign: TextAlign.center, style: textes.bodyMedium),
           const SizedBox(height: Espace.xl),

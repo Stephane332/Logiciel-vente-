@@ -49,18 +49,22 @@ void main() {
     final lignes = <LigneAEnregistrer>[];
     for (final (nom, prix, combien) in articles) {
       total += (f(prix).centimes * combien);
-      lignes.add(LigneAEnregistrer(
-        codeArticle: nom.toUpperCase(),
-        designation: nom,
-        prixUnitaire: f(prix),
-        quantite: Quantite.unites(combien),
-      ));
+      lignes.add(
+        LigneAEnregistrer(
+          codeArticle: nom.toUpperCase(),
+          designation: nom,
+          prixUnitaire: f(prix),
+          quantite: Quantite.unites(combien),
+        ),
+      );
     }
     return depot.enregistrerVente(
       lignes: lignes,
       paiements: [
         PaiementAEnregistrer(
-            mode: ModePaiement.credit, montant: Montant(total))
+          mode: ModePaiement.credit,
+          montant: Montant(total),
+        ),
       ],
       clientId: clientId,
       horodatage: quand,
@@ -70,8 +74,9 @@ void main() {
   group("Le détail d'une dette", () {
     test('chaque achat à crédit a sa ligne', () async {
       final salif = await depot.creerClient(nom: 'Salif');
-      await aCredit(salif, [('Riz 1 kg', 650, 1)],
-          quand: DateTime.now().subtract(const Duration(days: 2)));
+      await aCredit(salif, [
+        ('Riz 1 kg', 650, 1),
+      ], quand: DateTime.now().subtract(const Duration(days: 2)));
       await aCredit(salif, [('Sucre', 750, 2)]);
 
       final compte = await depot.compteDe(salif);
@@ -119,10 +124,10 @@ void main() {
             designation: 'Sucre',
             prixUnitaire: f(750),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(750))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(750)),
         ],
         clientId: salif,
       );
@@ -169,7 +174,8 @@ void main() {
       final compte = await depot.compteDe(salif);
       final solde = compte.fold(
         0,
-        (somme, m) => somme + (m.estAchat ? m.montant.centimes : -m.montant.centimes),
+        (somme, m) =>
+            somme + (m.estAchat ? m.montant.centimes : -m.montant.centimes),
       );
 
       final client = (await depot.clientsDebiteurs()).single;
@@ -186,12 +192,14 @@ void main() {
     Finder tete(String nom) => find.bySemanticsLabel(RegExp('^$nom, doit'));
 
     Future<void> ouvrir(WidgetTester tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: Scaffold(
-          body: EcranDettes(depot: depot, documents: documents),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: Scaffold(
+            body: EcranDettes(depot: depot, documents: documents),
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
     }
 
@@ -233,15 +241,18 @@ void main() {
 
   group("Vendre plusieurs d'un coup", () {
     Future<void> ouvrirCaisse(WidgetTester tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(depot: depot, documents: documents),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: EcranVente(depot: depot, documents: documents),
+        ),
+      );
       await tester.pumpAndSettle();
     }
 
-    testWidgets("l'appui long propose les conditionnements courants",
-        (tester) async {
+    testWidgets("l'appui long propose les conditionnements courants", (
+      tester,
+    ) async {
       await depot.creerArticle(designation: 'Sachet d\'eau', prix: f(50));
       await ouvrirCaisse(tester);
 
@@ -253,8 +264,9 @@ void main() {
       expect(find.text('Autre'), findsOneWidget);
     });
 
-    testWidgets('choisir un nombre met tout le carton au panier',
-        (tester) async {
+    testWidgets('choisir un nombre met tout le carton au panier', (
+      tester,
+    ) async {
       await depot.creerArticle(designation: 'Sachet d\'eau', prix: f(50));
       await ouvrirCaisse(tester);
 
@@ -270,8 +282,9 @@ void main() {
       expect(find.text('12 articles'), findsOneWidget);
     });
 
-    testWidgets('le nombre choisi remplace la quantité, il ne s\'ajoute pas',
-        (tester) async {
+    testWidgets('le nombre choisi remplace la quantité, il ne s\'ajoute pas', (
+      tester,
+    ) async {
       await depot.creerArticle(designation: 'Sachet d\'eau', prix: f(50));
       await ouvrirCaisse(tester);
 
@@ -295,10 +308,12 @@ void main() {
       await ouvrirCaisse(tester);
 
       for (var i = 0; i < EcranVenteState.tapesAvantConseil; i++) {
-        await tester.tap(find.descendant(
-          of: find.byType(TuileProduit),
-          matching: find.text("Sachet d'eau"),
-        ));
+        await tester.tap(
+          find.descendant(
+            of: find.byType(TuileProduit),
+            matching: find.text("Sachet d'eau"),
+          ),
+        );
       }
       await tester.pumpAndSettle();
       expect(find.textContaining('Appui long'), findsOneWidget);
@@ -307,10 +322,12 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
       for (var i = 0; i < EcranVenteState.tapesAvantConseil + 2; i++) {
-        await tester.tap(find.descendant(
-          of: find.byType(TuileProduit),
-          matching: find.text("Sachet d'eau"),
-        ));
+        await tester.tap(
+          find.descendant(
+            of: find.byType(TuileProduit),
+            matching: find.text("Sachet d'eau"),
+          ),
+        );
       }
       await tester.pumpAndSettle();
       expect(find.textContaining('Appui long'), findsNothing);

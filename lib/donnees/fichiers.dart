@@ -5,5 +5,4 @@
 /// contente de télécharger. Le reste du code ne connaît que cette interface.
 library;
 
-export 'fichiers_native.dart'
-    if (dart.library.js_interop) 'fichiers_web.dart';
+export 'fichiers_native.dart' if (dart.library.js_interop) 'fichiers_web.dart';

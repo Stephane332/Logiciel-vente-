@@ -38,30 +38,28 @@ void main() {
     DateTime? quand,
     ModePaiement mode = ModePaiement.especes,
     List<String> autres = const [],
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: nom.toUpperCase(),
-            designation: nom,
-            prixUnitaire: f(prix),
-            quantite: const Quantite.unites(1),
-          ),
-          for (final autre in autres)
-            LigneAEnregistrer(
-              codeArticle: autre.toUpperCase(),
-              designation: autre,
-              prixUnitaire: f(100),
-              quantite: const Quantite.unites(1),
-            ),
-        ],
-        paiements: [
-          PaiementAEnregistrer(
-              mode: mode, montant: f(prix + 100 * autres.length))
-        ],
-        clientId: clientId,
-        horodatage: quand,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: nom.toUpperCase(),
+        designation: nom,
+        prixUnitaire: f(prix),
+        quantite: const Quantite.unites(1),
+      ),
+      for (final autre in autres)
+        LigneAEnregistrer(
+          codeArticle: autre.toUpperCase(),
+          designation: autre,
+          prixUnitaire: f(100),
+          quantite: const Quantite.unites(1),
+        ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(mode: mode, montant: f(prix + 100 * autres.length)),
+    ],
+    clientId: clientId,
+    horodatage: quand,
+  );
 
   group('Normalisation du numéro', () {
     test('toutes les écritures usuelles donnent le même numéro', () {
@@ -73,8 +71,11 @@ void main() {
         '0022670112233',
         '226-70-11-22-33',
       ]) {
-        expect(normaliserTelephone(saisie), '70112233',
-            reason: 'échec sur « $saisie »');
+        expect(
+          normaliserTelephone(saisie),
+          '70112233',
+          reason: 'échec sur « $saisie »',
+        );
       }
     });
 
@@ -142,7 +143,9 @@ void main() {
     test('il survit au rejeu du journal', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');
       await depot.enregistrerConsentement(awa);
-      final avant = (await depot.clientParTelephone('70112233'))!.consentementLe;
+      final avant = (await depot.clientParTelephone(
+        '70112233',
+      ))!.consentementLe;
 
       await depot.reconstruireProjections();
 
@@ -161,8 +164,7 @@ void main() {
       await acheter(awa, 'Huile', 1500, quand: DateTime(2026, 7, 25));
       await acheter(awa, 'Savon', 500, quand: DateTime(2026, 8, 2));
 
-      final historique =
-          (await documents.historique(awa, jusqua: maintenant))!;
+      final historique = (await documents.historique(awa, jusqua: maintenant))!;
 
       expect(historique.achats, hasLength(3));
       expect(historique.achats.first.montant, f(500));
@@ -172,35 +174,50 @@ void main() {
 
     test('abrège une vente à plusieurs articles', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');
-      await acheter(awa, 'Riz', 2000,
-          quand: DateTime(2026, 8, 2), autres: ['Savon', 'Eau']);
+      await acheter(
+        awa,
+        'Riz',
+        2000,
+        quand: DateTime(2026, 8, 2),
+        autres: ['Savon', 'Eau'],
+      );
 
-      final historique =
-          (await documents.historique(awa, jusqua: maintenant))!;
+      final historique = (await documents.historique(awa, jusqua: maintenant))!;
       expect(historique.achats.single.resume, 'Riz +2');
     });
 
     test('signale ce qui reste dû', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');
-      await acheter(awa, 'Riz', 2000,
-          quand: DateTime(2026, 8, 2), mode: ModePaiement.credit);
+      await acheter(
+        awa,
+        'Riz',
+        2000,
+        quand: DateTime(2026, 8, 2),
+        mode: ModePaiement.credit,
+      );
 
-      final historique =
-          (await documents.historique(awa, jusqua: maintenant))!;
+      final historique = (await documents.historique(awa, jusqua: maintenant))!;
       expect(historique.encours, f(2000));
       expect(historique.texte, contains('Reste à payer'));
     });
 
     test('reste lisible sur un petit écran', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');
-      await acheter(awa, 'Sac de riz parfumé importé 50 kg', 25000,
-          quand: DateTime(2026, 8, 2), autres: ['Savon', 'Eau', 'Sucre']);
+      await acheter(
+        awa,
+        'Sac de riz parfumé importé 50 kg',
+        25000,
+        quand: DateTime(2026, 8, 2),
+        autres: ['Savon', 'Eau', 'Sucre'],
+      );
 
-      final historique =
-          (await documents.historique(awa, jusqua: maintenant))!;
+      final historique = (await documents.historique(awa, jusqua: maintenant))!;
       for (final ligne in historique.texte.split('\n')) {
-        expect(ligne.length, lessThanOrEqualTo(40),
-            reason: 'ligne trop longue : « $ligne »');
+        expect(
+          ligne.length,
+          lessThanOrEqualTo(40),
+          reason: 'ligne trop longue : « $ligne »',
+        );
       }
     });
 
@@ -224,8 +241,7 @@ void main() {
       await acheter(awa, 'Riz', 2000, quand: DateTime(2026, 8, 2));
       await acheter(ali, 'Huile', 1500, quand: DateTime(2026, 8, 2));
 
-      final historique =
-          (await documents.historique(awa, jusqua: maintenant))!;
+      final historique = (await documents.historique(awa, jusqua: maintenant))!;
       expect(historique.achats, hasLength(1));
       expect(historique.total, f(2000));
       expect(historique.nomClient, 'Awa');

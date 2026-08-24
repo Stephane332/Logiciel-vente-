@@ -106,19 +106,20 @@ class EcranStockState extends State<EcranStock> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('${article.designation} retiré du catalogue'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(
-          label: 'Remettre',
-          onPressed: () async {
-            await widget.depot
-                .retirerArticle(article.code, retire: false);
-            await recharger();
-          },
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${article.designation} retiré du catalogue'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Remettre',
+            onPressed: () async {
+              await widget.depot.retirerArticle(article.code, retire: false);
+              await recharger();
+            },
+          ),
         ),
-      ));
+      );
   }
 
   /// Demande une quantité en unités entières.
@@ -201,15 +202,17 @@ class EcranStockState extends State<EcranStock> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('${article.designation} reste dans la liste du bas.'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Annuler',
-          onPressed: () => _commencerLeSuivi(article),
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${article.designation} reste dans la liste du bas.'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Annuler',
+            onPressed: () => _commencerLeSuivi(article),
+          ),
         ),
-      ));
+      );
   }
 
   /// Arrête de suivre un article sans perdre la possibilité d'y revenir.
@@ -339,7 +342,9 @@ class _LigneSansSuivi extends StatelessWidget {
       onTap: surSuivi,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: Espace.l, vertical: Espace.s),
+          horizontal: Espace.l,
+          vertical: Espace.s,
+        ),
         child: Row(
           children: [
             Expanded(
@@ -402,11 +407,17 @@ class _AucunStock extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.inventory_2_outlined,
-                size: 56, color: Couleurs.encreLegere),
+            const Icon(
+              Icons.inventory_2_outlined,
+              size: 56,
+              color: Couleurs.encreLegere,
+            ),
             const SizedBox(height: Espace.l),
-            Text('Rien à compter pour le moment',
-                style: textes.titleLarge, textAlign: TextAlign.center),
+            Text(
+              'Rien à compter pour le moment',
+              style: textes.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: Espace.s),
             Text(
               "Vends d'abord. Quand un article reviendra souvent, je te "
@@ -624,10 +635,10 @@ class SaisieArticle {
   });
 
   const SaisieArticle.retrait()
-      : nom = '',
-        prix = const Montant.zero(),
-        stock = null,
-        retirer = true;
+    : nom = '',
+      prix = const Montant.zero(),
+      stock = null,
+      retirer = true;
 }
 
 /// La fiche d'un article : son nom, son prix, et sa quantité de départ.
@@ -653,34 +664,35 @@ class FicheArticle extends StatefulWidget {
     this.retirable = false,
   });
 
-  static Future<SaisieArticle?> creer(BuildContext context) =>
-      _presenter(context,
-          const FicheArticle(titre: 'Nouvel article', avecStock: true));
+  static Future<SaisieArticle?> creer(BuildContext context) => _presenter(
+    context,
+    const FicheArticle(titre: 'Nouvel article', avecStock: true),
+  );
 
   static Future<SaisieArticle?> modifier(
     BuildContext context,
     LigneArticle article,
-  ) =>
-      _presenter(
-        context,
-        FicheArticle(
-          titre: "Fiche de l'article",
-          nom: article.nomme ? article.designation : null,
-          prix: Montant(article.prixCentimes),
-          // Un article créé par erreur restait à vie : une faute de frappe
-          // se corrigeait, jamais ne s'effaçait.
-          retirable: true,
-        ),
-      );
+  ) => _presenter(
+    context,
+    FicheArticle(
+      titre: "Fiche de l'article",
+      nom: article.nomme ? article.designation : null,
+      prix: Montant(article.prixCentimes),
+      // Un article créé par erreur restait à vie : une faute de frappe
+      // se corrigeait, jamais ne s'effaçait.
+      retirable: true,
+    ),
+  );
 
   static Future<SaisieArticle?> _presenter(
-          BuildContext context, FicheArticle fiche) =>
-      showModalBottomSheet<SaisieArticle>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => fiche,
-      );
+    BuildContext context,
+    FicheArticle fiche,
+  ) => showModalBottomSheet<SaisieArticle>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => fiche,
+  );
 
   @override
   State<FicheArticle> createState() => _FicheArticleState();
@@ -689,7 +701,8 @@ class FicheArticle extends StatefulWidget {
 class _FicheArticleState extends State<FicheArticle> {
   late final _nom = TextEditingController(text: widget.nom ?? '');
   late final _prix = TextEditingController(
-      text: widget.prix == null ? '' : '${widget.prix!.centimes ~/ 100}');
+    text: widget.prix == null ? '' : '${widget.prix!.centimes ~/ 100}',
+  );
   late final _stock = TextEditingController();
 
   @override
@@ -709,11 +722,13 @@ class _FicheArticleState extends State<FicheArticle> {
     if (!_complet) return;
     final stock = int.tryParse(_stock.text.trim());
 
-    Navigator.of(context).pop(SaisieArticle(
-      nom: _nom.text.trim(),
-      prix: _prixSaisi,
-      stock: stock == null ? null : Quantite.unites(stock),
-    ));
+    Navigator.of(context).pop(
+      SaisieArticle(
+        nom: _nom.text.trim(),
+        prix: _prixSaisi,
+        stock: stock == null ? null : Quantite.unites(stock),
+      ),
+    );
   }
 
   @override

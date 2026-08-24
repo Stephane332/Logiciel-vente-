@@ -41,8 +41,7 @@ class ReferenceFacture {
   /// Rangs sur six chiffres : une entreprise qui émet trois cents factures par
   /// jour tient l'année sans changer de format, et les références se trient
   /// alors dans l'ordre en tant que texte.
-  String get texte =>
-      '$type-$annee-${rang.toString().padLeft(6, '0')}';
+  String get texte => '$type-$annee-${rang.toString().padLeft(6, '0')}';
 
   @override
   String toString() => texte;

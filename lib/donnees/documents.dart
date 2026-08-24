@@ -42,18 +42,18 @@ class Documents {
   ///
   /// La même méthode sert les deux : c'est l'état de la vente qui décide.
   Future<DocumentClient?> pourVente(String venteId) async {
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingleOrNull();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingleOrNull();
     if (vente == null) return null;
 
-    final lignes = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.equals(venteId)))
-        .get();
+    final lignes = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.equals(venteId))).get();
 
-    final reglements = await (base.select(base.paiements)
-          ..where((p) => p.venteId.equals(venteId)))
-        .get();
+    final reglements = await (base.select(
+      base.paiements,
+    )..where((p) => p.venteId.equals(venteId))).get();
 
     final regle = reglements
         .where((p) => p.mode != ModePaiement.credit.name)
@@ -79,15 +79,17 @@ class Documents {
             quantite: Quantite(ligne.quantiteMilliemes),
             prixUnitaire: Montant(ligne.prixUnitaireCentimes),
             montant: Montant(ligne.montantCentimes),
-          )
+          ),
       ],
       total: Montant(vente.totalCentimes),
       regle: Montant(regle),
       modes: reglements
-          .map((p) => ModePaiement.values.firstWhere(
-                (m) => m.name == p.mode,
-                orElse: () => ModePaiement.especes,
-              ))
+          .map(
+            (p) => ModePaiement.values.firstWhere(
+              (m) => m.name == p.mode,
+              orElse: () => ModePaiement.especes,
+            ),
+          )
           .toSet()
           .toList(),
     );
@@ -109,14 +111,14 @@ class Documents {
     List<Commentaire> commentaires = const [],
     bool duplicata = false,
   }) async {
-    final vente = await (base.select(base.ventes)
-          ..where((v) => v.id.equals(venteId)))
-        .getSingleOrNull();
+    final vente = await (base.select(
+      base.ventes,
+    )..where((v) => v.id.equals(venteId))).getSingleOrNull();
     if (vente == null) return null;
 
-    final lignes = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.equals(venteId)))
-        .get();
+    final lignes = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.equals(venteId))).get();
     if (lignes.isEmpty) return null;
 
     final calcul = calculerFacture(
@@ -131,23 +133,25 @@ class Documents {
             // différait : c'est ce que le §3 veut voir au détail de la ligne,
             // et c'est aussi ce que le client attend d'y lire.
             prixUnitaire: Montant(
-                ligne.prixCatalogueCentimes ?? ligne.prixUnitaireCentimes),
+              ligne.prixCatalogueCentimes ?? ligne.prixUnitaireCentimes,
+            ),
             quantite: Quantite(ligne.quantiteMilliemes),
             remise: _remiseDeLigne(ligne),
-          )
+          ),
       ],
     );
 
     final reglements = <ModePaiement, Montant>{};
-    for (final paiement in await (base.select(base.paiements)
-          ..where((p) => p.venteId.equals(venteId)))
-        .get()) {
+    for (final paiement in await (base.select(
+      base.paiements,
+    )..where((p) => p.venteId.equals(venteId))).get()) {
       final mode = ModePaiement.values.firstWhere(
         (m) => m.name == paiement.mode,
         orElse: () => ModePaiement.especes,
       );
       reglements[mode] =
-          (reglements[mode] ?? const Montant.zero()) + Montant(paiement.montantCentimes);
+          (reglements[mode] ?? const Montant.zero()) +
+          Montant(paiement.montantCentimes);
     }
 
     return Facture(
@@ -172,8 +176,9 @@ class Documents {
     if (catalogue == null || catalogue <= ligne.prixUnitaireCentimes) {
       return const Montant.zero();
     }
-    return Montant(catalogue - ligne.prixUnitaireCentimes)
-        .multiplieParQuantite(Quantite(ligne.quantiteMilliemes));
+    return Montant(
+      catalogue - ligne.prixUnitaireCentimes,
+    ).multiplieParQuantite(Quantite(ligne.quantiteMilliemes));
   }
 
   /// L'historique des achats d'un client **dans cette boutique**.
@@ -187,34 +192,39 @@ class Documents {
     DateTime? depuis,
     DateTime? jusqua,
   }) async {
-    final client = await (base.select(base.clients)
-          ..where((c) => c.id.equals(clientId)))
-        .getSingleOrNull();
+    final client = await (base.select(
+      base.clients,
+    )..where((c) => c.id.equals(clientId))).getSingleOrNull();
     if (client == null) return null;
 
     final fin = jusqua ?? DateTime.now();
     final debut = depuis ?? DateTime(fin.year, fin.month - 3, fin.day);
 
-    final ventes = await (base.select(base.ventes)
-          ..where((v) =>
-              v.clientId.equals(clientId) &
-              v.annulee.equals(false) &
-              v.horodatage.isBiggerOrEqualValue(debut) &
-              v.horodatage.isSmallerOrEqualValue(fin))
-          ..orderBy([(v) => drift.OrderingTerm.desc(v.horodatage)]))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)
+              ..where(
+                (v) =>
+                    v.clientId.equals(clientId) &
+                    v.annulee.equals(false) &
+                    v.horodatage.isBiggerOrEqualValue(debut) &
+                    v.horodatage.isSmallerOrEqualValue(fin),
+              )
+              ..orderBy([(v) => drift.OrderingTerm.desc(v.horodatage)]))
+            .get();
 
     final achats = <AchatResume>[];
     for (final vente in ventes) {
-      final lignes = await (base.select(base.lignesVente)
-            ..where((l) => l.venteId.equals(vente.id)))
-          .get();
+      final lignes = await (base.select(
+        base.lignesVente,
+      )..where((l) => l.venteId.equals(vente.id))).get();
 
-      achats.add(AchatResume(
-        date: vente.horodatage,
-        montant: Montant(vente.totalCentimes),
-        resume: _resumer(lignes),
-      ));
+      achats.add(
+        AchatResume(
+          date: vente.horodatage,
+          montant: Montant(vente.totalCentimes),
+          resume: _resumer(lignes),
+        ),
+      );
     }
 
     return HistoriqueClient(
@@ -238,35 +248,41 @@ class Documents {
 
   /// L'ardoise d'un client : ce qu'il doit, et depuis quand.
   Future<Ardoise?> ardoise(String clientId, {DateTime? arreteeAu}) async {
-    final client = await (base.select(base.clients)
-          ..where((c) => c.id.equals(clientId)))
-        .getSingleOrNull();
+    final client = await (base.select(
+      base.clients,
+    )..where((c) => c.id.equals(clientId))).getSingleOrNull();
     if (client == null) return null;
 
-    final ventes = await (base.select(base.ventes)
-          ..where((v) => v.clientId.equals(clientId) & v.annulee.equals(false))
-          ..orderBy([(v) => drift.OrderingTerm.asc(v.horodatage)]))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)
+              ..where(
+                (v) => v.clientId.equals(clientId) & v.annulee.equals(false),
+              )
+              ..orderBy([(v) => drift.OrderingTerm.asc(v.horodatage)]))
+            .get();
 
     final identifiants = ventes.map((v) => v.id).toList();
     final aCredit = identifiants.isEmpty
         ? const <LignePaiement>[]
-        : await (base.select(base.paiements)
-              ..where((p) =>
-                  p.venteId.isIn(identifiants) &
-                  p.mode.equals(ModePaiement.credit.name)))
-            .get();
+        : await (base.select(base.paiements)..where(
+                (p) =>
+                    p.venteId.isIn(identifiants) &
+                    p.mode.equals(ModePaiement.credit.name),
+              ))
+              .get();
 
-    final remboursements = await base.customSelect(
-      '''
+    final remboursements = await base
+        .customSelect(
+          '''
       SELECT COUNT(*) AS nombre
       FROM evenements
       WHERE type = 'credit_rembourse'
         AND charge LIKE ?
       ''',
-      variables: [drift.Variable<String>('%"clientId":"$clientId"%')],
-      readsFrom: {base.evenements},
-    ).getSingle();
+          variables: [drift.Variable<String>('%"clientId":"$clientId"%')],
+          readsFrom: {base.evenements},
+        )
+        .getSingle();
 
     final premiereDette = ventes
         .where((v) => aCredit.any((p) => p.venteId == v.id))
@@ -296,18 +312,16 @@ class Documents {
     List<PartEncaissee> parts = const [],
     String? intitule,
     DateTime? date,
-  }) =>
-      RapportDuSoir(
-        perdu: perdu,
-        nomCommerce: nomCommerce,
-        date: date ?? DateTime.now(),
-        encaisse: rapport.encaisse,
-        aCredit: rapport.aCredit,
-        remises: rapport.remisesAccordees,
-        nombreVentes: rapport.nombreVentes,
-        aRacheter: aRacheter,
-        parts: parts,
-        intitule: intitule,
-      );
-
+  }) => RapportDuSoir(
+    perdu: perdu,
+    nomCommerce: nomCommerce,
+    date: date ?? DateTime.now(),
+    encaisse: rapport.encaisse,
+    aCredit: rapport.aCredit,
+    remises: rapport.remisesAccordees,
+    nombreVentes: rapport.nombreVentes,
+    aRacheter: aRacheter,
+    parts: parts,
+    intitule: intitule,
+  );
 }

@@ -54,10 +54,10 @@ class ClientFacture {
 
   /// Les lignes qui identifient le client sur la facture (§3, e et f).
   List<String> get lignes => [
-        'Client : ${type.libelle}',
-        if (nom != null && nom!.trim().isNotEmpty) nom!.trim(),
-        if (ifu != null && ifu!.trim().isNotEmpty) 'IFU client : ${ifu!.trim()}',
-      ];
+    'Client : ${type.libelle}',
+    if (nom != null && nom!.trim().isNotEmpty) nom!.trim(),
+    if (ifu != null && ifu!.trim().isNotEmpty) 'IFU client : ${ifu!.trim()}',
+  ];
 }
 
 /// Une ligne de commentaire libre (§2.27). Huit au minimum, dont deux dont
@@ -195,12 +195,20 @@ class Facture {
     sortie.add(_separateur);
 
     if (calcul.totalTaxeSpecifique.estPositif) {
-      sortie.add(DocumentClient.aligne(
-          'Taxe spécifique', calcul.totalTaxeSpecifique.enFrancs));
+      sortie.add(
+        DocumentClient.aligne(
+          'Taxe spécifique',
+          calcul.totalTaxeSpecifique.enFrancs,
+        ),
+      );
     }
     sortie
-      ..add(DocumentClient.aligne(
-          'Total imposable', calcul.totalImposable.enFrancs))
+      ..add(
+        DocumentClient.aligne(
+          'Total imposable',
+          calcul.totalImposable.enFrancs,
+        ),
+      )
       ..add(DocumentClient.aligne('Total taxe', calcul.totalTaxe.enFrancs))
       ..add(DocumentClient.aligne('TOTAL TTC', calcul.totalTtc.enFrancs));
 
@@ -219,7 +227,8 @@ class Facture {
         ..add('Règlement :');
       for (final entree in reglements.entries) {
         sortie.add(
-            DocumentClient.aligne(entree.key.libelle, entree.value.enFrancs));
+          DocumentClient.aligne(entree.key.libelle, entree.value.enFrancs),
+        );
       }
     }
 
@@ -228,10 +237,12 @@ class Facture {
     if (regleeEnEspeces) {
       sortie
         ..add('')
-        ..add(DocumentClient.aligne(
-          'Montant timbre quittance en cas de règlement en espèce',
-          timbreQuittance.enFrancs,
-        ));
+        ..add(
+          DocumentClient.aligne(
+            'Montant timbre quittance en cas de règlement en espèce',
+            timbreQuittance.enFrancs,
+          ),
+        );
     }
 
     final remplis = commentaires.where((c) => c.texte.trim().isNotEmpty);
@@ -299,12 +310,17 @@ class Facture {
     final sortie = <String>['Par groupe de taxation :'];
     for (final total in calcul.totauxParGroupe) {
       final taux = total.groupe.tauxMillieme;
-      final tauxLisible =
-          taux == null || taux == 0 ? '—' : '${(taux / 10).toStringAsFixed(0)} %';
+      final tauxLisible = taux == null || taux == 0
+          ? '—'
+          : '${(taux / 10).toStringAsFixed(0)} %';
       sortie
         ..add('${total.groupe.etiquette} · ${total.groupe.description}')
-        ..add(DocumentClient.aligne(
-            '  Base $tauxLisible', total.montantImposable.enFrancs))
+        ..add(
+          DocumentClient.aligne(
+            '  Base $tauxLisible',
+            total.montantImposable.enFrancs,
+          ),
+        )
         ..add(DocumentClient.aligne('  Impôt', total.taxe.enFrancs));
     }
     return sortie;
@@ -347,7 +363,9 @@ class Facture {
     }
 
     for (final mot in texte.trim().split(RegExp(r'\s+'))) {
-      final ajout = courante.isEmpty ? mot.length : courante.length + 1 + mot.length;
+      final ajout = courante.isEmpty
+          ? mot.length
+          : courante.length + 1 + mot.length;
       if (ajout > place && courante.isNotEmpty) pousser();
       if (courante.isNotEmpty) courante.write(' ');
       courante.write(mot);

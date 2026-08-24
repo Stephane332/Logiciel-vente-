@@ -37,13 +37,13 @@ void main() {
   tearDown(() => base.close());
 
   Future<Widget> ecran() async => MaterialApp(
-        theme: themeClair(),
-        home: EcranReglages(
-          parametres: parametres,
-          reglage: await parametres.tout(),
-          depot: depot,
-        ),
-      );
+    theme: themeClair(),
+    home: EcranReglages(
+      parametres: parametres,
+      reglage: await parametres.tout(),
+      depot: depot,
+    ),
+  );
 
   /// Ouvre l'écran sur une surface assez haute pour que tout y tienne.
   ///
@@ -82,10 +82,9 @@ void main() {
     });
 
     testWidgets('ouverte quand elle porte déjà des mentions', (tester) async {
-      await parametres.definirFiche(const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        ifu: '00012345A',
-      ));
+      await parametres.definirFiche(
+        const FicheEntreprise(nomCommercial: 'Chez Awa', ifu: '00012345A'),
+      );
 
       await ouvrir(tester);
 
@@ -94,12 +93,15 @@ void main() {
       expect(find.text('IFU'), findsOneWidget);
     });
 
-    testWidgets('elle dit à quoi elle sert, et à quoi elle ne sert pas',
-        (tester) async {
+    testWidgets('elle dit à quoi elle sert, et à quoi elle ne sert pas', (
+      tester,
+    ) async {
       await ouvrir(tester);
 
-      expect(find.textContaining('Inutile pour vendre au comptoir'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Inutile pour vendre au comptoir'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('elle tient sur la largeur d\'un téléphone', (tester) async {
@@ -114,8 +116,11 @@ void main() {
       await tester.pumpWidget(await ecran());
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(find.text('Ma fiche entreprise'), 100,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        find.text('Ma fiche entreprise'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Ma fiche entreprise'));
       await tester.pumpAndSettle();
 
@@ -124,8 +129,11 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final champ = find.byType(DropdownButtonFormField<RegimeImposition?>);
-      await tester.scrollUntilVisible(champ, 100,
-          scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(
+        champ,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(tester.getSize(champ).width, lessThanOrEqualTo(400));
     });
   });
@@ -139,25 +147,33 @@ void main() {
       // l'arbre d'accessibilité de l'application pilotée.
       await ouvrir(tester);
 
-      expect(find.widgetWithText(TextField, 'Nom de la boutique'),
-          findsOneWidget);
+      expect(
+        find.widgetWithText(TextField, 'Nom de la boutique'),
+        findsOneWidget,
+      );
     });
   });
 
   group('Ce qui est tapé est gardé', () {
-    testWidgets('une fiche remplie se retrouve dans les réglages',
-        (tester) async {
+    testWidgets('une fiche remplie se retrouve dans les réglages', (
+      tester,
+    ) async {
       await ouvrir(tester);
 
       await deplier(tester);
 
       await tester.enterText(
-          find.widgetWithText(TextField, 'IFU'), '00012345A');
+        find.widgetWithText(TextField, 'IFU'),
+        '00012345A',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'Adresse de vente'), 'Gounghin');
+        find.widgetWithText(TextField, 'Adresse de vente'),
+        'Gounghin',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'Références cadastrales'),
-          '1234 567 8901');
+        find.widgetWithText(TextField, 'Références cadastrales'),
+        '1234 567 8901',
+      );
 
       await enregistrer(tester);
 
@@ -178,8 +194,10 @@ void main() {
       // Le défaut s'affiche sous le champ, et l'écran ne se ferme pas : sans
       // ça, le commerçant croirait avoir enregistré son IFU jusqu'au jour où
       // sa facture partirait sans.
-      expect(find.text("L'IFU est huit chiffres suivis d'une lettre."),
-          findsOneWidget);
+      expect(
+        find.text("L'IFU est huit chiffres suivis d'une lettre."),
+        findsOneWidget,
+      );
       expect(find.text('Ma fiche entreprise'), findsOneWidget);
       expect((await parametres.tout()).fiche.ifu, isNull);
     });
@@ -196,18 +214,22 @@ void main() {
       expect((await parametres.tout()).nomCommerce, 'Chez Awa');
     });
 
-    testWidgets('les numéros marchands ne sont pas emportés par la fiche',
-        (tester) async {
+    testWidgets('les numéros marchands ne sont pas emportés par la fiche', (
+      tester,
+    ) async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '70000000');
+        OperateurMobile.orange,
+        '70000000',
+      );
 
       await ouvrir(tester);
 
       await enregistrer(tester);
 
       expect(
-          (await parametres.tout()).comptes.numeroDe(OperateurMobile.orange),
-          '70000000');
+        (await parametres.tout()).comptes.numeroDe(OperateurMobile.orange),
+        '70000000',
+      );
     });
   });
 
@@ -220,17 +242,20 @@ void main() {
       expect(find.textContaining('Il manque 6 mentions'), findsOneWidget);
     });
 
-    testWidgets("elle ne laisse pas croire qu'une fiche complète suffit",
-        (tester) async {
-      await parametres.definirFiche(FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        ifu: '00012345A',
-        cadastre: ReferenceCadastrale.analyser('12345678901'),
-        adresse: 'Gounghin',
-        telephone: '70000000',
-        regime: RegimeImposition.rni,
-        serviceImpots: 'DME Ouaga 1',
-      ));
+    testWidgets("elle ne laisse pas croire qu'une fiche complète suffit", (
+      tester,
+    ) async {
+      await parametres.definirFiche(
+        FicheEntreprise(
+          nomCommercial: 'Chez Awa',
+          ifu: '00012345A',
+          cadastre: ReferenceCadastrale.analyser('12345678901'),
+          adresse: 'Gounghin',
+          telephone: '70000000',
+          regime: RegimeImposition.rni,
+          serviceImpots: 'DME Ouaga 1',
+        ),
+      );
 
       await ouvrir(tester);
 

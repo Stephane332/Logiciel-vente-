@@ -45,10 +45,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
         ],
         operateur: par,
         horodatage: quand,
@@ -67,15 +67,15 @@ void main() {
       );
 
   Widget rapport() => MaterialApp(
-        theme: themeClair(),
-        home: Scaffold(
-          body: EcranRapport(
-            depot: depot,
-            documents: documents,
-            analyses: analyses,
-          ),
-        ),
-      );
+    theme: themeClair(),
+    home: Scaffold(
+      body: EcranRapport(
+        depot: depot,
+        documents: documents,
+        analyses: analyses,
+      ),
+    ),
+  );
 
   group('La pastille de caisse', () {
     testWidgets('un commerçant seul ne voit aucune pastille', (tester) async {
@@ -101,8 +101,9 @@ void main() {
       expect(find.byIcon(Icons.cloud_off_rounded), findsNothing);
     });
 
-    testWidgets('avec une équipe, le nom du vendeur remplace le libellé',
-        (tester) async {
+    testWidgets('avec une équipe, le nom du vendeur remplace le libellé', (
+      tester,
+    ) async {
       await tester.pumpWidget(caisse(vendeurs: ['Awa', 'Salif'], actif: 'Awa'));
       await tester.pumpAndSettle();
 
@@ -110,8 +111,9 @@ void main() {
       expect(find.text('Caisse ouverte'), findsNothing);
     });
 
-    testWidgets("une équipe sans personne de choisi pose la question",
-        (tester) async {
+    testWidgets("une équipe sans personne de choisi pose la question", (
+      tester,
+    ) async {
       await tester.pumpWidget(caisse(vendeurs: ['Awa', 'Salif']));
       await tester.pumpAndSettle();
 
@@ -150,10 +152,11 @@ void main() {
       await tester.tap(find.text('Montant\nlibre'));
       await tester.pumpAndSettle();
       for (final touche in ['1', '0', '0', '0']) {
-        await tester.tap(find.descendant(
-          of: find.byType(InkWell),
-          matching: find.text(touche),
-        ).first);
+        await tester.tap(
+          find
+              .descendant(of: find.byType(InkWell), matching: find.text(touche))
+              .first,
+        );
       }
       await tester.pumpAndSettle();
       await tester.tap(find.text('Encaisser'));
@@ -170,8 +173,9 @@ void main() {
   });
 
   group('La répartition au rapport', () {
-    testWidgets("elle ne s'affiche pas chez un commerçant seul",
-        (tester) async {
+    testWidgets("elle ne s'affiche pas chez un commerçant seul", (
+      tester,
+    ) async {
       await vendre(1000);
       await vendre(2000);
 
@@ -197,8 +201,9 @@ void main() {
       expect(find.text('1 vente'), findsOneWidget);
     });
 
-    testWidgets("une vente sans nom se voit et ne s'attribue à personne",
-        (tester) async {
+    testWidgets("une vente sans nom se voit et ne s'attribue à personne", (
+      tester,
+    ) async {
       await vendre(1000, par: 'Awa');
       await vendre(3000);
 
@@ -220,8 +225,7 @@ void main() {
       expect(find.text('1 vente'), findsOneWidget);
     });
 
-    testWidgets('hier retrouve la journée qui vient de passer',
-        (tester) async {
+    testWidgets('hier retrouve la journée qui vient de passer', (tester) async {
       final hier = DateTime.now().subtract(const Duration(days: 1));
       await vendre(5000, quand: DateTime(hier.year, hier.month, hier.day, 10));
       await vendre(1000);
@@ -239,9 +243,10 @@ void main() {
 
     testWidgets('la semaine additionne les journées', (tester) async {
       final avantHier = DateTime.now().subtract(const Duration(days: 2));
-      await vendre(5000,
-          quand: DateTime(
-              avantHier.year, avantHier.month, avantHier.day, 10));
+      await vendre(
+        5000,
+        quand: DateTime(avantHier.year, avantHier.month, avantHier.day, 10),
+      );
       await vendre(1000);
 
       await tester.pumpWidget(rapport());

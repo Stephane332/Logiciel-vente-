@@ -168,9 +168,16 @@ class EcranVenteState extends State<EcranVente> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(Espace.l, 0, Espace.l, Espace.s),
-              child: Text('Qui tient la caisse ?',
-                  style: Theme.of(contexte).textTheme.titleLarge),
+              padding: const EdgeInsets.fromLTRB(
+                Espace.l,
+                0,
+                Espace.l,
+                Espace.s,
+              ),
+              child: Text(
+                'Qui tient la caisse ?',
+                style: Theme.of(contexte).textTheme.titleLarge,
+              ),
             ),
             for (final nom in widget.vendeurs)
               ListTile(
@@ -211,8 +218,11 @@ class EcranVenteState extends State<EcranVente> {
     _panier.forEach((code, quantite) {
       final article = _article(code);
       if (article == null) return;
-      total = total +
-          _prixPratique(article).multiplieParQuantite(Quantite.unites(quantite));
+      total =
+          total +
+          _prixPratique(
+            article,
+          ).multiplieParQuantite(Quantite.unites(quantite));
     });
     return total;
   }
@@ -237,13 +247,17 @@ class EcranVenteState extends State<EcranVente> {
       _conseilDonne = true;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('Appui long sur un article pour mettre la quantité '
-              "d'un coup."),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
-          duration: Duration(seconds: 4),
-        ));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Appui long sur un article pour mettre la quantité '
+              "d'un coup.",
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+            duration: Duration(seconds: 4),
+          ),
+        );
     }
   }
 
@@ -261,9 +275,9 @@ class EcranVenteState extends State<EcranVente> {
   }
 
   void _viderPanier() => setState(() {
-        _panier.clear();
-        _prixNegocies.clear();
-      });
+    _panier.clear();
+    _prixNegocies.clear();
+  });
 
   /// Ce que fait un appui long sur une tuile.
   ///
@@ -400,16 +414,18 @@ class EcranVenteState extends State<EcranVente> {
       final article = _article(code);
       if (article == null) return;
       final negocie = _prixNegocies[code];
-      lignes.add(LigneAEnregistrer(
-        codeArticle: code,
-        designation: article.designation,
-        prixUnitaire: negocie ?? Montant(article.prixCentimes),
-        // Le prix du catalogue n'est conservé que s'il a été modifié :
-        // sinon il n'y a pas de remise à mesurer.
-        prixCatalogue: negocie == null ? null : Montant(article.prixCentimes),
-        quantite: Quantite.unites(quantite),
-        groupeTaxation: GroupeTaxation.parEtiquette(article.groupeTaxation),
-      ));
+      lignes.add(
+        LigneAEnregistrer(
+          codeArticle: code,
+          designation: article.designation,
+          prixUnitaire: negocie ?? Montant(article.prixCentimes),
+          // Le prix du catalogue n'est conservé que s'il a été modifié :
+          // sinon il n'y a pas de remise à mesurer.
+          prixCatalogue: negocie == null ? null : Montant(article.prixCentimes),
+          quantite: Quantite.unites(quantite),
+          groupeTaxation: GroupeTaxation.parEtiquette(article.groupeTaxation),
+        ),
+      );
     });
     if (lignes.isEmpty) return;
     if (!await _montantConfirme(_total)) return;
@@ -448,35 +464,37 @@ class EcranVenteState extends State<EcranVente> {
 
     final messager = ScaffoldMessenger.of(context);
     messager.hideCurrentSnackBar();
-    messager.showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          Expanded(child: Text('Vente enregistrée · ${total.enFrancs}')),
-          const SizedBox(width: Espace.s),
-          // Un bouton, et pas le bandeau entier. Le bandeau flotte trois
-          // secondes au-dessus de la grille : en faire une cible d'annulation
-          // ferait annuler la vente précédente à chaque fois qu'un doigt vise
-          // la tuile suivante. C'est arrivé en pilotant l'application.
-          TextButton(
-            onPressed: () => _annuler(venteId),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, cibleTactile),
-              padding: const EdgeInsets.symmetric(horizontal: Espace.m),
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white24),
+    messager.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Expanded(child: Text('Vente enregistrée · ${total.enFrancs}')),
+            const SizedBox(width: Espace.s),
+            // Un bouton, et pas le bandeau entier. Le bandeau flotte trois
+            // secondes au-dessus de la grille : en faire une cible d'annulation
+            // ferait annuler la vente précédente à chaque fois qu'un doigt vise
+            // la tuile suivante. C'est arrivé en pilotant l'application.
+            TextButton(
+              onPressed: () => _annuler(venteId),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, cibleTactile),
+                padding: const EdgeInsets.symmetric(horizontal: Espace.m),
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white24),
+              ),
+              child: const Text('Annuler'),
             ),
-            child: const Text('Annuler'),
-          ),
-        ],
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        // Le bandeau flotte au-dessus de la barre d'encaissement, jamais
+        // dessus : au comptoir, la vente suivante commence dans la seconde,
+        // et un bouton masqué pendant trois secondes fait perdre le client.
+        margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(label: 'Reçu', onPressed: () => _recu(venteId)),
       ),
-      behavior: SnackBarBehavior.floating,
-      // Le bandeau flotte au-dessus de la barre d'encaissement, jamais
-      // dessus : au comptoir, la vente suivante commence dans la seconde,
-      // et un bouton masqué pendant trois secondes fait perdre le client.
-      margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
-      duration: const Duration(seconds: 3),
-      action: SnackBarAction(label: 'Reçu', onPressed: () => _recu(venteId)),
-    ));
+    );
   }
 
   /// Annule une vente et le dit.
@@ -490,12 +508,14 @@ class EcranVenteState extends State<EcranVente> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Vente annulée. Le stock et la dette sont revenus.'),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
-        duration: Duration(seconds: 3),
-      ));
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Vente annulée. Le stock et la dette sont revenus.'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+          duration: Duration(seconds: 3),
+        ),
+      );
   }
 
   Future<void> _recu(String venteId) async {
@@ -528,8 +548,11 @@ class EcranVenteState extends State<EcranVente> {
     final reference = await widget.depot.emettreFacture(venteId);
     if (!mounted) return;
 
-    final facture = await widget.documents
-        .composerFacture(venteId, reference: reference, client: client);
+    final facture = await widget.documents.composerFacture(
+      venteId,
+      reference: reference,
+      client: client,
+    );
     if (facture == null || !mounted) return;
 
     // La feuille du reçu est encore ouverte : la fermer d'abord, sinon la
@@ -617,8 +640,10 @@ class EcranVenteState extends State<EcranVente> {
   /// choix de la feuille. En échange, « Encaisser » veut dire la même chose
   /// partout, ce qui n'était pas le cas.
   Future<void> _montantLibre() async {
-    final montant =
-        await demanderMontant(context, titre: 'Montant de la vente');
+    final montant = await demanderMontant(
+      context,
+      titre: 'Montant de la vente',
+    );
     if (montant == null || !montant.estPositif || !mounted) return;
 
     // Ce prix désigne-t-il déjà quelque chose ? Une boutique a plusieurs
@@ -660,56 +685,72 @@ class EcranVenteState extends State<EcranVente> {
   Future<_ChoixArticle?> _demanderLequel(
     Montant montant,
     List<LigneArticle> nommes,
-  ) =>
-      showModalBottomSheet<_ChoixArticle>(
-        context: context,
-        showDragHandle: true,
-        builder: (contexte) {
-          final textes = Theme.of(contexte).textTheme;
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      Espace.l, 0, Espace.l, Espace.xs),
-                  child: Text('${montant.enFrancs} — c'"'"'est lequel ?',
-                      style: textes.titleLarge, textAlign: TextAlign.center),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      Espace.l, 0, Espace.l, Espace.m),
-                  child: Text(
-                    'Tu vends plusieurs choses à ce prix.',
-                    style: textes.labelSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                for (final article in nommes)
-                  ListTile(
-                    leading: const Icon(Icons.inventory_2_outlined),
-                    title: Text(article.designation),
-                    onTap: () => Navigator.of(contexte)
-                        .pop(_ChoixArticle(article.code)),
-                    minVerticalPadding: 14,
-                  ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.add_circle_outline_rounded),
-                  title: const Text('Autre chose'),
-                  subtitle: Text('Un produit que tu n'"'"'as pas encore nommé',
-                      style: textes.labelSmall),
-                  onTap: () =>
-                      Navigator.of(contexte).pop(const _ChoixArticle(null)),
-                  minVerticalPadding: 14,
-                ),
-                const SizedBox(height: Espace.m),
-              ],
+  ) => showModalBottomSheet<_ChoixArticle>(
+    context: context,
+    showDragHandle: true,
+    builder: (contexte) {
+      final textes = Theme.of(contexte).textTheme;
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Espace.l,
+                0,
+                Espace.l,
+                Espace.xs,
+              ),
+              child: Text(
+                '${montant.enFrancs} — c'
+                "'"
+                'est lequel ?',
+                style: textes.titleLarge,
+                textAlign: TextAlign.center,
+              ),
             ),
-          );
-        },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Espace.l,
+                0,
+                Espace.l,
+                Espace.m,
+              ),
+              child: Text(
+                'Tu vends plusieurs choses à ce prix.',
+                style: textes.labelSmall,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            for (final article in nommes)
+              ListTile(
+                leading: const Icon(Icons.inventory_2_outlined),
+                title: Text(article.designation),
+                onTap: () =>
+                    Navigator.of(contexte).pop(_ChoixArticle(article.code)),
+                minVerticalPadding: 14,
+              ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline_rounded),
+              title: const Text('Autre chose'),
+              subtitle: Text(
+                'Un produit que tu n'
+                "'"
+                'as pas encore nommé',
+                style: textes.labelSmall,
+              ),
+              onTap: () =>
+                  Navigator.of(contexte).pop(const _ChoixArticle(null)),
+              minVerticalPadding: 14,
+            ),
+            const SizedBox(height: Espace.m),
+          ],
+        ),
       );
+    },
+  );
 
   Future<void> _enregistrerMontantLibre(
     Montant montant,
@@ -725,7 +766,7 @@ class EcranVenteState extends State<EcranVente> {
           codeArticle: codeArticle,
           prixUnitaire: montant,
           quantite: const Quantite.unites(1),
-        )
+        ),
       ],
       paiements: [PaiementAEnregistrer(mode: mode, montant: montant)],
       // Sans client, une vente à crédit n'entrerait jamais dans le cahier de
@@ -782,15 +823,17 @@ class EcranVenteState extends State<EcranVente> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(
-          '${noms.length} articles créés à ${prix.enFrancs}. '
-          'Appuie dessus au lieu de taper le montant.',
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '${noms.length} articles créés à ${prix.enFrancs}. '
+            'Appuie dessus au lieu de taper le montant.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
+          duration: const Duration(seconds: 5),
         ),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(Espace.m, 0, Espace.m, 92),
-        duration: const Duration(seconds: 5),
-      ));
+      );
   }
 
   @override
@@ -826,12 +869,16 @@ class EcranVenteState extends State<EcranVente> {
               child: _chargement
                   ? const Center(child: CircularProgressIndicator())
                   : _catalogue.isEmpty && _terme.isNotEmpty
-                      ? _RienTrouve(terme: _terme)
-                      : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(Espace.l, Espace.l,
-                              Espace.l, Espace.xxxl + Espace.xl),
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                  ? _RienTrouve(terme: _terme)
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(
+                        Espace.l,
+                        Espace.l,
+                        Espace.l,
+                        Espace.xxxl + Espace.xl,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
                             maxCrossAxisExtent: 190,
                             mainAxisSpacing: Espace.m,
                             crossAxisSpacing: Espace.m,
@@ -840,35 +887,34 @@ class EcranVenteState extends State<EcranVente> {
                             // défiler.
                             childAspectRatio: 1.15,
                           ),
-                          itemCount: _catalogue.length + _tuilesDAction,
-                          itemBuilder: (context, index) {
-                            if (index < _tuilesDAction) {
-                              return index == 0
-                                  ? TuileAction(
-                                      icone: Icons.dialpad_rounded,
-                                      libelle: 'Montant\nlibre',
-                                      onPressed: _montantLibre,
-                                    )
-                                  : TuileAction(
-                                      icone: Icons.qr_code_scanner_rounded,
-                                      libelle: 'Scanner',
-                                      onPressed: _scanner,
-                                    );
-                            }
+                      itemCount: _catalogue.length + _tuilesDAction,
+                      itemBuilder: (context, index) {
+                        if (index < _tuilesDAction) {
+                          return index == 0
+                              ? TuileAction(
+                                  icone: Icons.dialpad_rounded,
+                                  libelle: 'Montant\nlibre',
+                                  onPressed: _montantLibre,
+                                )
+                              : TuileAction(
+                                  icone: Icons.qr_code_scanner_rounded,
+                                  libelle: 'Scanner',
+                                  onPressed: _scanner,
+                                );
+                        }
 
-                            final article = _catalogue[index - _tuilesDAction];
-                            return TuileProduit(
-                              nom: article.designation,
-                              prix: _prixPratique(article),
-                              prixNegocie:
-                                  _prixNegocies.containsKey(article.code),
-                              quantiteAuPanier: _panier[article.code] ?? 0,
-                              onPressed: () => _ajouter(article),
-                              onLongPress: () => _ajuster(article),
-                              onRetirer: () => _retirer(article),
-                            );
-                          },
-                        ),
+                        final article = _catalogue[index - _tuilesDAction];
+                        return TuileProduit(
+                          nom: article.designation,
+                          prix: _prixPratique(article),
+                          prixNegocie: _prixNegocies.containsKey(article.code),
+                          quantiteAuPanier: _panier[article.code] ?? 0,
+                          onPressed: () => _ajouter(article),
+                          onLongPress: () => _ajuster(article),
+                          onRetirer: () => _retirer(article),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -924,8 +970,7 @@ class EcranVenteState extends State<EcranVente> {
                       panierVide ? 'Choisir un article' : 'Encaisser',
                       style: textes.labelLarge?.copyWith(
                         fontSize: 17,
-                        color:
-                            panierVide ? Couleurs.encreLegere : Colors.white,
+                        color: panierVide ? Couleurs.encreLegere : Colors.white,
                       ),
                     ),
                     if (!panierVide) ...[
@@ -976,11 +1021,16 @@ class _BandeauNommage extends StatelessWidget {
         onTap: onPressed,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-              horizontal: Espace.l, vertical: Espace.m),
+            horizontal: Espace.l,
+            vertical: Espace.m,
+          ),
           child: Row(
             children: [
-              const Icon(Icons.lightbulb_outline_rounded,
-                  size: 20, color: Couleurs.accent),
+              const Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 20,
+                color: Couleurs.accent,
+              ),
               const SizedBox(width: Espace.m),
               Expanded(
                 child: Text(
@@ -989,8 +1039,10 @@ class _BandeauNommage extends StatelessWidget {
                   style: textes.titleMedium,
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: Couleurs.encreDouce),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Couleurs.encreDouce,
+              ),
             ],
           ),
         ),
@@ -1008,11 +1060,9 @@ class _Ajustement {
 
   const _Ajustement.quantite(this.quantite) : quoi = _Quoi.quantite;
   const _Ajustement.autreQuantite()
-      : quoi = _Quoi.autreQuantite,
-        quantite = null;
-  const _Ajustement.prix()
-      : quoi = _Quoi.prix,
-        quantite = null;
+    : quoi = _Quoi.autreQuantite,
+      quantite = null;
+  const _Ajustement.prix() : quoi = _Quoi.prix, quantite = null;
 }
 
 /// La feuille de l'appui long : combien, et à quel prix.
@@ -1064,13 +1114,15 @@ class _FeuilleAjustement extends StatelessWidget {
                   _Nombre(
                     combien: combien,
                     choisi: combien == auPanier,
-                    onPressed: () => Navigator.of(context)
-                        .pop(_Ajustement.quantite(combien)),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(_Ajustement.quantite(combien)),
                   ),
                 _Nombre(
                   libelle: 'Autre',
-                  onPressed: () =>
-                      Navigator.of(context).pop(const _Ajustement.autreQuantite()),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(const _Ajustement.autreQuantite()),
                 ),
               ],
             ),
@@ -1125,7 +1177,8 @@ class _Nombre extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Rayon.m),
             border: Border.all(
-                color: choisi ? Couleurs.primaire : Couleurs.bordure),
+              color: choisi ? Couleurs.primaire : Couleurs.bordure,
+            ),
           ),
           child: Center(
             widthFactor: 1,
@@ -1205,11 +1258,17 @@ class _RienTrouve extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off_rounded,
-                size: 40, color: Couleurs.encreLegere),
+            const Icon(
+              Icons.search_off_rounded,
+              size: 40,
+              color: Couleurs.encreLegere,
+            ),
             const SizedBox(height: Espace.m),
-            Text('Rien qui ressemble à « $terme »',
-                style: textes.titleMedium, textAlign: TextAlign.center),
+            Text(
+              'Rien qui ressemble à « $terme »',
+              style: textes.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: Espace.xs),
             Text(
               "Efface la recherche pour retrouver toute la boutique.",
@@ -1318,7 +1377,12 @@ class _EnTete extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(Espace.l, Espace.m, Espace.l, Espace.l),
+      padding: const EdgeInsets.fromLTRB(
+        Espace.l,
+        Espace.m,
+        Espace.l,
+        Espace.l,
+      ),
       decoration: const BoxDecoration(
         color: Couleurs.surface,
         border: Border(bottom: BorderSide(color: Couleurs.bordure)),
@@ -1401,10 +1465,10 @@ class _FeuilleClientState extends State<_FeuilleClient> {
   }
 
   ClientFacture get _client => ClientFacture(
-        type: _type,
-        nom: _nom.text.trim(),
-        ifu: Ifu.normaliser(_ifu.text),
-      );
+    type: _type,
+    nom: _nom.text.trim(),
+    ifu: Ifu.normaliser(_ifu.text),
+  );
 
   void _valider() {
     final defaut = _client.defaut;
@@ -1492,8 +1556,10 @@ class _FeuilleClientState extends State<_FeuilleClient> {
 
             if (_defaut != null) ...[
               const SizedBox(height: Espace.m),
-              Text(_defaut!,
-                  style: textes.bodyMedium?.copyWith(color: Couleurs.alerte)),
+              Text(
+                _defaut!,
+                style: textes.bodyMedium?.copyWith(color: Couleurs.alerte),
+              ),
             ],
 
             const SizedBox(height: Espace.l),

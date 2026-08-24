@@ -35,8 +35,11 @@ void main() {
         '1234.567.8901',
         '  1234  567  8901  ',
       ]) {
-        expect(ReferenceCadastrale.analyser(saisie)?.compact, '12345678901',
-            reason: saisie);
+        expect(
+          ReferenceCadastrale.analyser(saisie)?.compact,
+          '12345678901',
+          reason: saisie,
+        );
       }
     });
 
@@ -49,12 +52,18 @@ void main() {
     });
 
     test('le défaut dit combien il en manque', () {
-      expect(ReferenceCadastrale.defaut('1234567'),
-          'Onze chiffres attendus, il en manque 4.');
-      expect(ReferenceCadastrale.defaut('123456789012'),
-          'Onze chiffres attendus, il y en a 1 de trop.');
-      expect(ReferenceCadastrale.defaut('AB'),
-          'Les références cadastrales sont onze chiffres.');
+      expect(
+        ReferenceCadastrale.defaut('1234567'),
+        'Onze chiffres attendus, il en manque 4.',
+      );
+      expect(
+        ReferenceCadastrale.defaut('123456789012'),
+        'Onze chiffres attendus, il y en a 1 de trop.',
+      );
+      expect(
+        ReferenceCadastrale.defaut('AB'),
+        'Les références cadastrales sont onze chiffres.',
+      );
     });
 
     test('un champ vide ne reproche rien', () {
@@ -67,8 +76,10 @@ void main() {
     });
 
     test('deux références identiques se valent', () {
-      expect(ReferenceCadastrale.analyser('1234 567 8901'),
-          ReferenceCadastrale.analyser('12345678901'));
+      expect(
+        ReferenceCadastrale.analyser('1234 567 8901'),
+        ReferenceCadastrale.analyser('12345678901'),
+      );
     });
   });
 
@@ -102,14 +113,22 @@ void main() {
     });
 
     test('le chiffre d\'affaires désigne un régime', () {
-      expect(RegimeImposition.depuisChiffreAffaires(3000000),
-          RegimeImposition.cme);
-      expect(RegimeImposition.depuisChiffreAffaires(15000000),
-          RegimeImposition.rsi);
-      expect(RegimeImposition.depuisChiffreAffaires(49999999),
-          RegimeImposition.rsi);
-      expect(RegimeImposition.depuisChiffreAffaires(50000000),
-          RegimeImposition.rni);
+      expect(
+        RegimeImposition.depuisChiffreAffaires(3000000),
+        RegimeImposition.cme,
+      );
+      expect(
+        RegimeImposition.depuisChiffreAffaires(15000000),
+        RegimeImposition.rsi,
+      );
+      expect(
+        RegimeImposition.depuisChiffreAffaires(49999999),
+        RegimeImposition.rsi,
+      );
+      expect(
+        RegimeImposition.depuisChiffreAffaires(50000000),
+        RegimeImposition.rni,
+      );
     });
 
     test('une étiquette inconnue ne fait pas tomber la lecture', () {
@@ -164,8 +183,10 @@ void main() {
         telephone: '',
       );
 
-      expect(fiche.manques.map((m) => m.quoi),
-          containsAll(['Adresse de vente', 'Contact']));
+      expect(
+        fiche.manques.map((m) => m.quoi),
+        containsAll(['Adresse de vente', 'Contact']),
+      );
     });
   });
 
@@ -230,28 +251,32 @@ void main() {
 
     tearDown(() => base.close());
 
-    test('une fiche vide se relit vide, sans le nom par défaut ailleurs',
-        () async {
-      final reglage = await parametres.tout();
+    test(
+      'une fiche vide se relit vide, sans le nom par défaut ailleurs',
+      () async {
+        final reglage = await parametres.tout();
 
-      expect(reglage.fiche.nomCommercial, Parametres.nomCommerceParDefaut);
-      expect(reglage.fiche.ifu, isNull);
-      expect(reglage.fiche.renseignee, isFalse);
-    });
+        expect(reglage.fiche.nomCommercial, Parametres.nomCommerceParDefaut);
+        expect(reglage.fiche.ifu, isNull);
+        expect(reglage.fiche.renseignee, isFalse);
+      },
+    );
 
     test('une fiche remplie se relit telle quelle', () async {
-      await parametres.definirFiche(FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        raisonSociale: 'SARL Sawadogo et Frères',
-        ifu: '00012345A',
-        cadastre: ReferenceCadastrale.analyser('1234 567 8901'),
-        adresse: 'Gounghin, Ouagadougou',
-        telephone: '70 00 00 00',
-        courriel: 'contact@example.bf',
-        regime: RegimeImposition.rni,
-        serviceImpots: 'DME Ouaga 1',
-        referencesBancaires: 'Coris Bank · BF00 0000 0000',
-      ));
+      await parametres.definirFiche(
+        FicheEntreprise(
+          nomCommercial: 'Chez Awa',
+          raisonSociale: 'SARL Sawadogo et Frères',
+          ifu: '00012345A',
+          cadastre: ReferenceCadastrale.analyser('1234 567 8901'),
+          adresse: 'Gounghin, Ouagadougou',
+          telephone: '70 00 00 00',
+          courriel: 'contact@example.bf',
+          regime: RegimeImposition.rni,
+          serviceImpots: 'DME Ouaga 1',
+          referencesBancaires: 'Coris Bank · BF00 0000 0000',
+        ),
+      );
 
       final relue = (await parametres.tout()).fiche;
 
@@ -266,38 +291,37 @@ void main() {
     });
 
     test('un IFU mal formé ne descend pas dans la base', () async {
-      await parametres.definirFiche(const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        ifu: 'pas un ifu',
-      ));
+      await parametres.definirFiche(
+        const FicheEntreprise(nomCommercial: 'Chez Awa', ifu: 'pas un ifu'),
+      );
 
       expect((await parametres.tout()).fiche.ifu, isNull);
     });
 
-    test('vider une mention efface la clé au lieu de ranger du vide',
-        () async {
-      await parametres.definirFiche(const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        adresse: 'Gounghin',
-      ));
-      await parametres.definirFiche(const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        adresse: '  ',
-      ));
+    test('vider une mention efface la clé au lieu de ranger du vide', () async {
+      await parametres.definirFiche(
+        const FicheEntreprise(nomCommercial: 'Chez Awa', adresse: 'Gounghin'),
+      );
+      await parametres.definirFiche(
+        const FicheEntreprise(nomCommercial: 'Chez Awa', adresse: '  '),
+      );
 
       // Une chaîne vide se lirait comme « mention remplie avec rien », et la
       // liste des manques cesserait de la réclamer.
       final lignes = await base.select(base.reglages).get();
       expect(lignes.map((l) => l.cle), isNot(contains('entreprise.adresse')));
-      expect((await parametres.tout()).fiche.manques.map((m) => m.quoi),
-          contains('Adresse de vente'));
+      expect(
+        (await parametres.tout()).fiche.manques.map((m) => m.quoi),
+        contains('Adresse de vente'),
+      );
     });
 
     test('le nom du commerce et celui de la fiche restent le même', () async {
       // Deux noms qui divergeraient, c'est une facture qui ne dit pas la même
       // chose que le reçu.
       await parametres.definirFiche(
-          const FicheEntreprise(nomCommercial: 'Chez Awa'));
+        const FicheEntreprise(nomCommercial: 'Chez Awa'),
+      );
 
       final reglage = await parametres.tout();
       expect(reglage.nomCommerce, 'Chez Awa');
@@ -308,10 +332,9 @@ void main() {
       // Ce ne sont pas des faits commerciaux : elles se corrigent, et une
       // correction ne doit pas laisser l'ancienne valeur lisible pour
       // toujours. Le journal, lui, ne se réécrit jamais.
-      await parametres.definirFiche(const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        ifu: '00012345A',
-      ));
+      await parametres.definirFiche(
+        const FicheEntreprise(nomCommercial: 'Chez Awa', ifu: '00012345A'),
+      );
 
       expect(await base.select(base.evenements).get(), isEmpty);
     });

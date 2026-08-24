@@ -125,7 +125,11 @@ class EcranDettesState extends State<EcranDettes> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(
-                Espace.l, Espace.m, Espace.l, Espace.l),
+              Espace.l,
+              Espace.m,
+              Espace.l,
+              Espace.l,
+            ),
             decoration: const BoxDecoration(
               color: Couleurs.surface,
               border: Border(bottom: BorderSide(color: Couleurs.bordure)),
@@ -141,8 +145,9 @@ class EcranDettesState extends State<EcranDettes> {
                     MontantAnime(
                       total,
                       style: textes.displayLarge,
-                      couleur:
-                          total.estNul ? Couleurs.encreLegere : Couleurs.alerte,
+                      couleur: total.estNul
+                          ? Couleurs.encreLegere
+                          : Couleurs.alerte,
                     ),
                     const Spacer(),
                     if (_debiteurs.isNotEmpty)
@@ -194,11 +199,17 @@ class _AucuneDette extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_outline_rounded,
-                size: 56, color: Couleurs.primaireVif),
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 56,
+              color: Couleurs.primaireVif,
+            ),
             const SizedBox(height: Espace.l),
-            Text('Personne ne te doit rien',
-                style: textes.titleLarge, textAlign: TextAlign.center),
+            Text(
+              'Personne ne te doit rien',
+              style: textes.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: Espace.s),
             Text(
               "Les ventes à crédit apparaîtront ici, de la plus ancienne à la "
@@ -275,8 +286,10 @@ class _CarteDebiteur extends StatelessWidget {
                         Text(client.nom, style: textes.titleLarge),
                         if (client.telephoneNormalise != null) ...[
                           const SizedBox(height: 2),
-                          Text(presenterTelephone(client.telephoneNormalise),
-                              style: textes.bodyMedium),
+                          Text(
+                            presenterTelephone(client.telephoneNormalise),
+                            style: textes.bodyMedium,
+                          ),
                         ],
                       ],
                     ),
@@ -286,11 +299,14 @@ class _CarteDebiteur extends StatelessWidget {
                   // d'animation pour une valeur qui ne bouge jamais.
                   Text(
                     du.enFrancs,
-                    style:
-                        textes.headlineMedium?.copyWith(color: Couleurs.alerte),
+                    style: textes.headlineMedium?.copyWith(
+                      color: Couleurs.alerte,
+                    ),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
-                      color: Couleurs.encreLegere),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Couleurs.encreLegere,
+                  ),
                 ],
               ),
             ),
@@ -396,10 +412,7 @@ class _DetailDuCompte extends StatelessWidget {
           ),
 
         for (final mouvement in mouvements) ...[
-          _LigneDeCompte(
-            mouvement: mouvement,
-            quand: _date(mouvement.quand),
-          ),
+          _LigneDeCompte(mouvement: mouvement, quand: _date(mouvement.quand)),
           const SizedBox(height: Espace.s),
         ],
       ],
@@ -449,8 +462,9 @@ class _LigneDeCompte extends StatelessWidget {
                 '${achat ? '+' : '−'} ${mouvement.montant.enFrancs}',
                 style: textes.titleMedium?.copyWith(
                   color: teinte,
-                  decoration:
-                      mouvement.annule ? TextDecoration.lineThrough : null,
+                  decoration: mouvement.annule
+                      ? TextDecoration.lineThrough
+                      : null,
                 ),
               ),
             ],
@@ -458,9 +472,10 @@ class _LigneDeCompte extends StatelessWidget {
           if (mouvement.annule)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text('Annulée',
-                  style: textes.labelSmall
-                      ?.copyWith(color: Couleurs.encreLegere)),
+              child: Text(
+                'Annulée',
+                style: textes.labelSmall?.copyWith(color: Couleurs.encreLegere),
+              ),
             ),
           for (final detail in mouvement.detail)
             Padding(

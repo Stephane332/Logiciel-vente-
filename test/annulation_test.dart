@@ -35,24 +35,23 @@ void main() {
     num quantite = 1,
     String? clientId,
     ModePaiement mode = ModePaiement.especes,
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: 'RIZ',
-            designation: 'Riz 1 kg',
-            prixUnitaire: f(prix),
-            quantite: q(quantite),
-          )
-        ],
-        paiements: [
-          PaiementAEnregistrer(
-            mode: mode,
-            montant: f(prix).multiplieParQuantite(q(quantite)),
-          )
-        ],
-        clientId: clientId,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: 'RIZ',
+        designation: 'Riz 1 kg',
+        prixUnitaire: f(prix),
+        quantite: q(quantite),
+      ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(
+        mode: mode,
+        montant: f(prix).multiplieParQuantite(q(quantite)),
+      ),
+    ],
+    clientId: clientId,
+  );
 
   Future<LigneArticle> riz() async =>
       (await depot.catalogue()).firstWhere((a) => a.code == 'RIZ');
@@ -94,17 +93,24 @@ void main() {
     test('une dette annulée disparaît du cahier', () async {
       final salif = await depot.creerClient(nom: 'Salif');
       await vendre(prix: 2000, clientId: salif, mode: ModePaiement.credit);
-      final erreur =
-          await vendre(prix: 50000, clientId: salif, mode: ModePaiement.credit);
+      final erreur = await vendre(
+        prix: 50000,
+        clientId: salif,
+        mode: ModePaiement.credit,
+      );
 
-      expect((await depot.clientsDebiteurs()).single.encoursCentimes,
-          f(52000).centimes);
+      expect(
+        (await depot.clientsDebiteurs()).single.encoursCentimes,
+        f(52000).centimes,
+      );
 
       await depot.annulerVente(erreur);
 
       // Réclamer de l'argent qu'on ne doit pas, c'est perdre le client.
-      expect((await depot.clientsDebiteurs()).single.encoursCentimes,
-          f(2000).centimes);
+      expect(
+        (await depot.clientsDebiteurs()).single.encoursCentimes,
+        f(2000).centimes,
+      );
     });
 
     test("une vente annulée ne compte plus dans ce qui rapporte", () async {
@@ -140,8 +146,9 @@ void main() {
       await depot.annulerVente(erreur, motif: 'Doigt sur le zéro');
 
       final evenements = await depot.journal.tous();
-      final annulation = evenements
-          .firstWhere((e) => e.type == TypeEvenement.venteAnnulee);
+      final annulation = evenements.firstWhere(
+        (e) => e.type == TypeEvenement.venteAnnulee,
+      );
       expect(annulation.charge['motif'], 'Doigt sur le zéro');
     });
   });
@@ -151,8 +158,11 @@ void main() {
       final salif = await depot.creerClient(nom: 'Salif');
       await vendre();
       await depot.ajusterStock('RIZ', q(40));
-      final erreur =
-          await vendre(quantite: 5, clientId: salif, mode: ModePaiement.credit);
+      final erreur = await vendre(
+        quantite: 5,
+        clientId: salif,
+        mode: ModePaiement.credit,
+      );
       await depot.annulerVente(erreur);
 
       final stockAvant = (await riz()).stockMilliemes;
@@ -174,7 +184,9 @@ void main() {
       // qui permet de prouver qu'on n'a rien effacé.
       final evenements = await depot.journal.tous();
       expect(
-        evenements.where((e) => e.type == TypeEvenement.venteEnregistree).length,
+        evenements
+            .where((e) => e.type == TypeEvenement.venteEnregistree)
+            .length,
         1,
       );
       expect((await depot.journal.verifier()).intact, isTrue);
@@ -212,17 +224,19 @@ void main() {
       expect(await depot.montantInhabituel(f(90000)), isFalse);
     });
 
-    test('un grossiste ne se fait pas déranger pour ses ventes normales',
-        () async {
-      for (var i = 0; i < 6; i++) {
-        await vendre(prix: 400000);
-      }
+    test(
+      'un grossiste ne se fait pas déranger pour ses ventes normales',
+      () async {
+        for (var i = 0; i < 6; i++) {
+          await vendre(prix: 400000);
+        }
 
-      // Dix fois sa plus grosse vente : quatre millions.
-      expect(await depot.seuilDeVigilance(), f(4000000));
-      expect(await depot.montantInhabituel(f(500000)), isFalse);
-      expect(await depot.montantInhabituel(f(9000000)), isTrue);
-    });
+        // Dix fois sa plus grosse vente : quatre millions.
+        expect(await depot.seuilDeVigilance(), f(4000000));
+        expect(await depot.montantInhabituel(f(500000)), isFalse);
+        expect(await depot.montantInhabituel(f(9000000)), isTrue);
+      },
+    );
 
     test('le doigt resté sur le zéro est rattrapé', () async {
       for (var i = 0; i < 10; i++) {

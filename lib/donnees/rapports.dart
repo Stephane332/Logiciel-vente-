@@ -45,7 +45,8 @@ class Rapports {
   /// qu'un X tiré à midi puis un Z qui ne recoupe pas, ça se vérifie.
   Future<RapportFiscal> x({DateTime? debut, DateTime? fin}) async {
     final maintenant = DateTime.now();
-    final depuis = debut ?? await derniereCloture(NatureRapport.z) ?? await _origine();
+    final depuis =
+        debut ?? await derniereCloture(NatureRapport.z) ?? await _origine();
     final borne = fin ?? maintenant;
     final numero = await _prochainNumero(NatureRapport.x);
 
@@ -57,20 +58,16 @@ class Rapports {
       numero: numero,
     );
 
-    await journal.ajouter(
-      TypeEvenement.clotureTiree,
-      {
-        'nature': NatureRapport.x.code,
-        'numero': numero,
-        'debut': depuis.toIso8601String(),
-        'fin': borne.toIso8601String(),
-        'totalCentimes': rapport.total.centimes,
-        'taxeCentimes': rapport.taxe.centimes,
-        'especesCentimes': rapport.especes.centimes,
-        'nombreFactures': rapport.nombreFactures,
-      },
-      horodatage: maintenant,
-    );
+    await journal.ajouter(TypeEvenement.clotureTiree, {
+      'nature': NatureRapport.x.code,
+      'numero': numero,
+      'debut': depuis.toIso8601String(),
+      'fin': borne.toIso8601String(),
+      'totalCentimes': rapport.total.centimes,
+      'taxeCentimes': rapport.taxe.centimes,
+      'especesCentimes': rapport.especes.centimes,
+      'nombreFactures': rapport.nombreFactures,
+    }, horodatage: maintenant);
 
     return rapport;
   }
@@ -93,23 +90,19 @@ class Rapports {
       numero: numero,
     );
 
-    await journal.ajouter(
-      TypeEvenement.clotureTiree,
-      {
-        'nature': NatureRapport.z.code,
-        'numero': numero,
-        'debut': depuis.toIso8601String(),
-        'fin': maintenant.toIso8601String(),
-        // Les totaux sont figés dans l'événement, pas seulement recalculables.
-        // Une correction ultérieure — un article renommé, une projection
-        // reconstruite — ne doit pas changer un Z déjà remis.
-        'totalCentimes': rapport.total.centimes,
-        'taxeCentimes': rapport.taxe.centimes,
-        'especesCentimes': rapport.especes.centimes,
-        'nombreFactures': rapport.nombreFactures,
-      },
-      horodatage: maintenant,
-    );
+    await journal.ajouter(TypeEvenement.clotureTiree, {
+      'nature': NatureRapport.z.code,
+      'numero': numero,
+      'debut': depuis.toIso8601String(),
+      'fin': maintenant.toIso8601String(),
+      // Les totaux sont figés dans l'événement, pas seulement recalculables.
+      // Une correction ultérieure — un article renommé, une projection
+      // reconstruite — ne doit pas changer un Z déjà remis.
+      'totalCentimes': rapport.total.centimes,
+      'taxeCentimes': rapport.taxe.centimes,
+      'especesCentimes': rapport.especes.centimes,
+      'nombreFactures': rapport.nombreFactures,
+    }, horodatage: maintenant);
 
     return rapport;
   }
@@ -130,17 +123,13 @@ class Rapports {
       articles: await _articles(depuis, maintenant),
     );
 
-    await journal.ajouter(
-      TypeEvenement.clotureTiree,
-      {
-        'nature': NatureRapport.a.code,
-        'numero': numero,
-        'debut': depuis.toIso8601String(),
-        'fin': maintenant.toIso8601String(),
-        'nombreArticles': rapport.articles.length,
-      },
-      horodatage: maintenant,
-    );
+    await journal.ajouter(TypeEvenement.clotureTiree, {
+      'nature': NatureRapport.a.code,
+      'numero': numero,
+      'debut': depuis.toIso8601String(),
+      'fin': maintenant.toIso8601String(),
+      'nombreArticles': rapport.articles.length,
+    }, horodatage: maintenant);
 
     return rapport;
   }
@@ -149,8 +138,7 @@ class Rapports {
   /// en a jamais eu — le premier Z couvre alors tout depuis l'installation.
   Future<DateTime?> derniereCloture(NatureRapport nature) async {
     DateTime? derniere;
-    for (final evenement
-        in await journal.parType(TypeEvenement.clotureTiree)) {
+    for (final evenement in await journal.parType(TypeEvenement.clotureTiree)) {
       if (evenement.charge['nature'] != nature.code) continue;
       final fin = DateTime.tryParse(evenement.charge['fin'] as String? ?? '');
       if (fin == null) continue;
@@ -165,29 +153,30 @@ class Rapports {
   /// mois ». Il se lit au journal, qui ne se réécrit pas.
   Future<List<ClotureTiree>> clotures({NatureRapport? nature}) async {
     final sortie = <ClotureTiree>[];
-    for (final evenement
-        in await journal.parType(TypeEvenement.clotureTiree)) {
+    for (final evenement in await journal.parType(TypeEvenement.clotureTiree)) {
       final quelle = NatureRapport.parCode(
-          evenement.charge['nature'] as String? ?? 'Z');
+        evenement.charge['nature'] as String? ?? 'Z',
+      );
       if (nature != null && quelle != nature) continue;
 
-      sortie.add(ClotureTiree(
-        nature: quelle,
-        numero: evenement.charge['numero'] as int? ?? 0,
-        debut: DateTime.parse(evenement.charge['debut']! as String),
-        fin: DateTime.parse(evenement.charge['fin']! as String),
-        total: Montant(evenement.charge['totalCentimes'] as int? ?? 0),
-        especes: Montant(evenement.charge['especesCentimes'] as int? ?? 0),
-        nombreFactures: evenement.charge['nombreFactures'] as int? ?? 0,
-      ));
+      sortie.add(
+        ClotureTiree(
+          nature: quelle,
+          numero: evenement.charge['numero'] as int? ?? 0,
+          debut: DateTime.parse(evenement.charge['debut']! as String),
+          fin: DateTime.parse(evenement.charge['fin']! as String),
+          total: Montant(evenement.charge['totalCentimes'] as int? ?? 0),
+          especes: Montant(evenement.charge['especesCentimes'] as int? ?? 0),
+          nombreFactures: evenement.charge['nombreFactures'] as int? ?? 0,
+        ),
+      );
     }
     return sortie.reversed.toList();
   }
 
   Future<int> _prochainNumero(NatureRapport nature) async {
     var maximum = 0;
-    for (final evenement
-        in await journal.parType(TypeEvenement.clotureTiree)) {
+    for (final evenement in await journal.parType(TypeEvenement.clotureTiree)) {
       if (evenement.charge['nature'] != nature.code) continue;
       final numero = evenement.charge['numero'] as int? ?? 0;
       if (numero > maximum) maximum = numero;
@@ -219,11 +208,13 @@ class Rapports {
     required DateTime tireLe,
     required int numero,
   }) async {
-    final ventes = await (base.select(base.ventes)
-          ..where((v) =>
-              v.horodatage.isBiggerThanValue(debut) &
-              v.horodatage.isSmallerOrEqualValue(fin)))
-        .get();
+    final ventes =
+        await (base.select(base.ventes)..where(
+              (v) =>
+                  v.horodatage.isBiggerThanValue(debut) &
+                  v.horodatage.isSmallerOrEqualValue(fin),
+            ))
+            .get();
 
     final retenues = ventes.where((v) => !v.annulee).toList();
     final annulees = ventes.where((v) => v.annulee).toList();
@@ -231,11 +222,12 @@ class Rapports {
     // Une vente encore ouverte n'est pas une vente : le §5 veut leur nombre
     // à part, et les compter dans le total gonflerait la journée d'une note
     // de restaurant que personne n'a payée.
-    final incompletes =
-        retenues.where((v) => EtatVente.parCle(v.etat) == EtatVente.ouverte);
-    final abouties =
-        retenues.where((v) => EtatVente.parCle(v.etat) != EtatVente.ouverte)
-            .toList();
+    final incompletes = retenues.where(
+      (v) => EtatVente.parCle(v.etat) == EtatVente.ouverte,
+    );
+    final abouties = retenues
+        .where((v) => EtatVente.parCle(v.etat) != EtatVente.ouverte)
+        .toList();
 
     final identifiants = abouties.map((v) => v.id).toList();
 
@@ -296,9 +288,9 @@ class Rapports {
   Future<List<TotauxParGroupe>> _parGroupe(List<String> ventes) async {
     if (ventes.isEmpty) return const [];
 
-    final lignes = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.isIn(ventes)))
-        .get();
+    final lignes = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.isIn(ventes))).get();
 
     final cumuls = <String, int>{};
     for (final ligne in lignes) {
@@ -334,9 +326,9 @@ class Rapports {
   Future<Map<ModePaiement, Montant>> _parMode(List<String> ventes) async {
     if (ventes.isEmpty) return const {};
 
-    final paiements = await (base.select(base.paiements)
-          ..where((p) => p.venteId.isIn(ventes)))
-        .get();
+    final paiements = await (base.select(
+      base.paiements,
+    )..where((p) => p.venteId.isIn(ventes))).get();
 
     final parMode = <ModePaiement, Montant>{};
     for (final paiement in paiements) {
@@ -345,7 +337,8 @@ class Rapports {
         orElse: () => ModePaiement.especes,
       );
       parMode[mode] =
-          (parMode[mode] ?? const Montant.zero()) + Montant(paiement.montantCentimes);
+          (parMode[mode] ?? const Montant.zero()) +
+          Montant(paiement.montantCentimes);
     }
     return parMode;
   }
@@ -353,18 +346,22 @@ class Rapports {
   /// Les articles vendus sur la période, avec ce qui est revenu et ce qui
   /// reste.
   Future<List<LigneArticleRapport>> _articles(
-      DateTime debut, DateTime fin) async {
-    final ventes = await (base.select(base.ventes)
-          ..where((v) =>
-              v.horodatage.isBiggerThanValue(debut) &
-              v.horodatage.isSmallerOrEqualValue(fin)))
-        .get();
+    DateTime debut,
+    DateTime fin,
+  ) async {
+    final ventes =
+        await (base.select(base.ventes)..where(
+              (v) =>
+                  v.horodatage.isBiggerThanValue(debut) &
+                  v.horodatage.isSmallerOrEqualValue(fin),
+            ))
+            .get();
     if (ventes.isEmpty) return const [];
 
     final annulees = {for (final v in ventes.where((v) => v.annulee)) v.id};
-    final lignes = await (base.select(base.lignesVente)
-          ..where((l) => l.venteId.isIn(ventes.map((v) => v.id).toList())))
-        .get();
+    final lignes = await (base.select(
+      base.lignesVente,
+    )..where((l) => l.venteId.isIn(ventes.map((v) => v.id).toList()))).get();
 
     final vendu = <String, int>{};
     final retourne = <String, int>{};
@@ -384,7 +381,7 @@ class Rapports {
 
     final catalogue = {
       for (final article in await base.select(base.articles).get())
-        article.code: article
+        article.code: article,
     };
 
     final codes = {...vendu.keys, ...retourne.keys}.toList()..sort();
@@ -394,11 +391,14 @@ class Rapports {
         LigneArticleRapport(
           code: code,
           nom: designation[code] ?? catalogue[code]?.designation ?? code,
-          prixUnitaire: Montant(prix[code] ?? catalogue[code]?.prixCentimes ?? 0),
+          prixUnitaire: Montant(
+            prix[code] ?? catalogue[code]?.prixCentimes ?? 0,
+          ),
           tauxMillieme: catalogue[code] == null
               ? null
-              : GroupeTaxation.parEtiquette(catalogue[code]!.groupeTaxation)
-                  .tauxMillieme,
+              : GroupeTaxation.parEtiquette(
+                  catalogue[code]!.groupeTaxation,
+                ).tauxMillieme,
           venduee: Quantite(vendu[code] ?? 0),
           retournee: Quantite(retourne[code] ?? 0),
           enStock: catalogue[code]?.stockMilliemes == null

@@ -28,30 +28,32 @@ void main() {
   tearDown(() => base.close());
 
   Widget application() => Application(
-        depot: Depot(base, Journal(base, appareil: 'CAISSE1')),
-        documents: Documents(base, nomCommerce: 'Boutique Test'),
-        analyses: Analyses(base),
-        parametres: Parametres(base),
-        reglage: const Reglage(
-          nomCommerce: 'Boutique Test',
-          comptes: ComptesMarchands.aucun(),
-        ),
-      );
+    depot: Depot(base, Journal(base, appareil: 'CAISSE1')),
+    documents: Documents(base, nomCommerce: 'Boutique Test'),
+    analyses: Analyses(base),
+    parametres: Parametres(base),
+    reglage: const Reglage(
+      nomCommerce: 'Boutique Test',
+      comptes: ComptesMarchands.aucun(),
+    ),
+  );
 
   BuildContext contexteDe(WidgetTester tester) =>
       tester.element(find.byType(Accueil));
 
   group('La langue de l’application', () {
-    testWidgets('est le français, quelle que soit celle du téléphone',
-        (tester) async {
+    testWidgets('est le français, quelle que soit celle du téléphone', (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pump();
 
       expect(Localizations.localeOf(contexteDe(tester)).languageCode, 'fr');
     });
 
-    testWidgets('vaut aussi pour les libellés fournis par Flutter',
-        (tester) async {
+    testWidgets('vaut aussi pour les libellés fournis par Flutter', (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pump();
 
@@ -76,8 +78,9 @@ void main() {
       expect(libelles.formatMonthYear(janvier), contains('janvier'));
     });
 
-    testWidgets('une seule langue est déclarée, et c’est le français',
-        (tester) async {
+    testWidgets('une seule langue est déclarée, et c’est le français', (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pump();
 

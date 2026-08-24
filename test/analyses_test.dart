@@ -34,25 +34,24 @@ void main() {
     DateTime? quand,
     String? clientId,
     ModePaiement mode = ModePaiement.especes,
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: code,
-            designation: nom,
-            prixUnitaire: f(prix),
-            quantite: Quantite.depuisDecimal(quantite),
-          )
-        ],
-        paiements: [
-          PaiementAEnregistrer(
-            mode: mode,
-            montant: f(prix).multiplieParQuantite(Quantite.depuisDecimal(quantite)),
-          )
-        ],
-        clientId: clientId,
-        horodatage: quand,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: code,
+        designation: nom,
+        prixUnitaire: f(prix),
+        quantite: Quantite.depuisDecimal(quantite),
+      ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(
+        mode: mode,
+        montant: f(prix).multiplieParQuantite(Quantite.depuisDecimal(quantite)),
+      ),
+    ],
+    clientId: clientId,
+    horodatage: quand,
+  );
 
   final maintenant = DateTime(2026, 8, 5, 12);
   DateTime ilYA(int jours) => maintenant.subtract(Duration(days: jours));
@@ -65,7 +64,9 @@ void main() {
       await vendre('RIZ', 'Sac de riz', 20000, quand: ilYA(1));
 
       final top = await analyses.meilleuresVentes(
-          debut: ilYA(7), fin: maintenant);
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(top.first.code, 'RIZ');
       expect(top.first.chiffre, f(20000));
@@ -78,7 +79,9 @@ void main() {
       await vendre('RIZ', 'Riz', 650, quantite: 2, quand: ilYA(2));
 
       final top = await analyses.meilleuresVentes(
-          debut: ilYA(7), fin: maintenant);
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(top, hasLength(1));
       expect(top.single.chiffre, f(1950));
@@ -91,7 +94,9 @@ void main() {
       await vendre('SAVON', 'Savon', 300, quand: ilYA(2));
 
       final top = await analyses.meilleuresVentes(
-          debut: ilYA(7), fin: maintenant);
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(top.map((p) => p.code), ['SAVON']);
     });
@@ -102,7 +107,10 @@ void main() {
       }
 
       final top = await analyses.meilleuresVentes(
-          debut: ilYA(7), fin: maintenant, limite: 2);
+        debut: ilYA(7),
+        fin: maintenant,
+        limite: 2,
+      );
 
       expect(top, hasLength(2));
       expect(top.first.code, 'ART4');
@@ -116,8 +124,9 @@ void main() {
       }
       await vendre('RIZ', 'Riz', 650, quand: ilYA(1));
 
-      final endormis =
-          await analyses.articlesQuiDorment(maintenant: maintenant);
+      final endormis = await analyses.articlesQuiDorment(
+        maintenant: maintenant,
+      );
 
       expect(endormis.map((a) => a.code), ['PILES']);
       expect(endormis.single.joursSansVente, greaterThanOrEqualTo(21));
@@ -128,8 +137,10 @@ void main() {
         await vendre('RIZ', 'Riz', 650, quand: ilYA(i + 1));
       }
 
-      expect(await analyses.articlesQuiDorment(maintenant: maintenant),
-          isEmpty);
+      expect(
+        await analyses.articlesQuiDorment(maintenant: maintenant),
+        isEmpty,
+      );
     });
 
     test("ignore un article vendu trop rarement pour conclure", () async {
@@ -137,8 +148,10 @@ void main() {
       await vendre('RARE', 'Article rare', 500, quand: ilYA(60));
       await vendre('RARE', 'Article rare', 500, quand: ilYA(59));
 
-      expect(await analyses.articlesQuiDorment(maintenant: maintenant),
-          isEmpty);
+      expect(
+        await analyses.articlesQuiDorment(maintenant: maintenant),
+        isEmpty,
+      );
     });
 
     test("chiffre l'argent immobilisé quand le stock est connu", () async {
@@ -147,8 +160,9 @@ void main() {
       }
       await depot.ajusterStock('PILES', const Quantite.unites(12));
 
-      final endormis =
-          await analyses.articlesQuiDorment(maintenant: maintenant);
+      final endormis = await analyses.articlesQuiDorment(
+        maintenant: maintenant,
+      );
 
       expect(endormis.single.valeurImmobilisee, f(6000));
     });
@@ -158,8 +172,9 @@ void main() {
         await vendre('PILES', 'Piles', 500, quand: ilYA(j));
       }
 
-      final endormis =
-          await analyses.articlesQuiDorment(maintenant: maintenant);
+      final endormis = await analyses.articlesQuiDorment(
+        maintenant: maintenant,
+      );
 
       expect(endormis.single.valeurImmobilisee, isNull);
     });
@@ -174,8 +189,10 @@ void main() {
       await vendre('RIZ', 'Riz', 2000, quand: ilYA(2));
       await vendre('SAVON', 'Savon', 3000, quand: ilYA(2));
 
-      final evolutions =
-          await analyses.evolution(debut: ilYA(7), fin: maintenant);
+      final evolutions = await analyses.evolution(
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(evolutions.first.code, 'RIZ');
       expect(evolutions.first.enBaisse, isTrue);
@@ -189,8 +206,10 @@ void main() {
     test('ne calcule pas de pourcentage à partir de zéro', () async {
       await vendre('NOUVEAU', 'Nouveauté', 5000, quand: ilYA(2));
 
-      final evolutions =
-          await analyses.evolution(debut: ilYA(7), fin: maintenant);
+      final evolutions = await analyses.evolution(
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(evolutions.single.chiffrePrecedent.estNul, isTrue);
       expect(evolutions.single.variation, isNull);
@@ -199,8 +218,10 @@ void main() {
     test('remonte un article qui a totalement disparu', () async {
       await vendre('PILES', 'Piles', 4000, quand: ilYA(10));
 
-      final evolutions =
-          await analyses.evolution(debut: ilYA(7), fin: maintenant);
+      final evolutions = await analyses.evolution(
+        debut: ilYA(7),
+        fin: maintenant,
+      );
 
       expect(evolutions.single.code, 'PILES');
       expect(evolutions.single.chiffreActuel.estNul, isTrue);
@@ -234,22 +255,26 @@ void main() {
       expect(await analyses.aReapprovisionner(maintenant: maintenant), isEmpty);
     });
 
-    test('le même seuil vaut pour un article lent et un article rapide',
-        () async {
-      // Un sac de riz par semaine, il en reste deux : quatorze jours.
-      await vendre('RIZ', 'Sac de riz', 20000, quantite: 2, quand: ilYA(7));
-      await depot.ajusterStock('RIZ', const Quantite.unites(2));
-      // Cinquante sachets d'eau par jour, il en reste cent : deux jours.
-      for (var j = 14; j > 0; j--) {
-        await vendre('EAU', 'Sachet', 100, quantite: 50, quand: ilYA(j));
-      }
-      await depot.ajusterStock('EAU', const Quantite.unites(100));
+    test(
+      'le même seuil vaut pour un article lent et un article rapide',
+      () async {
+        // Un sac de riz par semaine, il en reste deux : quatorze jours.
+        await vendre('RIZ', 'Sac de riz', 20000, quantite: 2, quand: ilYA(7));
+        await depot.ajusterStock('RIZ', const Quantite.unites(2));
+        // Cinquante sachets d'eau par jour, il en reste cent : deux jours.
+        for (var j = 14; j > 0; j--) {
+          await vendre('EAU', 'Sachet', 100, quantite: 50, quand: ilYA(j));
+        }
+        await depot.ajusterStock('EAU', const Quantite.unites(100));
 
-      final alertes = await analyses.aReapprovisionner(maintenant: maintenant);
+        final alertes = await analyses.aReapprovisionner(
+          maintenant: maintenant,
+        );
 
-      // Seule l'eau est urgente, alors qu'il en reste cinquante fois plus.
-      expect(alertes.map((a) => a.code), ['EAU']);
-    });
+        // Seule l'eau est urgente, alors qu'il en reste cinquante fois plus.
+        expect(alertes.map((a) => a.code), ['EAU']);
+      },
+    );
 
     test('la rupture passe devant tout le reste', () async {
       for (var j = 14; j > 0; j--) {
@@ -333,14 +358,14 @@ void main() {
 
       final avant = {
         for (final a in await depot.catalogue())
-          a.code: (a.suiviStock, a.stockMilliemes)
+          a.code: (a.suiviStock, a.stockMilliemes),
       };
 
       await depot.reconstruireProjections();
 
       final apres = {
         for (final a in await depot.catalogue())
-          a.code: (a.suiviStock, a.stockMilliemes)
+          a.code: (a.suiviStock, a.stockMilliemes),
       };
       expect(apres, avant);
     });
@@ -350,8 +375,15 @@ void main() {
     test('dit ce que le client achète et depuis quand il manque', () async {
       final awa = await depot.creerClient(nom: 'Awa', telephone: '70112233');
 
-      await vendre('RIZ', 'Riz', 650, quantite: 2,
-          quand: ilYA(30), clientId: awa, mode: ModePaiement.credit);
+      await vendre(
+        'RIZ',
+        'Riz',
+        650,
+        quantite: 2,
+        quand: ilYA(30),
+        clientId: awa,
+        mode: ModePaiement.credit,
+      );
       await vendre('RIZ', 'Riz', 650, quand: ilYA(25), clientId: awa);
       await vendre('SAVON', 'Savon', 300, quand: ilYA(25), clientId: awa);
 

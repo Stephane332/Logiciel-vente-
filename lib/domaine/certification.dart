@@ -58,13 +58,8 @@ class ElementsSecurite {
   /// Cinq champs séparés par des points-virgules. Le QR ne contient **aucun
   /// montant** et **aucune adresse de vérification** : l'application de
   /// contrôle interroge le serveur de la DGI avec ces seuls identifiants.
-  String get codeQr => [
-        marqueur,
-        nim,
-        codeCompact,
-        ifu,
-        _horodatageCompact,
-      ].join(';');
+  String get codeQr =>
+      [marqueur, nim, codeCompact, ifu, _horodatageCompact].join(';');
 
   String get _horodatageCompact {
     String d(int v, [int n = 2]) => v.toString().padLeft(n, '0');
@@ -76,18 +71,23 @@ class ElementsSecurite {
   ///
   /// Sert à vérifier une facture reçue d'un fournisseur, et à contrôler mes
   /// propres factures pendant la démonstration d'homologation.
-  factory ElementsSecurite.depuisCodeQr(String codeQr, {String compteurs = ''}) {
+  factory ElementsSecurite.depuisCodeQr(
+    String codeQr, {
+    String compteurs = '',
+  }) {
     final champs = codeQr.split(';');
     if (champs.length != 5) {
       throw CodeQrInvalide(
-          'Cinq champs attendus, ${champs.length} trouvés dans « $codeQr ».');
+        'Cinq champs attendus, ${champs.length} trouvés dans « $codeQr ».',
+      );
     }
 
     final horodatage = champs[4];
     if (horodatage.length != 14 || int.tryParse(horodatage) == null) {
       throw CodeQrInvalide(
-          'Horodatage « $horodatage » : 14 chiffres attendus au format '
-          'AAAAMMJJHHMMSS.');
+        'Horodatage « $horodatage » : 14 chiffres attendus au format '
+        'AAAAMMJJHHMMSS.',
+      );
     }
 
     int part(int debut, int longueur) =>
@@ -98,8 +98,14 @@ class ElementsSecurite {
       nim: champs[1],
       codeSecefDgi: champs[2],
       ifu: champs[3],
-      horodatage: DateTime(part(0, 4), part(4, 2), part(6, 2), part(8, 2),
-          part(10, 2), part(12, 2)),
+      horodatage: DateTime(
+        part(0, 4),
+        part(4, 2),
+        part(6, 2),
+        part(8, 2),
+        part(10, 2),
+        part(12, 2),
+      ),
       compteurs: compteurs,
     );
   }

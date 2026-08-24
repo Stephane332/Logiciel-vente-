@@ -42,23 +42,22 @@ void main() {
     String? par,
     num? catalogue,
     DateTime? quand,
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: 'RIZ',
-            designation: 'Riz 1 kg',
-            prixUnitaire: f(prix),
-            prixCatalogue: catalogue == null ? null : f(catalogue),
-            quantite: const Quantite.unites(1),
-          )
-        ],
-        paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
-        ],
-        operateur: par,
-        horodatage: quand,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: 'RIZ',
+        designation: 'Riz 1 kg',
+        prixUnitaire: f(prix),
+        prixCatalogue: catalogue == null ? null : f(catalogue),
+        quantite: const Quantite.unites(1),
+      ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
+    ],
+    operateur: par,
+    horodatage: quand,
+  );
 
   /// Les bornes de la journée en cours, celles que le rapport utilise.
   (DateTime, DateTime) aujourdHui() => Periode.jour.bornes();
@@ -86,14 +85,16 @@ void main() {
       expect((await parametres.tout()).vendeurs, ['Awa', 'Salif']);
     });
 
-    test('un retour à la ligne dans un nom ne coupe pas la liste en deux',
-        () async {
-      // C'est ce caractère qui sépare les noms dans la valeur enregistrée :
-      // un nom collé au clavier depuis ailleurs pourrait en contenir un.
-      await parametres.definirVendeurs(['Awa\nSalif', 'Boukary']);
+    test(
+      'un retour à la ligne dans un nom ne coupe pas la liste en deux',
+      () async {
+        // C'est ce caractère qui sépare les noms dans la valeur enregistrée :
+        // un nom collé au clavier depuis ailleurs pourrait en contenir un.
+        await parametres.definirVendeurs(['Awa\nSalif', 'Boukary']);
 
-      expect((await parametres.tout()).vendeurs, ['Awa Salif', 'Boukary']);
-    });
+        expect((await parametres.tout()).vendeurs, ['Awa Salif', 'Boukary']);
+      },
+    );
 
     test('une équipe déclarée mais personne de choisi se signale', () async {
       await parametres.definirVendeurs(['Awa', 'Salif']);
@@ -183,8 +184,7 @@ void main() {
       expect(orphelines.first.vendeur, isEmpty);
     });
 
-    test('chez un commerçant seul, tout tient sur une ligne anonyme',
-        () async {
+    test('chez un commerçant seul, tout tient sur une ligne anonyme', () async {
       await vendre(1000);
       await vendre(2000);
 
@@ -203,10 +203,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(5000),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(5000))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(5000)),
         ],
         operateur: 'Awa',
       );

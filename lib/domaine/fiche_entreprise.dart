@@ -48,7 +48,11 @@ enum RegimeImposition {
   final int? plafondFcfa;
 
   const RegimeImposition(
-      this.etiquette, this.libelle, this.planchierFcfa, this.plafondFcfa);
+    this.etiquette,
+    this.libelle,
+    this.planchierFcfa,
+    this.plafondFcfa,
+  );
 
   /// Vrai quand la facture électronique certifiée est exigée.
   ///
@@ -158,8 +162,7 @@ class Ifu {
   /// Ramène une saisie à sa forme canonique, ou rend nul.
   static String? normaliser(String? saisie) {
     if (saisie == null) return null;
-    final propre =
-        saisie.toUpperCase().replaceAll(RegExp(r'[^0-9A-Z]'), '');
+    final propre = saisie.toUpperCase().replaceAll(RegExp(r'[^0-9A-Z]'), '');
     return _forme.hasMatch(propre) ? propre : null;
   }
 
@@ -225,8 +228,8 @@ class FicheEntreprise {
   /// engage l'entreprise sur une facture.
   String get denomination =>
       (raisonSociale != null && raisonSociale!.trim().isNotEmpty)
-          ? raisonSociale!.trim()
-          : nomCommercial;
+      ? raisonSociale!.trim()
+      : nomCommercial;
 
   /// Vrai quand la fiche porte au moins une mention fiscale. Sert à décider si
   /// l'écran affiche la section repliée ou dépliée : un commerçant qui n'a
@@ -244,40 +247,40 @@ class FicheEntreprise {
   /// de contrôle, et lui ne vient pas d'un formulaire. Voir
   /// `docs/07-protocole-mcf.md`.
   List<Manque> get manques => [
-        if (ifu == null)
-          (
-            quoi: 'IFU',
-            pourquoi: "L'identifiant financier unique, sur l'attestation "
-                "d'immatriculation fiscale. Mention b."
-          ),
-        if (cadastre == null)
-          (
-            quoi: 'Références cadastrales',
-            pourquoi: 'Onze chiffres identifiant la parcelle où se fait la '
-                'vente, au service du cadastre. Mention c.'
-          ),
-        if (adresse == null || adresse!.trim().isEmpty)
-          (
-            quoi: 'Adresse de vente',
-            pourquoi: 'Le lieu où la vente se fait, en clair. Mention c.'
-          ),
-        if (telephone == null || telephone!.trim().isEmpty)
-          (
-            quoi: 'Contact',
-            pourquoi: "Le téléphone de l'entreprise. Mention d."
-          ),
-        if (regime == null)
-          (
-            quoi: "Régime d'imposition",
-            pourquoi: 'CME, RSI ou RNI, tel que la Direction générale des '
-                "impôts t'a classé. Mention n."
-          ),
-        if (serviceImpots == null || serviceImpots!.trim().isEmpty)
-          (
-            quoi: 'Service des impôts',
-            pourquoi: 'Ton service de rattachement. Mention o.'
-          ),
-      ];
+    if (ifu == null)
+      (
+        quoi: 'IFU',
+        pourquoi:
+            "L'identifiant financier unique, sur l'attestation "
+            "d'immatriculation fiscale. Mention b.",
+      ),
+    if (cadastre == null)
+      (
+        quoi: 'Références cadastrales',
+        pourquoi:
+            'Onze chiffres identifiant la parcelle où se fait la '
+            'vente, au service du cadastre. Mention c.',
+      ),
+    if (adresse == null || adresse!.trim().isEmpty)
+      (
+        quoi: 'Adresse de vente',
+        pourquoi: 'Le lieu où la vente se fait, en clair. Mention c.',
+      ),
+    if (telephone == null || telephone!.trim().isEmpty)
+      (quoi: 'Contact', pourquoi: "Le téléphone de l'entreprise. Mention d."),
+    if (regime == null)
+      (
+        quoi: "Régime d'imposition",
+        pourquoi:
+            'CME, RSI ou RNI, tel que la Direction générale des '
+            "impôts t'a classé. Mention n.",
+      ),
+    if (serviceImpots == null || serviceImpots!.trim().isEmpty)
+      (
+        quoi: 'Service des impôts',
+        pourquoi: 'Ton service de rattachement. Mention o.',
+      ),
+  ];
 
   /// Vrai quand tout ce qui dépend du commerçant est là.
   bool get complete => manques.isEmpty;
@@ -288,22 +291,21 @@ class FicheEntreprise {
   /// n'a pas à porter cinq lignes blanches là où une entreprise en a cinq
   /// remplies.
   List<String> get enTete => [
-        denomination.toUpperCase(),
-        if (raisonSociale != null && raisonSociale!.trim().isNotEmpty)
-          nomCommercial,
-        if (ifu != null) 'IFU : $ifu',
-        if (adresse != null && adresse!.trim().isNotEmpty) adresse!.trim(),
-        if (cadastre != null) 'Parcelle : ${cadastre!.lisible}',
-        if (telephone != null && telephone!.trim().isNotEmpty)
-          'Tél. : ${telephone!.trim()}',
-        if (courriel != null && courriel!.trim().isNotEmpty) courriel!.trim(),
-        if (regime != null) 'Régime : ${regime!.etiquette}',
-        if (serviceImpots != null && serviceImpots!.trim().isNotEmpty)
-          'Service des impôts : ${serviceImpots!.trim()}',
-        if (referencesBancaires != null &&
-            referencesBancaires!.trim().isNotEmpty)
-          referencesBancaires!.trim(),
-      ];
+    denomination.toUpperCase(),
+    if (raisonSociale != null && raisonSociale!.trim().isNotEmpty)
+      nomCommercial,
+    if (ifu != null) 'IFU : $ifu',
+    if (adresse != null && adresse!.trim().isNotEmpty) adresse!.trim(),
+    if (cadastre != null) 'Parcelle : ${cadastre!.lisible}',
+    if (telephone != null && telephone!.trim().isNotEmpty)
+      'Tél. : ${telephone!.trim()}',
+    if (courriel != null && courriel!.trim().isNotEmpty) courriel!.trim(),
+    if (regime != null) 'Régime : ${regime!.etiquette}',
+    if (serviceImpots != null && serviceImpots!.trim().isNotEmpty)
+      'Service des impôts : ${serviceImpots!.trim()}',
+    if (referencesBancaires != null && referencesBancaires!.trim().isNotEmpty)
+      referencesBancaires!.trim(),
+  ];
 
   FicheEntreprise copieAvec({
     String? nomCommercial,
@@ -316,17 +318,16 @@ class FicheEntreprise {
     RegimeImposition? regime,
     String? serviceImpots,
     String? referencesBancaires,
-  }) =>
-      FicheEntreprise(
-        nomCommercial: nomCommercial ?? this.nomCommercial,
-        raisonSociale: raisonSociale ?? this.raisonSociale,
-        ifu: ifu ?? this.ifu,
-        cadastre: cadastre ?? this.cadastre,
-        adresse: adresse ?? this.adresse,
-        telephone: telephone ?? this.telephone,
-        courriel: courriel ?? this.courriel,
-        regime: regime ?? this.regime,
-        serviceImpots: serviceImpots ?? this.serviceImpots,
-        referencesBancaires: referencesBancaires ?? this.referencesBancaires,
-      );
+  }) => FicheEntreprise(
+    nomCommercial: nomCommercial ?? this.nomCommercial,
+    raisonSociale: raisonSociale ?? this.raisonSociale,
+    ifu: ifu ?? this.ifu,
+    cadastre: cadastre ?? this.cadastre,
+    adresse: adresse ?? this.adresse,
+    telephone: telephone ?? this.telephone,
+    courriel: courriel ?? this.courriel,
+    regime: regime ?? this.regime,
+    serviceImpots: serviceImpots ?? this.serviceImpots,
+    referencesBancaires: referencesBancaires ?? this.referencesBancaires,
+  );
 }

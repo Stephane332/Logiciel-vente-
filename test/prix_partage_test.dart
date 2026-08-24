@@ -37,25 +37,25 @@ void main() {
   Montant f(num francs) => Montant.depuisDecimal(francs);
 
   Widget caisse() => MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(
-          depot: depot,
-          documents: Documents(base, nomCommerce: 'Chez Awa'),
-        ),
-      );
+    theme: themeClair(),
+    home: EcranVente(
+      depot: depot,
+      documents: Documents(base, nomCommerce: 'Chez Awa'),
+    ),
+  );
 
   /// Vend au montant libre, sans passer par l'écran.
   Future<void> vendreDirect(num prix) => depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            prixUnitaire: f(prix),
-            quantite: const Quantite.unites(1),
-          )
-        ],
-        paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
-        ],
-      );
+    lignes: [
+      LigneAEnregistrer(
+        prixUnitaire: f(prix),
+        quantite: const Quantite.unites(1),
+      ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
+    ],
+  );
 
   /// Trois ventes à 500 F, puis on nomme l'article.
   Future<void> nommerEauA500() async {
@@ -104,8 +104,9 @@ void main() {
       expect(find.text('Autre chose'), findsOneWidget);
     });
 
-    testWidgets('« Autre chose » n\'attribue rien au sachet d\'eau',
-        (tester) async {
+    testWidgets('« Autre chose » n\'attribue rien au sachet d\'eau', (
+      tester,
+    ) async {
       await nommerEauA500();
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -118,18 +119,25 @@ void main() {
       await tester.tap(find.text('Valider la vente'));
       await tester.pumpAndSettle();
 
-      final eau = (await depot.catalogue())
-          .firstWhere((a) => a.code == 'AUTO-50000');
-      expect(eau.nombreVentes, 3, reason: 'le pain ne compte pas pour de l\'eau');
+      final eau = (await depot.catalogue()).firstWhere(
+        (a) => a.code == 'AUTO-50000',
+      );
+      expect(
+        eau.nombreVentes,
+        3,
+        reason: 'le pain ne compte pas pour de l\'eau',
+      );
 
-      final autre =
-          (await depot.catalogue()).firstWhere((a) => a.code != 'AUTO-50000');
+      final autre = (await depot.catalogue()).firstWhere(
+        (a) => a.code != 'AUTO-50000',
+      );
       expect(autre.nomme, isFalse);
       expect(autre.nombreVentes, 1);
     });
 
-    testWidgets('choisir le sachet d\'eau l\'attribue bien à lui',
-        (tester) async {
+    testWidgets('choisir le sachet d\'eau l\'attribue bien à lui', (
+      tester,
+    ) async {
       await nommerEauA500();
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -142,8 +150,9 @@ void main() {
       await tester.tap(find.text('Valider la vente'));
       await tester.pumpAndSettle();
 
-      final eau = (await depot.catalogue())
-          .firstWhere((a) => a.code == 'AUTO-50000');
+      final eau = (await depot.catalogue()).firstWhere(
+        (a) => a.code == 'AUTO-50000',
+      );
       expect(eau.nombreVentes, 4);
       expect(await depot.catalogue(), hasLength(1));
     });

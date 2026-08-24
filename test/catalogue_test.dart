@@ -35,8 +35,7 @@ void main() {
 
   Montant f(num francs) => Montant.depuisDecimal(francs);
 
-  Future<void> vendre(String code, String nom, num prix,
-          {DateTime? quand}) =>
+  Future<void> vendre(String code, String nom, num prix, {DateTime? quand}) =>
       depot.enregistrerVente(
         lignes: [
           LigneAEnregistrer(
@@ -44,10 +43,10 @@ void main() {
             designation: nom,
             prixUnitaire: f(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
         ],
         horodatage: quand,
       );
@@ -55,7 +54,9 @@ void main() {
   group('Retirer un article', () {
     test('il disparaît de la caisse', () async {
       final code = await depot.creerArticle(
-          designation: 'Savon Omo', prix: f(500));
+        designation: 'Savon Omo',
+        prix: f(500),
+      );
       await depot.creerArticle(designation: 'Sucre', prix: f(750));
 
       await depot.retirerArticle(code);
@@ -67,7 +68,9 @@ void main() {
 
     test('il ne ressort pas non plus par la recherche', () async {
       final code = await depot.creerArticle(
-          designation: 'Savon Omo', prix: f(500));
+        designation: 'Savon Omo',
+        prix: f(500),
+      );
       await depot.retirerArticle(code);
 
       expect(await depot.catalogue(recherche: 'omo'), isEmpty);
@@ -77,7 +80,9 @@ void main() {
       // C'est la promesse qui permet d'oser le geste : la journée ne bouge
       // pas quand on retire une faute de frappe.
       final code = await depot.creerArticle(
-          designation: 'Savonn Omo', prix: f(500));
+        designation: 'Savonn Omo',
+        prix: f(500),
+      );
       await vendre(code, 'Savonn Omo', 500);
       final avant = await depot.rapportDuJour();
 
@@ -89,8 +94,10 @@ void main() {
     });
 
     test('on peut le remettre', () async {
-      final code =
-          await depot.creerArticle(designation: 'Savon Omo', prix: f(500));
+      final code = await depot.creerArticle(
+        designation: 'Savon Omo',
+        prix: f(500),
+      );
       await depot.retirerArticle(code);
       await depot.retirerArticle(code, retire: false);
 
@@ -99,7 +106,10 @@ void main() {
 
     test('il sort aussi du stock et des alertes', () async {
       final code = await depot.creerArticle(
-          designation: 'Riz 25 kg', prix: f(18500), stock: const Quantite.unites(1));
+        designation: 'Riz 25 kg',
+        prix: f(18500),
+        stock: const Quantite.unites(1),
+      );
       await depot.definirSuiviStock(code, SuiviStock.direct);
       await depot.ajusterStock(code, const Quantite.unites(0));
 
@@ -120,10 +130,10 @@ void main() {
             LigneAEnregistrer(
               prixUnitaire: f(300),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
           paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(300))
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(300)),
           ],
         );
       }
@@ -136,8 +146,10 @@ void main() {
     });
 
     test('le retrait se rejoue depuis le journal', () async {
-      final code =
-          await depot.creerArticle(designation: 'Savon Omo', prix: f(500));
+      final code = await depot.creerArticle(
+        designation: 'Savon Omo',
+        prix: f(500),
+      );
       await depot.retirerArticle(code);
 
       await depot.reconstruireProjections();
@@ -146,8 +158,10 @@ void main() {
     });
 
     test('la remise en place aussi', () async {
-      final code =
-          await depot.creerArticle(designation: 'Savon Omo', prix: f(500));
+      final code = await depot.creerArticle(
+        designation: 'Savon Omo',
+        prix: f(500),
+      );
       await depot.retirerArticle(code);
       await depot.retirerArticle(code, retire: false);
 
@@ -182,22 +196,24 @@ void main() {
     testWidgets('la tuile affiche le nom abrégé', (tester) async {
       const long = 'Sac de riz parfumé importé 25 kg qualité supérieure';
 
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 180,
-              height: 180,
-              child: TuileProduit(
-                nom: long,
-                prix: Montant.depuisDecimal(18500),
-                onPressed: () {},
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 180,
+                height: 180,
+                child: TuileProduit(
+                  nom: long,
+                  prix: Montant.depuisDecimal(18500),
+                  onPressed: () {},
+                ),
               ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(find.text(nomAbrege(long)), findsOneWidget);

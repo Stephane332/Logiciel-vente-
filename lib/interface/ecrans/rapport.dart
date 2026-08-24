@@ -87,8 +87,7 @@ class EcranRapportState extends State<EcranRapport> {
       widget.depot.parVendeur(debut, fin),
     ).wait;
 
-    final cloture =
-        await widget.rapports?.derniereCloture(NatureRapport.z);
+    final cloture = await widget.rapports?.derniereCloture(NatureRapport.z);
 
     if (!mounted) return;
     setState(() {
@@ -202,7 +201,8 @@ class EcranRapportState extends State<EcranRapport> {
   /// remises que les autres se voit tout de suite — mais un « 0 F de
   /// remises » affiché tous les jours finit par ne plus être lu.
   String _detailVendeur(PartDeVendeur part) {
-    final ventes = '${part.nombreVentes} vente'
+    final ventes =
+        '${part.nombreVentes} vente'
         '${part.nombreVentes > 1 ? 's' : ''}';
     if (part.remises.estNul) return ventes;
     return '$ventes · ${part.remises.enFrancs} de remises';
@@ -224,8 +224,10 @@ class EcranRapportState extends State<EcranRapport> {
         parts: [
           if (_partsUtiles)
             for (final part in _parVendeur)
-              (qui: part.estAnonyme ? 'Non attribué' : part.vendeur,
-                  combien: part.total),
+              (
+                qui: part.estAnonyme ? 'Non attribué' : part.vendeur,
+                combien: part.total,
+              ),
         ],
       )
       .texte;
@@ -330,8 +332,9 @@ class EcranRapportState extends State<EcranRapport> {
                       detail: part.total.enFrancs,
                       // Une part sans nom est un trou dans le compte : elle se
                       // signale, sans accuser personne.
-                      pastille:
-                          part.estAnonyme ? Couleurs.alerte : Couleurs.primaire,
+                      pastille: part.estAnonyme
+                          ? Couleurs.alerte
+                          : Couleurs.primaire,
                       sousLigne: _detailVendeur(part),
                     ),
                 ],
@@ -348,8 +351,9 @@ class EcranRapportState extends State<EcranRapport> {
                     _Ligne(
                       libelle: alerte.designation,
                       detail: alerte.detail,
-                      pastille:
-                          alerte.enRupture ? Couleurs.alerte : Couleurs.accent,
+                      pastille: alerte.enRupture
+                          ? Couleurs.alerte
+                          : Couleurs.accent,
                       urgent: alerte.enRupture,
                     ),
                 ],
@@ -383,7 +387,7 @@ class EcranRapportState extends State<EcranRapport> {
                       detail: article.valeurImmobilisee == null
                           ? '${article.joursSansVente} jours'
                           : '${article.joursSansVente} j · '
-                              '${article.valeurImmobilisee!.enFrancs} bloqués',
+                                '${article.valeurImmobilisee!.enFrancs} bloqués',
                       pastille: Couleurs.accent,
                     ),
                 ],
@@ -399,9 +403,7 @@ class EcranRapportState extends State<EcranRapport> {
               ),
               icon: const Icon(Icons.send_rounded, size: 20),
               label: const Text('Envoyer le résumé'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Couleurs.primaire,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: Couleurs.primaire),
             ),
 
             if (widget.rapports != null) ...[
@@ -411,7 +413,7 @@ class EcranRapportState extends State<EcranRapport> {
               Text(
                 _derniereCloture == null
                     ? "Tu n'as encore jamais clôturé. La clôture arrête la "
-                        'journée et dit ce qui doit rester dans le tiroir.'
+                          'journée et dit ce qui doit rester dans le tiroir.'
                     : 'Dernière clôture le ${_dateLisible(_derniereCloture!)}.',
                 style: textes.labelSmall,
               ),
@@ -440,8 +442,9 @@ class EcranRapportState extends State<EcranRapport> {
                 onPressed: _etatDesArticles,
                 icon: const Icon(Icons.inventory_2_outlined, size: 18),
                 label: const Text('État des articles'),
-                style:
-                    TextButton.styleFrom(foregroundColor: Couleurs.encreDouce),
+                style: TextButton.styleFrom(
+                  foregroundColor: Couleurs.encreDouce,
+                ),
               ),
             ],
 
@@ -517,15 +520,20 @@ class _Ligne extends StatelessWidget {
     final textes = Theme.of(context).textTheme;
 
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: Espace.l, vertical: Espace.m),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Espace.l,
+        vertical: Espace.m,
+      ),
       child: Row(
         children: [
           if (pastille != null) ...[
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: pastille, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: pastille,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: Espace.m),
           ],
@@ -533,11 +541,17 @@ class _Ligne extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(libelle,
-                    style: textes.titleMedium, overflow: TextOverflow.ellipsis),
+                Text(
+                  libelle,
+                  style: textes.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (sousLigne != null)
-                  Text(sousLigne!,
-                      style: textes.labelSmall, overflow: TextOverflow.ellipsis),
+                  Text(
+                    sousLigne!,
+                    style: textes.labelSmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -581,11 +595,14 @@ class _Pastille extends StatelessWidget {
         borderRadius: BorderRadius.circular(Rayon.rond),
         child: Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: Espace.m, vertical: Espace.s),
+            horizontal: Espace.m,
+            vertical: Espace.s,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Rayon.rond),
             border: Border.all(
-                color: choisie ? Couleurs.primaire : Couleurs.bordure),
+              color: choisie ? Couleurs.primaire : Couleurs.bordure,
+            ),
           ),
           child: Text(
             libelle,

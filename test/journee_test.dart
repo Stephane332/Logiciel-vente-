@@ -48,8 +48,7 @@ void main() {
     base = BaseLocale(NativeDatabase.memory());
     journal = Journal(base, appareil: 'CAISSE1');
     depot = Depot(base, journal);
-    documents = Documents(base,
-        nomCommerce: fiche.nomCommercial, fiche: fiche);
+    documents = Documents(base, nomCommerce: fiche.nomCommercial, fiche: fiche);
     rapports = Rapports(base, journal, fiche: fiche);
   });
 
@@ -68,20 +67,19 @@ void main() {
     String code = 'CIM',
     String designation = 'Ciment CPJ 45',
     required DateTime quand,
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: code,
-            designation: designation,
-            prixUnitaire: f(prix),
-            quantite: const Quantite.unites(1),
-          )
-        ],
-        paiements: [PaiementAEnregistrer(mode: mode, montant: f(prix))],
-        clientId: client,
-        horodatage: quand,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: code,
+        designation: designation,
+        prixUnitaire: f(prix),
+        quantite: const Quantite.unites(1),
+      ),
+    ],
+    paiements: [PaiementAEnregistrer(mode: mode, montant: f(prix))],
+    clientId: client,
+    horodatage: quand,
+  );
 
   /// La journée : huit ventes au comptoir, deux à crédit, une par téléphone.
   Future<({String pourFacture, String salif, String awa})> journee() async {
@@ -90,11 +88,7 @@ void main() {
 
     // Le comptoir, du matin au soir.
     for (var i = 0; i < 8; i++) {
-      await vendre(
-        prix: 2500,
-        mode: ModePaiement.especes,
-        quand: heure(8 + i),
-      );
+      await vendre(prix: 2500, mode: ModePaiement.especes, quand: heure(8 + i));
     }
 
     // Un client qui paie par téléphone.
@@ -140,7 +134,9 @@ void main() {
       await journee();
 
       final rapport = await depot.rapportSurPeriode(
-          Periode.jour.bornes(heure(23)).$1, heure(23));
+        Periode.jour.bornes(heure(23)).$1,
+        heure(23),
+      );
       final z = await rapports.z(quand: heure(23));
 
       // Le rapport du soir compte ce qui est rentré ; la clôture le ventile
@@ -157,7 +153,9 @@ void main() {
       await journee();
 
       final rapport = await depot.rapportSurPeriode(
-          Periode.jour.bornes(heure(23)).$1, heure(23));
+        Periode.jour.bornes(heure(23)).$1,
+        heure(23),
+      );
       final z = await rapports.z(quand: heure(23));
 
       expect(rapport.aCredit, credit);
@@ -175,16 +173,18 @@ void main() {
       expect(z.nombreFactures, 12);
     });
 
-    test('ce qui doit être dans le tiroir, ce sont les espèces seules',
-        () async {
-      await journee();
+    test(
+      'ce qui doit être dans le tiroir, ce sont les espèces seules',
+      () async {
+        await journee();
 
-      final z = await rapports.z(quand: heure(23));
+        final z = await rapports.z(quand: heure(23));
 
-      // Le mobile money est sur le téléphone, le crédit n'est nulle part.
-      expect(z.especes, especes);
-      expect(z.especes.centimes, lessThan(z.total.centimes));
-    });
+        // Le mobile money est sur le téléphone, le crédit n'est nulle part.
+        expect(z.especes, especes);
+        expect(z.especes.centimes, lessThan(z.total.centimes));
+      },
+    );
   });
 
   group('Le cahier de dettes correspond à la clôture', () {
@@ -198,18 +198,20 @@ void main() {
       expect(salif!.encours + awa!.encours, credit);
     });
 
-    test('un remboursement descend la dette sans toucher au Z déjà tiré',
-        () async {
-      final ids = await journee();
-      final z = await rapports.z(quand: heure(23));
+    test(
+      'un remboursement descend la dette sans toucher au Z déjà tiré',
+      () async {
+        final ids = await journee();
+        final z = await rapports.z(quand: heure(23));
 
-      await depot.rembourserCredit(ids.salif, f(2500));
+        await depot.rembourserCredit(ids.salif, f(2500));
 
-      final salif = await documents.ardoise(ids.salif);
-      expect(salif!.encours, f(5000));
-      // Le Z a été remis au commerçant : il ne bouge plus.
-      expect((await rapports.clotures()).first.total, z.total);
-    });
+        final salif = await documents.ardoise(ids.salif);
+        expect(salif!.encours, f(5000));
+        // Le Z a été remis au commerçant : il ne bouge plus.
+        expect((await rapports.clotures()).first.total, z.total);
+      },
+    );
   });
 
   group('La facture correspond à la vente', () {

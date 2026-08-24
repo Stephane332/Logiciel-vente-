@@ -42,25 +42,25 @@ void main() {
     String? clientId,
     num? prixCatalogue,
     DateTime? quand,
-  }) =>
-      depot.enregistrerVente(
-        lignes: [
-          LigneAEnregistrer(
-            codeArticle: code,
-            designation: nom,
-            prixUnitaire: f(prix),
-            quantite: Quantite.depuisDecimal(quantite),
-            prixCatalogue: prixCatalogue == null ? null : f(prixCatalogue),
-          )
-        ],
-        paiements: [
-          PaiementAEnregistrer(
-              mode: mode, montant: f(prix).multiplieParQuantite(
-                  Quantite.depuisDecimal(quantite)))
-        ],
-        clientId: clientId,
-        horodatage: quand,
-      );
+  }) => depot.enregistrerVente(
+    lignes: [
+      LigneAEnregistrer(
+        codeArticle: code,
+        designation: nom,
+        prixUnitaire: f(prix),
+        quantite: Quantite.depuisDecimal(quantite),
+        prixCatalogue: prixCatalogue == null ? null : f(prixCatalogue),
+      ),
+    ],
+    paiements: [
+      PaiementAEnregistrer(
+        mode: mode,
+        montant: f(prix).multiplieParQuantite(Quantite.depuisDecimal(quantite)),
+      ),
+    ],
+    clientId: clientId,
+    horodatage: quand,
+  );
 
   group('Journal', () {
     test('les séquences se suivent sans trou', () async {
@@ -84,7 +84,9 @@ void main() {
     test('les identifiants sont triés par ordre chronologique', () async {
       final ids = <String>[];
       for (var i = 0; i < 5; i++) {
-        final e = await journal.ajouter(TypeEvenement.caisseMouvement, {'n': i});
+        final e = await journal.ajouter(TypeEvenement.caisseMouvement, {
+          'n': i,
+        });
         ids.add(e.id);
       }
       expect(ids, orderedEquals(List.of(ids)..sort()));
@@ -128,8 +130,9 @@ void main() {
       await vendre(300);
 
       final cible = (await journal.tous())[1];
-      await (base.delete(base.evenements)..where((e) => e.id.equals(cible.id)))
-          .go();
+      await (base.delete(
+        base.evenements,
+      )..where((e) => e.id.equals(cible.id))).go();
 
       final verification = await journal.verifier();
       expect(verification.intact, isFalse);
@@ -284,7 +287,10 @@ void main() {
     });
 
     test('ne compte pas les ventes des autres jours', () async {
-      await vendre(1000, quand: DateTime.now().subtract(const Duration(days: 2)));
+      await vendre(
+        1000,
+        quand: DateTime.now().subtract(const Duration(days: 2)),
+      );
       await vendre(500);
 
       final rapport = await depot.rapportDuJour();
@@ -335,17 +341,28 @@ void main() {
       expect(apres.nombreVentes, avant.nombreVentes);
 
       final catalogueApres = await depot.catalogue();
-      expect(catalogueApres.map((a) => a.code), catalogueAvant.map((a) => a.code));
-      expect(catalogueApres.map((a) => a.designation),
-          catalogueAvant.map((a) => a.designation));
-      expect(catalogueApres.map((a) => a.nombreVentes),
-          catalogueAvant.map((a) => a.nombreVentes));
-      expect(catalogueApres.map((a) => a.stockMilliemes),
-          catalogueAvant.map((a) => a.stockMilliemes));
+      expect(
+        catalogueApres.map((a) => a.code),
+        catalogueAvant.map((a) => a.code),
+      );
+      expect(
+        catalogueApres.map((a) => a.designation),
+        catalogueAvant.map((a) => a.designation),
+      );
+      expect(
+        catalogueApres.map((a) => a.nombreVentes),
+        catalogueAvant.map((a) => a.nombreVentes),
+      );
+      expect(
+        catalogueApres.map((a) => a.stockMilliemes),
+        catalogueAvant.map((a) => a.stockMilliemes),
+      );
 
       final debiteursApres = await depot.clientsDebiteurs();
-      expect(debiteursApres.map((c) => c.encoursCentimes),
-          debiteursAvant.map((c) => c.encoursCentimes));
+      expect(
+        debiteursApres.map((c) => c.encoursCentimes),
+        debiteursAvant.map((c) => c.encoursCentimes),
+      );
     });
 
     test('le journal survit intact à une reconstruction', () async {

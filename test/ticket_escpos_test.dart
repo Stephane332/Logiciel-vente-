@@ -23,7 +23,8 @@ void main() {
     Montant? total,
     Montant? regle,
   }) {
-    final contenu = lignes ??
+    final contenu =
+        lignes ??
         [
           LigneDocument(
             designation: 'Riz 1 kg',
@@ -71,8 +72,9 @@ void main() {
     });
 
     test('le vendeur figure quand il y en a un', () {
-      final lignes =
-          papier(const TicketEscPos().composer(document(operateur: 'Awa')));
+      final lignes = papier(
+        const TicketEscPos().composer(document(operateur: 'Awa')),
+      );
 
       expect(lignes, contains('Servi par Awa'));
     });
@@ -95,8 +97,9 @@ void main() {
       expect(solde.any((l) => l.startsWith('TOTAL')), isTrue);
       expect(solde.any((l) => l.startsWith('Reste')), isFalse);
 
-      final partiel = papier(const TicketEscPos()
-          .composer(document(total: f(1300), regle: f(500))));
+      final partiel = papier(
+        const TicketEscPos().composer(document(total: f(1300), regle: f(500))),
+      );
       expect(partiel.any((l) => l.startsWith('Deja paye')), isTrue);
       expect(partiel.any((l) => l.startsWith('Reste')), isTrue);
     });
@@ -104,26 +107,34 @@ void main() {
 
   group('Trente-deux colonnes, jamais une de plus', () {
     test('aucune ligne ne dépasse la largeur du papier', () {
-      final lignes = papier(const TicketEscPos().composer(document(
-        nomCommerce: 'Alimentation Générale Nabonswendé et Fils Réunis',
-        lignes: [
-          LigneDocument(
-            designation:
-                'Sac de riz parfumé importé du Vietnam, qualité supérieure',
-            quantite: const Quantite.unites(1),
-            prixUnitaire: f(25000),
-            montant: f(25000),
+      final lignes = papier(
+        const TicketEscPos().composer(
+          document(
+            nomCommerce: 'Alimentation Générale Nabonswendé et Fils Réunis',
+            lignes: [
+              LigneDocument(
+                designation:
+                    'Sac de riz parfumé importé du Vietnam, qualité supérieure',
+                quantite: const Quantite.unites(1),
+                prixUnitaire: f(25000),
+                montant: f(25000),
+              ),
+            ],
+            total: f(25000),
           ),
-        ],
-        total: f(25000),
-      )));
+        ),
+      );
 
       // Le nom du commerce et le total s'impriment en double largeur : ils
       // tiennent sur la moitié des colonnes. Tout le reste, sur la totalité.
       for (final ligne in lignes) {
-        final large = ligne.startsWith('ALIMENTATION') || ligne.startsWith('TOTAL');
-        expect(ligne.length, lessThanOrEqualTo(large ? colonnes58 ~/ 2 : colonnes58),
-            reason: ligne);
+        final large =
+            ligne.startsWith('ALIMENTATION') || ligne.startsWith('TOTAL');
+        expect(
+          ligne.length,
+          lessThanOrEqualTo(large ? colonnes58 ~/ 2 : colonnes58),
+          reason: ligne,
+        );
       }
     });
 
@@ -138,17 +149,21 @@ void main() {
 
     test("c'est la gauche qui cède quand tout ne tient pas", () {
       // Un montant à sept chiffres ne laisse presque rien à la désignation.
-      final lignes = papier(const TicketEscPos().composer(document(
-        lignes: [
-          LigneDocument(
-            designation: 'Groupe électrogène',
-            quantite: const Quantite.unites(1),
-            prixUnitaire: f(1250000),
-            montant: f(1250000),
+      final lignes = papier(
+        const TicketEscPos().composer(
+          document(
+            lignes: [
+              LigneDocument(
+                designation: 'Groupe électrogène',
+                quantite: const Quantite.unites(1),
+                prixUnitaire: f(1250000),
+                montant: f(1250000),
+              ),
+            ],
+            total: f(1250000),
           ),
-        ],
-        total: f(1250000),
-      )));
+        ),
+      );
 
       final total = lignes.firstWhere((l) => l.startsWith('TOTAL'));
       expect(total.endsWith('1 250 000 F'), isTrue);
@@ -168,8 +183,9 @@ void main() {
     });
 
     test('une page de code demandée est annoncée à l’imprimante', () {
-      final octets =
-          const TicketEscPos(page: PageDeCode.cp858).composer(document());
+      final octets = const TicketEscPos(
+        page: PageDeCode.cp858,
+      ).composer(document());
       // ESC t 19, juste après la remise à zéro.
       expect(octets.skip(2).take(3), [0x1B, 0x74, 19]);
     });
@@ -190,16 +206,18 @@ void main() {
     });
 
     test('avec une page choisie, ils partent sur leur octet', () {
-      final octets = const TicketEscPos(page: PageDeCode.cp858)
-          .composer(document(operateur: 'Rémi'));
+      final octets = const TicketEscPos(
+        page: PageDeCode.cp858,
+      ).composer(document(operateur: 'Rémi'));
 
       // « é » vaut 0x82 en CP858.
       expect(octets, contains(0x82));
     });
 
     test('un caractère absent de la page devient un point d’interrogation', () {
-      final octets = const TicketEscPos(page: PageDeCode.cp858)
-          .composer(document(nomCommerce: 'Chez 木村'));
+      final octets = const TicketEscPos(
+        page: PageDeCode.cp858,
+      ).composer(document(nomCommerce: 'Chez 木村'));
 
       // Jamais un octet au hasard : ça ferait dérailler l'imprimante.
       expect(octets.where((o) => o == 0x3F).isNotEmpty, isTrue);

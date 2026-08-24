@@ -22,17 +22,16 @@ LigneACalculer ligne({
   num remise = 0,
   num taxeSpecifique = 0,
   GroupePsvb psvb = GroupePsvb.d,
-}) =>
-    LigneACalculer(
-      codeArticle: 'ART',
-      designation: 'Article de test',
-      groupeTaxation: groupe,
-      groupePsvb: psvb,
-      prixUnitaire: f(prix),
-      quantite: q(quantite),
-      remise: f(remise),
-      taxeSpecifiqueUnitaire: f(taxeSpecifique),
-    );
+}) => LigneACalculer(
+  codeArticle: 'ART',
+  designation: 'Article de test',
+  groupeTaxation: groupe,
+  groupePsvb: psvb,
+  prixUnitaire: f(prix),
+  quantite: q(quantite),
+  remise: f(remise),
+  taxeSpecifiqueUnitaire: f(taxeSpecifique),
+);
 
 void main() {
   group('Arithmétique monétaire', () {
@@ -112,9 +111,7 @@ void main() {
     test('la remise se déduit avant la taxe', () {
       final r = calculerFacture(
         modePrix: ModePrix.horsTaxe,
-        lignes: [
-          ligne(groupe: GroupeTaxation.b, prix: 1000, remise: 200),
-        ],
+        lignes: [ligne(groupe: GroupeTaxation.b, prix: 1000, remise: 200)],
       );
 
       expect(r.totalImposable, f(800));
@@ -176,11 +173,14 @@ void main() {
               groupeTaxation: GroupeTaxation.b,
               prixUnitaire: Montant(centimes),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
         );
-        expect(r.estCoherente, isTrue,
-            reason: 'incohérence à $centimes centimes');
+        expect(
+          r.estCoherente,
+          isTrue,
+          reason: 'incohérence à $centimes centimes',
+        );
       }
     });
 
@@ -195,11 +195,14 @@ void main() {
               groupeTaxation: GroupeTaxation.b,
               prixUnitaire: Montant(centimes),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
         );
-        expect(r.estCoherente, isTrue,
-            reason: 'incohérence à $centimes centimes');
+        expect(
+          r.estCoherente,
+          isTrue,
+          reason: 'incohérence à $centimes centimes',
+        );
         expect(r.totalTtc.centimes, centimes);
       }
     });
@@ -227,10 +230,11 @@ void main() {
         modePrix: ModePrix.horsTaxe,
         lignes: [
           ligne(
-              groupe: GroupeTaxation.b,
-              prix: 500,
-              quantite: 4,
-              taxeSpecifique: 25),
+            groupe: GroupeTaxation.b,
+            prix: 500,
+            quantite: 4,
+            taxeSpecifique: 25,
+          ),
         ],
       );
 
@@ -259,16 +263,25 @@ void main() {
           lignes: [ligne(groupe: groupe, prix: 1234.56, quantite: 3)],
         );
 
-        expect(r.estCoherente, isTrue,
-            reason: 'groupe ${groupe.etiquette} incohérent');
+        expect(
+          r.estCoherente,
+          isTrue,
+          reason: 'groupe ${groupe.etiquette} incohérent',
+        );
 
         final total = r.totauxParGroupe.single;
         if (groupe.estTaxe) {
-          expect(total.taxe.estPositif, isTrue,
-              reason: 'groupe ${groupe.etiquette} devrait être taxé');
+          expect(
+            total.taxe.estPositif,
+            isTrue,
+            reason: 'groupe ${groupe.etiquette} devrait être taxé',
+          );
         } else {
-          expect(total.taxe.estNul, isTrue,
-              reason: 'groupe ${groupe.etiquette} ne devrait pas être taxé');
+          expect(
+            total.taxe.estNul,
+            isTrue,
+            reason: 'groupe ${groupe.etiquette} ne devrait pas être taxé',
+          );
         }
       }
     });

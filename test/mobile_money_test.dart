@@ -25,27 +25,40 @@ void main() {
     });
 
     test('chaque opérateur a sa syntaxe', () {
-      expect(OperateurMobile.moov.code(numero: '60112233', montant: f(500)),
-          '*555*60112233*500#');
-      expect(OperateurMobile.telecel.code(numero: '70112233', montant: f(500)),
-          '*800*70112233*500#');
+      expect(
+        OperateurMobile.moov.code(numero: '60112233', montant: f(500)),
+        '*555*60112233*500#',
+      );
+      expect(
+        OperateurMobile.telecel.code(numero: '70112233', montant: f(500)),
+        '*800*70112233*500#',
+      );
     });
 
-    test('le numéro est ramené à sa forme nationale quelle que soit la saisie',
-        () {
-      for (final saisie in ['70000000', '+226 70 00 00 00', '0022670000000']) {
-        expect(
-          OperateurMobile.orange.code(numero: saisie, montant: f(1000)),
-          '*144*10*70000000*1000#',
-        );
-      }
-    });
+    test(
+      'le numéro est ramené à sa forme nationale quelle que soit la saisie',
+      () {
+        for (final saisie in [
+          '70000000',
+          '+226 70 00 00 00',
+          '0022670000000',
+        ]) {
+          expect(
+            OperateurMobile.orange.code(numero: saisie, montant: f(1000)),
+            '*144*10*70000000*1000#',
+          );
+        }
+      },
+    );
 
     test('le montant part en francs entiers', () {
       // Aucun opérateur d'ici n'accepte de centimes : un code refusé au
       // comptoir fait perdre la vente.
       expect(
-        OperateurMobile.orange.code(numero: '70000000', montant: Montant(250050)),
+        OperateurMobile.orange.code(
+          numero: '70000000',
+          montant: Montant(250050),
+        ),
         '*144*10*70000000*2500#',
       );
     });
@@ -59,8 +72,10 @@ void main() {
 
     test('un montant nul ou négatif est refusé', () {
       expect(
-        () => OperateurMobile.orange
-            .code(numero: '70000000', montant: const Montant.zero()),
+        () => OperateurMobile.orange.code(
+          numero: '70000000',
+          montant: const Montant.zero(),
+        ),
         throwsArgumentError,
       );
     });
@@ -68,16 +83,20 @@ void main() {
 
   group('Lien du composeur', () {
     test('le dièse est encodé, sans quoi le code est tronqué', () {
-      final lien =
-          OperateurMobile.orange.lienComposeur(numero: '70000000', montant: f(2500));
+      final lien = OperateurMobile.orange.lienComposeur(
+        numero: '70000000',
+        montant: f(2500),
+      );
 
       expect(lien, 'tel:*144*10*70000000*2500%23');
       expect(lien, isNot(contains('#')));
     });
 
     test("l'étoile reste telle quelle : le composeur en a besoin", () {
-      final lien =
-          OperateurMobile.moov.lienComposeur(numero: '60112233', montant: f(100));
+      final lien = OperateurMobile.moov.lienComposeur(
+        numero: '60112233',
+        montant: f(100),
+      );
       expect(lien, startsWith('tel:*555*'));
     });
   });
@@ -95,8 +114,10 @@ void main() {
         OperateurMobile.moov: '60112233',
       });
 
-      expect(comptes.disponibles,
-          [OperateurMobile.orange, OperateurMobile.moov]);
+      expect(comptes.disponibles, [
+        OperateurMobile.orange,
+        OperateurMobile.moov,
+      ]);
       expect(comptes.aUnCompte(OperateurMobile.telecel), isFalse);
     });
 
@@ -127,7 +148,9 @@ void main() {
 
     test('le numéro marchand est rangé sous forme normalisée', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '+226 70 00 00 00');
+        OperateurMobile.orange,
+        '+226 70 00 00 00',
+      );
 
       final reglage = await parametres.tout();
       expect(reglage.comptes.numeroDe(OperateurMobile.orange), '70000000');
@@ -136,7 +159,9 @@ void main() {
 
     test('un numéro invalide est effacé, pas rangé', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '70000000');
+        OperateurMobile.orange,
+        '70000000',
+      );
       await parametres.definirNumeroMarchand(OperateurMobile.orange, 'zzz');
 
       final reglage = await parametres.tout();
@@ -145,7 +170,9 @@ void main() {
 
     test('vider un champ retire l\'opérateur de la liste', () async {
       await parametres.definirNumeroMarchand(
-          OperateurMobile.orange, '70000000');
+        OperateurMobile.orange,
+        '70000000',
+      );
       await parametres.definirNumeroMarchand(OperateurMobile.orange, '');
 
       expect((await parametres.tout()).comptes.estVide, isTrue);
@@ -153,8 +180,7 @@ void main() {
 
     test('le nom du commerce se règle et se relit', () async {
       await parametres.definirNomCommerce('  Alimentation Nabonswendé  ');
-      expect((await parametres.tout()).nomCommerce,
-          'Alimentation Nabonswendé');
+      expect((await parametres.tout()).nomCommerce, 'Alimentation Nabonswendé');
     });
 
     test('réécrire un réglage le remplace au lieu de le doubler', () async {

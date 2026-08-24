@@ -50,10 +50,10 @@ void main() {
           designation: 'Riz 1 kg',
           prixUnitaire: f(650),
           quantite: const Quantite.unites(2),
-        )
+        ),
       ],
       paiements: [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300)),
       ],
     );
     await base.close();
@@ -100,8 +100,10 @@ void main() {
 
       final base = BaseLocale(NativeDatabase(fichier));
       final index = await base
-          .customSelect("SELECT name FROM sqlite_master "
-              "WHERE type = 'index' AND name = 'idx_evenements_type'")
+          .customSelect(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'index' AND name = 'idx_evenements_type'",
+          )
           .get();
       await base.close();
 
@@ -131,8 +133,7 @@ void main() {
       await reculerEnVersion9();
 
       final base = BaseLocale(NativeDatabase(fichier));
-      final verification =
-          await Journal(base, appareil: 'CAISSE1').verifier();
+      final verification = await Journal(base, appareil: 'CAISSE1').verifier();
       await base.close();
 
       // Le chaînage d'empreintes est ce qui rend une altération détectable.
@@ -142,8 +143,7 @@ void main() {
       expect(verification.nombreEvenements, 1);
     });
 
-    test('les projections se reconstruisent depuis le journal migré',
-        () async {
+    test('les projections se reconstruisent depuis le journal migré', () async {
       await poserDesDonnees();
       await reculerEnVersion9();
 

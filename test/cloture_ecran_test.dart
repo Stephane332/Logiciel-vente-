@@ -33,8 +33,11 @@ void main() {
     base = BaseLocale(NativeDatabase.memory());
     journal = Journal(base, appareil: 'CAISSE1');
     depot = Depot(base, journal);
-    rapports = Rapports(base, journal,
-        fiche: const FicheEntreprise(nomCommercial: 'Chez Awa'));
+    rapports = Rapports(
+      base,
+      journal,
+      fiche: const FicheEntreprise(nomCommercial: 'Chez Awa'),
+    );
   });
 
   tearDown(() => base.close());
@@ -49,11 +52,13 @@ void main() {
             designation: 'Riz 1 kg',
             prixUnitaire: f(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
           PaiementAEnregistrer(
-              mode: mode ?? ModePaiement.especes, montant: f(prix))
+            mode: mode ?? ModePaiement.especes,
+            montant: f(prix),
+          ),
         ],
       );
 
@@ -62,17 +67,19 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(MaterialApp(
-      theme: themeClair(),
-      home: Scaffold(
-        body: EcranRapport(
-          depot: depot,
-          documents: Documents(base, nomCommerce: 'Chez Awa'),
-          analyses: Analyses(base),
-          rapports: avecCloture ? rapports : null,
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeClair(),
+        home: Scaffold(
+          body: EcranRapport(
+            depot: depot,
+            documents: Documents(base, nomCommerce: 'Chez Awa'),
+            analyses: Analyses(base),
+            rapports: avecCloture ? rapports : null,
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
   }
 

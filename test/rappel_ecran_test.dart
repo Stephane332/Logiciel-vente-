@@ -43,13 +43,13 @@ void main() {
             designation: 'Riz 1 kg',
             prixUnitaire: Montant.depuisDecimal(650),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
           PaiementAEnregistrer(
             mode: ModePaiement.especes,
             montant: Montant.depuisDecimal(650),
-          )
+          ),
         ],
         horodatage: DateTime(2026, 8, 16, 8, i),
       );
@@ -57,15 +57,15 @@ void main() {
   }
 
   Widget application() => Application(
-        depot: depot,
-        documents: Documents(base, nomCommerce: 'Chez Awa'),
-        analyses: Analyses(base),
-        parametres: parametres,
-        reglage: const Reglage(
-          nomCommerce: 'Chez Awa',
-          comptes: ComptesMarchands.aucun(),
-        ),
-      );
+    depot: depot,
+    documents: Documents(base, nomCommerce: 'Chez Awa'),
+    analyses: Analyses(base),
+    parametres: parametres,
+    reglage: const Reglage(
+      nomCommerce: 'Chez Awa',
+      comptes: ComptesMarchands.aucun(),
+    ),
+  );
 
   Future<void> ouvrir(WidgetTester tester) async {
     await tester.pumpWidget(application());
@@ -88,8 +88,9 @@ void main() {
       expect(rappelVisible, findsNothing);
     });
 
-    testWidgets("paraît quand le carnet n'est jamais sorti du téléphone",
-        (tester) async {
+    testWidgets("paraît quand le carnet n'est jamais sorti du téléphone", (
+      tester,
+    ) async {
       await vendre(RappelSauvegarde.avantLePremier);
       await ouvrir(tester);
 
@@ -107,8 +108,9 @@ void main() {
       expect(rappelVisible, findsNothing);
     });
 
-    testWidgets("s'écarte d'un appui, et ne revient pas de la session",
-        (tester) async {
+    testWidgets("s'écarte d'un appui, et ne revient pas de la session", (
+      tester,
+    ) async {
       await vendre(RappelSauvegarde.avantLePremier);
       await ouvrir(tester);
       expect(rappelVisible, findsOneWidget);

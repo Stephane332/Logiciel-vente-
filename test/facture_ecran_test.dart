@@ -44,16 +44,16 @@ void main() {
   );
 
   Widget caisse({FicheEntreprise? fiche}) => MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(
-          depot: depot,
-          documents: Documents(
-            base,
-            nomCommerce: fiche?.nomCommercial ?? 'Chez Awa',
-            fiche: fiche,
-          ),
-        ),
-      );
+    theme: themeClair(),
+    home: EcranVente(
+      depot: depot,
+      documents: Documents(
+        base,
+        nomCommerce: fiche?.nomCommercial ?? 'Chez Awa',
+        fiche: fiche,
+      ),
+    ),
+  );
 
   /// Encaisse 10 000 F au montant libre, puis ouvre le reçu.
   Future<void> vendreEtOuvrirLeRecu(WidgetTester tester) async {
@@ -98,8 +98,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('elle demande à qui, et une personne morale doit être nommée',
-        (tester) async {
+    testWidgets('elle demande à qui, et une personne morale doit être nommée', (
+      tester,
+    ) async {
       await tester.pumpWidget(caisse(fiche: entreprise));
       await tester.pumpAndSettle();
       await vendreEtOuvrirLeRecu(tester);
@@ -142,9 +143,13 @@ void main() {
       await facturer(tester);
 
       await tester.enterText(
-          find.widgetWithText(TextField, 'Nom du client'), 'SONABEL');
+        find.widgetWithText(TextField, 'Nom du client'),
+        'SONABEL',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'IFU du client'), '00099887B');
+        find.widgetWithText(TextField, 'IFU du client'),
+        '00099887B',
+      );
       await tester.tap(find.text('Faire la facture'));
       await tester.pumpAndSettle();
 
@@ -161,8 +166,9 @@ void main() {
       expect(texte, contains('FACTURE NON CERTIFIÉE'));
     });
 
-    testWidgets('le numéro est enregistré, pas seulement affiché',
-        (tester) async {
+    testWidgets('le numéro est enregistré, pas seulement affiché', (
+      tester,
+    ) async {
       await tester.pumpWidget(caisse(fiche: entreprise));
       await tester.pumpAndSettle();
       await vendreEtOuvrirLeRecu(tester);

@@ -75,12 +75,14 @@ void main() {
     test('un horodatage mal formé est refusé', () {
       expect(
         () => ElementsSecurite.depuisCodeQr(
-            'F;IN01000005;ABC;9999900000001;2020112313'),
+          'F;IN01000005;ABC;9999900000001;2020112313',
+        ),
         throwsA(isA<CodeQrInvalide>()),
       );
       expect(
         () => ElementsSecurite.depuisCodeQr(
-            'F;IN01000005;ABC;9999900000001;AAAAMMJJHHMMSS'),
+          'F;IN01000005;ABC;9999900000001;AAAAMMJJHHMMSS',
+        ),
         throwsA(isA<CodeQrInvalide>()),
       );
     });

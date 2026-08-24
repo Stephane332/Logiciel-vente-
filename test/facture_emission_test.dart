@@ -36,10 +36,10 @@ void main() {
             designation: 'Ciment CPJ 45',
             prixUnitaire: f(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
         ],
         horodatage: quand ?? DateTime(2026, 8, 16, 10),
       );
@@ -69,8 +69,9 @@ void main() {
 
     test('elle repart à un à chaque année de gestion', () async {
       await depot.emettreFacture(await vendre(quand: DateTime(2026, 12, 31)));
-      final suivante = await depot
-          .emettreFacture(await vendre(quand: DateTime(2027, 1, 2)));
+      final suivante = await depot.emettreFacture(
+        await vendre(quand: DateTime(2027, 1, 2)),
+      );
 
       expect(suivante.annee, 2027);
       expect(suivante.rang, 1);
@@ -80,8 +81,10 @@ void main() {
 
     test('les avoirs ont leur propre série', () async {
       final vente = await depot.emettreFacture(await vendre());
-      final avoir = await depot.emettreFacture(await vendre(),
-          type: TypeFacture.avoir);
+      final avoir = await depot.emettreFacture(
+        await vendre(),
+        type: TypeFacture.avoir,
+      );
 
       expect(vente.texte, 'FV-2026-000001');
       expect(avoir.texte, 'FA-2026-000001');
@@ -121,8 +124,10 @@ void main() {
 
   group('Ce qui ne se facture pas', () {
     test('une vente inconnue', () async {
-      expect(() => depot.emettreFacture('vente-qui-nexiste-pas'),
-          throwsA(isA<ArgumentError>()));
+      expect(
+        () => depot.emettreFacture('vente-qui-nexiste-pas'),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('une vente annulée', () async {
@@ -163,9 +168,9 @@ void main() {
       await depot.emettreFacture(vente);
       await depot.reconstruireProjections();
 
-      final ligne = await (base.select(base.ventes)
-            ..where((v) => v.id.equals(vente)))
-          .getSingle();
+      final ligne = await (base.select(
+        base.ventes,
+      )..where((v) => v.id.equals(vente))).getSingle();
 
       expect(ligne.numero, 1);
       expect(ligne.anneeGestion, 2026);
@@ -192,9 +197,9 @@ void main() {
       // Numéroter les mille laisserait neuf cent quatre-vingt-dix-huit trous.
       final vente = await vendre();
 
-      final ligne = await (base.select(base.ventes)
-            ..where((v) => v.id.equals(vente)))
-          .getSingle();
+      final ligne = await (base.select(
+        base.ventes,
+      )..where((v) => v.id.equals(vente))).getSingle();
 
       expect(ligne.numero, isNull);
       expect(ligne.anneeGestion, isNull);

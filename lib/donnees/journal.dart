@@ -43,7 +43,7 @@ class Journal {
   final GenerateurIdentifiant _identifiants;
 
   Journal(this._base, {required this.appareil})
-      : _identifiants = GenerateurIdentifiant(appareil);
+    : _identifiants = GenerateurIdentifiant(appareil);
 
   /// Calcule l'empreinte d'un événement.
   static String empreinteDe(Evenement evenement) =>
@@ -102,7 +102,9 @@ class Journal {
         empreinte: empreinteDe(provisoire),
       );
 
-      await _base.into(_base.evenements).insert(
+      await _base
+          .into(_base.evenements)
+          .insert(
             EvenementsCompanion.insert(
               id: evenement.id,
               appareil: evenement.appareil,
@@ -148,7 +150,6 @@ class Journal {
     final lignes = await requete.get();
     return lignes.map(_versEvenement).toList();
   }
-
 
   /// Les événements d'un seul type, dans l'ordre chronologique.
   ///
@@ -295,7 +296,8 @@ class Journal {
           intact: false,
           nombreEvenements: evenements.length,
           premierFautif: evenement.id,
-          motif: 'Séquence $attendue attendue, ${evenement.sequence} trouvée : '
+          motif:
+              'Séquence $attendue attendue, ${evenement.sequence} trouvée : '
               'des événements manquent.',
         );
       }
@@ -305,7 +307,8 @@ class Journal {
           intact: false,
           nombreEvenements: evenements.length,
           premierFautif: evenement.id,
-          motif: 'La chaîne est rompue : cet événement ne suit pas le '
+          motif:
+              'La chaîne est rompue : cet événement ne suit pas le '
               'précédent.',
         );
       }
@@ -331,13 +334,13 @@ class Journal {
   }
 
   static Evenement _versEvenement(LigneEvenement ligne) => Evenement(
-        id: ligne.id,
-        appareil: ligne.appareil,
-        sequence: ligne.sequence,
-        horodatage: ligne.horodatage,
-        type: TypeEvenement.parCle(ligne.type),
-        charge: Evenement.chargeDepuisJson(ligne.charge),
-        empreinte: ligne.empreinte,
-        empreintePrecedente: ligne.empreintePrecedente,
-      );
+    id: ligne.id,
+    appareil: ligne.appareil,
+    sequence: ligne.sequence,
+    horodatage: ligne.horodatage,
+    type: TypeEvenement.parCle(ligne.type),
+    charge: Evenement.chargeDepuisJson(ligne.charge),
+    empreinte: ligne.empreinte,
+    empreintePrecedente: ligne.empreintePrecedente,
+  );
 }

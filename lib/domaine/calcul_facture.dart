@@ -147,7 +147,9 @@ FactureCalculee calculerFacture({
 }) {
   if (lignes.isEmpty) {
     throw const ErreurConformite(
-        'Une facture doit comporter au moins un article.', '§2.6');
+      'Une facture doit comporter au moins un article.',
+      '§2.6',
+    );
   }
 
   final lignesCalculees = <LigneCalculee>[];
@@ -155,7 +157,9 @@ FactureCalculee calculerFacture({
   for (final ligne in lignes) {
     if (ligne.quantite.estNulle || ligne.quantite.estNegative) {
       throw ErreurConformite(
-          'Quantité nulle ou négative sur « ${ligne.designation} ».', '§2.25');
+        'Quantité nulle ou négative sur « ${ligne.designation} ».',
+        '§2.25',
+      );
     }
 
     // §6.5 : le calcul part du prix unitaire.
@@ -164,18 +168,23 @@ FactureCalculee calculerFacture({
 
     if (!montantNet.estPositif) {
       throw ErreurConformite(
-          'Montant nul ou négatif sur « ${ligne.designation} ».', '§2.25');
+        'Montant nul ou négatif sur « ${ligne.designation} ».',
+        '§2.25',
+      );
     }
 
-    final taxeSpecifique =
-        ligne.taxeSpecifiqueUnitaire.multiplieParQuantite(ligne.quantite);
+    final taxeSpecifique = ligne.taxeSpecifiqueUnitaire.multiplieParQuantite(
+      ligne.quantite,
+    );
 
-    lignesCalculees.add(LigneCalculee(
-      source: ligne,
-      montantBrut: montantBrut,
-      montantNet: montantNet,
-      taxeSpecifique: taxeSpecifique,
-    ));
+    lignesCalculees.add(
+      LigneCalculee(
+        source: ligne,
+        montantBrut: montantBrut,
+        montantNet: montantNet,
+        taxeSpecifique: taxeSpecifique,
+      ),
+    );
   }
 
   final totaux = <TotalGroupe>[];
@@ -185,8 +194,9 @@ FactureCalculee calculerFacture({
   var totalTtc = const Montant.zero();
 
   for (final groupe in GroupeTaxation.tous) {
-    final duGroupe =
-        lignesCalculees.where((l) => l.groupeTaxation.etiquette == groupe.etiquette);
+    final duGroupe = lignesCalculees.where(
+      (l) => l.groupeTaxation.etiquette == groupe.etiquette,
+    );
     if (duGroupe.isEmpty) continue;
 
     var cumulNet = const Montant.zero();
@@ -212,7 +222,9 @@ FactureCalculee calculerFacture({
 
   if (!totalTtc.estPositif) {
     throw const ErreurConformite(
-        'Une facture ne peut pas avoir un montant nul ou négatif.', '§2.24');
+      'Une facture ne peut pas avoir un montant nul ou négatif.',
+      '§2.24',
+    );
   }
 
   // §6.10 : le PSVB se calcule sur le montant total toutes taxes comprises.
@@ -222,8 +234,8 @@ FactureCalculee calculerFacture({
     var assiette = const Montant.zero();
     for (final ligne in lignesCalculees) {
       if (ligne.source.groupePsvb.etiquette != groupePsvb.etiquette) continue;
-      assiette = assiette +
-          _montantTtcDeLigne(ligne: ligne, modePrix: modePrix);
+      assiette =
+          assiette + _montantTtcDeLigne(ligne: ligne, modePrix: modePrix);
     }
     if (assiette.estNul) continue;
     psvb = psvb + assiette.appliqueTauxDixMillieme(groupePsvb.tauxDixMillieme);

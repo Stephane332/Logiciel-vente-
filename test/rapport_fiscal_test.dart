@@ -32,10 +32,7 @@ void main() {
     rapports = Rapports(
       base,
       journal,
-      fiche: const FicheEntreprise(
-        nomCommercial: 'Chez Awa',
-        ifu: '00012345A',
-      ),
+      fiche: const FicheEntreprise(nomCommercial: 'Chez Awa', ifu: '00012345A'),
     );
   });
 
@@ -60,7 +57,7 @@ void main() {
           prixUnitaire: f(prix),
           quantite: Quantite.depuisDecimal(quantite),
           groupeTaxation: groupe,
-        )
+        ),
       ],
       paiements: [PaiementAEnregistrer(mode: mode, montant: total)],
       horodatage: quand,
@@ -291,15 +288,17 @@ void main() {
       expect((await rapports.clotures()).single.total, f(1000));
     });
 
-    test('les clôtures se relisent, de la plus récente à la plus ancienne',
-        () async {
-      await rapports.z(quand: DateTime(2026, 8, 10, 20));
-      await rapports.z(quand: DateTime(2026, 8, 11, 20));
+    test(
+      'les clôtures se relisent, de la plus récente à la plus ancienne',
+      () async {
+        await rapports.z(quand: DateTime(2026, 8, 10, 20));
+        await rapports.z(quand: DateTime(2026, 8, 11, 20));
 
-      final liste = await rapports.clotures(nature: NatureRapport.z);
+        final liste = await rapports.clotures(nature: NatureRapport.z);
 
-      expect(liste.map((c) => c.numero), [2, 1]);
-    });
+        expect(liste.map((c) => c.numero), [2, 1]);
+      },
+    );
 
     test('elle survit à une reconstruction des projections', () async {
       await vendre(prix: 1000, quand: DateTime(2026, 8, 10, 10));
@@ -308,8 +307,10 @@ void main() {
       await depot.reconstruireProjections();
 
       expect((await rapports.clotures()).single.total, f(1000));
-      expect(await rapports.derniereCloture(NatureRapport.z),
-          DateTime(2026, 8, 10, 20));
+      expect(
+        await rapports.derniereCloture(NatureRapport.z),
+        DateTime(2026, 8, 10, 20),
+      );
     });
   });
 
@@ -345,18 +346,26 @@ void main() {
       await rapports.a();
       await rapports.a();
 
-      expect((await rapports.clotures(nature: NatureRapport.a)).first.numero, 2);
-      expect((await rapports.clotures(nature: NatureRapport.z)).single.numero, 1);
+      expect(
+        (await rapports.clotures(nature: NatureRapport.a)).first.numero,
+        2,
+      );
+      expect(
+        (await rapports.clotures(nature: NatureRapport.z)).single.numero,
+        1,
+      );
     });
 
-    test('un article sans suivi de stock ne ment pas sur ce qui reste',
-        () async {
-      await vendre(code: 'RIZ');
+    test(
+      'un article sans suivi de stock ne ment pas sur ce qui reste',
+      () async {
+        await vendre(code: 'RIZ');
 
-      // La plupart des articles ne sont pas suivis. Afficher « 0 en stock »
-      // serait faux ; ne rien afficher est juste.
-      expect((await rapports.a()).articles.single.enStock, isNull);
-    });
+        // La plupart des articles ne sont pas suivis. Afficher « 0 en stock »
+        // serait faux ; ne rien afficher est juste.
+        expect((await rapports.a()).articles.single.enStock, isNull);
+      },
+    );
   });
 
   group('Une caisse vide', () {
@@ -369,8 +378,10 @@ void main() {
     });
 
     test("le A d'une période sans vente non plus", () async {
-      expect((await rapports.a()).texte,
-          contains('Aucun article vendu sur la période.'));
+      expect(
+        (await rapports.a()).texte,
+        contains('Aucun article vendu sur la période.'),
+      );
     });
   });
 }

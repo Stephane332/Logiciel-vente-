@@ -59,8 +59,10 @@ Future<BaseLocale> ouvrirBaseLocale() async {
     orElse: () => WasmStorageImplementation.inMemory,
   );
   if (kDebugMode) {
-    debugPrint('Stockage : $choisi · disponibles ${sonde.availableStorages} '
-        '· manquant ${sonde.missingFeatures}');
+    debugPrint(
+      'Stockage : $choisi · disponibles ${sonde.availableStorages} '
+      '· manquant ${sonde.missingFeatures}',
+    );
   }
 
   final connexion = await sonde.open(choisi, 'carnet');

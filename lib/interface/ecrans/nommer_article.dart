@@ -53,14 +53,12 @@ class NommerArticle extends StatefulWidget {
     BuildContext context, {
     required Montant prix,
     required int nombreVentes,
-  }) =>
-      showModalBottomSheet<ResultatNommage>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) =>
-            NommerArticle(prix: prix, nombreVentes: nombreVentes),
-      );
+  }) => showModalBottomSheet<ResultatNommage>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => NommerArticle(prix: prix, nombreVentes: nombreVentes),
+  );
 
   @override
   State<NommerArticle> createState() => _NommerArticleState();
@@ -83,12 +81,10 @@ class _NommerArticleState extends State<NommerArticle> {
   }
 
   /// Combien de noms partiront à la création, en comptant celui en cours.
-  int get _aCreer =>
-      _noms.length + (_controleur.text.trim().isEmpty ? 0 : 1);
+  int get _aCreer => _noms.length + (_controleur.text.trim().isEmpty ? 0 : 1);
 
-  bool get _validable => _plusieurs
-      ? _aCreer >= 2
-      : _controleur.text.trim().isNotEmpty;
+  bool get _validable =>
+      _plusieurs ? _aCreer >= 2 : _controleur.text.trim().isNotEmpty;
 
   String get _libelleCreation =>
       _aCreer < 2 ? 'Ajoute au moins deux noms' : 'Créer ces $_aCreer articles';
@@ -120,8 +116,10 @@ class _NommerArticleState extends State<NommerArticle> {
           Center(
             child: Column(
               children: [
-                Text('Tu as vendu ${widget.nombreVentes} fois',
-                    style: textes.labelSmall),
+                Text(
+                  'Tu as vendu ${widget.nombreVentes} fois',
+                  style: textes.labelSmall,
+                ),
                 const SizedBox(height: Espace.xs),
                 MontantAnime(widget.prix, style: textes.displayMedium),
               ],
@@ -131,9 +129,9 @@ class _NommerArticleState extends State<NommerArticle> {
           Text(
             _plusieurs
                 ? "Donne le nom de chacune. Je les crée toutes au même prix, "
-                    "et tu les vendras d'un appui."
+                      "et tu les vendras d'un appui."
                 : "Donne-lui un nom pour le retrouver d'un geste la prochaine "
-                    'fois.',
+                      'fois.',
             textAlign: TextAlign.center,
             style: textes.bodyMedium,
           ),
@@ -158,8 +156,9 @@ class _NommerArticleState extends State<NommerArticle> {
             controller: _controleur,
             autofocus: true,
             textCapitalization: TextCapitalization.sentences,
-            textInputAction:
-                _plusieurs ? TextInputAction.next : TextInputAction.done,
+            textInputAction: _plusieurs
+                ? TextInputAction.next
+                : TextInputAction.done,
             style: textes.titleLarge,
             onChanged: (_) => setState(() {}),
             onSubmitted: (valeur) {
@@ -168,8 +167,9 @@ class _NommerArticleState extends State<NommerArticle> {
                 _ajouterNom();
                 return;
               }
-              Navigator.of(context)
-                  .pop(ResultatNommage(ReponseNommage.nomme, [valeur.trim()]));
+              Navigator.of(
+                context,
+              ).pop(ResultatNommage(ReponseNommage.nomme, [valeur.trim()]));
             },
             decoration: InputDecoration(
               hintText: _plusieurs
@@ -186,7 +186,9 @@ class _NommerArticleState extends State<NommerArticle> {
               filled: true,
               fillColor: Couleurs.fond,
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: Espace.l, vertical: Espace.m),
+                horizontal: Espace.l,
+                vertical: Espace.m,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Rayon.m),
                 borderSide: const BorderSide(color: Couleurs.bordure),
@@ -202,14 +204,18 @@ class _NommerArticleState extends State<NommerArticle> {
             onPressed: _validable
                 ? () {
                     if (!_plusieurs) {
-                      Navigator.of(context).pop(ResultatNommage(
-                          ReponseNommage.nomme, [_controleur.text.trim()]));
+                      Navigator.of(context).pop(
+                        ResultatNommage(ReponseNommage.nomme, [
+                          _controleur.text.trim(),
+                        ]),
+                      );
                       return;
                     }
                     // Le dernier nom tapé compte même sans appuyer sur « + ».
                     _ajouterNom();
-                    Navigator.of(context).pop(
-                        ResultatNommage(ReponseNommage.melange, [..._noms]));
+                    Navigator.of(
+                      context,
+                    ).pop(ResultatNommage(ReponseNommage.melange, [..._noms]));
                   }
                 : null,
             style: FilledButton.styleFrom(
@@ -235,10 +241,13 @@ class _NommerArticleState extends State<NommerArticle> {
           ),
           const SizedBox(height: Espace.s),
           TextButton(
-            onPressed: () => Navigator.of(context)
-                .pop(const ResultatNommage(ReponseNommage.plusTard)),
-            child: Text('Plus tard',
-                style: textes.labelLarge?.copyWith(color: Couleurs.encreDouce)),
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(const ResultatNommage(ReponseNommage.plusTard)),
+            child: Text(
+              'Plus tard',
+              style: textes.labelLarge?.copyWith(color: Couleurs.encreDouce),
+            ),
           ),
         ],
       ),

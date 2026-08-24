@@ -33,8 +33,7 @@ void main() {
 
   group('La référence imprimée', () {
     test('elle porte le type, l\'année et le rang', () {
-      const reference =
-          ReferenceFacture(type: 'FV', annee: 2026, rang: 42);
+      const reference = ReferenceFacture(type: 'FV', annee: 2026, rang: 42);
 
       expect(reference.texte, 'FV-2026-000042');
     });
@@ -60,8 +59,10 @@ void main() {
     });
 
     test('deux références identiques se valent', () {
-      expect(const ReferenceFacture(type: 'FV', annee: 2026, rang: 1),
-          const ReferenceFacture(type: 'FV', annee: 2026, rang: 1));
+      expect(
+        const ReferenceFacture(type: 'FV', annee: 2026, rang: 1),
+        const ReferenceFacture(type: 'FV', annee: 2026, rang: 1),
+      );
     });
   });
 
@@ -87,8 +88,7 @@ void main() {
     test('un doublon est une rupture, pas un trou', () {
       // Deux factures portant le même numéro, c'est pire qu'un trou : c'est
       // la référence unique du §2.18 qui tombe.
-      expect(() => numerotation.trous([1, 2, 2]),
-          throwsA(isA<SerieRompue>()));
+      expect(() => numerotation.trous([1, 2, 2]), throwsA(isA<SerieRompue>()));
     });
 
     test('un rang zéro ou négatif est refusé', () {

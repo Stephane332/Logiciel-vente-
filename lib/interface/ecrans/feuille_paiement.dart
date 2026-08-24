@@ -24,10 +24,10 @@ import '../theme/palette.dart';
 
 /// Couleur d'accompagnement d'un opérateur, à sa charte.
 Color teinteDe(OperateurMobile operateur) => switch (operateur) {
-      OperateurMobile.orange => const Color(0xFFFF6600),
-      OperateurMobile.moov => const Color(0xFF0066B3),
-      OperateurMobile.telecel => const Color(0xFFE30613),
-    };
+  OperateurMobile.orange => const Color(0xFFFF6600),
+  OperateurMobile.moov => const Color(0xFF0066B3),
+  OperateurMobile.telecel => const Color(0xFFE30613),
+};
 
 class FeuillePaiement extends StatefulWidget {
   final Montant total;
@@ -42,11 +42,12 @@ class FeuillePaiement extends StatefulWidget {
   final List<LigneClient> clients;
 
   /// Crée un client à la volée et rend son identifiant.
-  final Future<String> Function(String nom, String? telephone)? surNouveauClient;
+  final Future<String> Function(String nom, String? telephone)?
+  surNouveauClient;
 
   /// Appelé avec le mode retenu et, s'il y a crédit, le client concerné.
   final Future<void> Function(ModePaiement mode, String? clientId)
-      surPaiementChoisi;
+  surPaiementChoisi;
 
   /// Ouvre les réglages. Nul quand il n'y a nulle part où aller — en test,
   /// par exemple.
@@ -67,27 +68,26 @@ class FeuillePaiement extends StatefulWidget {
     BuildContext context, {
     required Montant total,
     required Future<void> Function(ModePaiement mode, String? clientId)
-        surPaiementChoisi,
+    surPaiementChoisi,
     ComptesMarchands comptes = const ComptesMarchands.aucun(),
     String nomCommerce = '',
     VoidCallback? surConfiguration,
     List<LigneClient> clients = const [],
     Future<String> Function(String nom, String? telephone)? surNouveauClient,
-  }) =>
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => FeuillePaiement(
-          total: total,
-          comptes: comptes,
-          nomCommerce: nomCommerce,
-          surPaiementChoisi: surPaiementChoisi,
-          surConfiguration: surConfiguration,
-          clients: clients,
-          surNouveauClient: surNouveauClient,
-        ),
-      );
+  }) => showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => FeuillePaiement(
+      total: total,
+      comptes: comptes,
+      nomCommerce: nomCommerce,
+      surPaiementChoisi: surPaiementChoisi,
+      surConfiguration: surConfiguration,
+      clients: clients,
+      surNouveauClient: surNouveauClient,
+    ),
+  );
 
   @override
   State<FeuillePaiement> createState() => _FeuillePaiementState();
@@ -116,11 +116,11 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
       _mode != null && (_mode != ModePaiement.credit || _client != null);
 
   String get _libelleValidation => switch (_mode) {
-        null => 'Choisir un mode',
-        ModePaiement.credit when _client == null => 'À qui ?',
-        ModePaiement.credit => 'Noter la dette',
-        _ => 'Valider la vente',
-      };
+    null => 'Choisir un mode',
+    ModePaiement.credit when _client == null => 'À qui ?',
+    ModePaiement.credit => 'Noter la dette',
+    _ => 'Valider la vente',
+  };
 
   /// Envoie le lien de paiement au client, par WhatsApp ou par SMS.
   ///
@@ -157,12 +157,14 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
     // Le SMS se paie à l'unité : on le veut court et sans accent, sinon la
     // limite tombe de 160 à 70 caractères et le même message coûte trois fois
     // plus cher au commerçant.
-    final court = sansAccents([
-      if (widget.nomCommerce.isNotEmpty) widget.nomCommerce.toUpperCase(),
-      'A payer: $montant',
-      'Appuie: $lien',
-      'Sinon compose: $code',
-    ].join('\n'));
+    final court = sansAccents(
+      [
+        if (widget.nomCommerce.isNotEmpty) widget.nomCommerce.toUpperCase(),
+        'A payer: $montant',
+        'Appuie: $lien',
+        'Sinon compose: $code',
+      ].join('\n'),
+    );
 
     await FeuilleDocument.presenter(
       context,
@@ -237,8 +239,7 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
                   libelle: 'Espèces',
                   teinte: Couleurs.primaire,
                   actif: _mode == ModePaiement.especes,
-                  onPressed: () =>
-                      setState(() => _mode = ModePaiement.especes),
+                  onPressed: () => setState(() => _mode = ModePaiement.especes),
                 ),
               ),
               const SizedBox(width: Espace.m),
@@ -273,23 +274,22 @@ class _FeuillePaiementState extends State<FeuillePaiement> {
               // Rien n'est configuré : plutôt qu'un code QR qui ne paierait
               // personne, on dit ce qu'il manque et on y emmène.
               (ModePaiement.mobileMoney, null) => _AConfigurer(
-                  surConfiguration: widget.surConfiguration,
-                ),
+                surConfiguration: widget.surConfiguration,
+              ),
               (ModePaiement.mobileMoney, final operateur?) => _VoletMobileMoney(
-                  total: widget.total,
-                  numeroMarchand: widget.comptes.numeroDe(operateur)!,
-                  operateur: operateur,
-                  disponibles: disponibles,
-                  surChangementOperateur: (o) =>
-                      setState(() => _operateur = o),
-                  surEnvoi: () => _envoyerLeCode(operateur),
-                ),
+                total: widget.total,
+                numeroMarchand: widget.comptes.numeroDe(operateur)!,
+                operateur: operateur,
+                disponibles: disponibles,
+                surChangementOperateur: (o) => setState(() => _operateur = o),
+                surEnvoi: () => _envoyerLeCode(operateur),
+              ),
               (ModePaiement.credit, _) => _VoletCredit(
-                  clients: _clients,
-                  choisi: _client,
-                  surChoix: (client) => setState(() => _client = client),
-                  surNouveau: _nouveauClient,
-                ),
+                clients: _clients,
+                choisi: _client,
+                surChoix: (client) => setState(() => _client = client),
+                surNouveau: _nouveauClient,
+              ),
               _ => const SizedBox(width: double.infinity),
             },
           ),
@@ -343,8 +343,11 @@ class _AConfigurer extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.smartphone_rounded,
-              size: 32, color: Couleurs.encreLegere),
+          const Icon(
+            Icons.smartphone_rounded,
+            size: 32,
+            color: Couleurs.encreLegere,
+          ),
           const SizedBox(height: Espace.m),
           Text(
             "Dis-moi sur quel numéro tu veux être payé, et je génère le code "
@@ -409,8 +412,7 @@ class _VoletMobileMoney extends StatelessWidget {
                   onPressed: () => surChangementOperateur(o),
                 ),
               ),
-              if (o != disponibles.last)
-                const SizedBox(width: Espace.s),
+              if (o != disponibles.last) const SizedBox(width: Espace.s),
             ],
           ],
         ),
@@ -491,7 +493,9 @@ class _VoletMobileMoney extends StatelessWidget {
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: Espace.l, vertical: Espace.m),
+                    horizontal: Espace.l,
+                    vertical: Espace.m,
+                  ),
                   decoration: BoxDecoration(
                     color: teinteDe(operateur).withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(Rayon.s),
@@ -529,8 +533,11 @@ class _VoletMobileMoney extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.info_outline_rounded,
-                size: 15, color: Couleurs.encreLegere),
+            const Icon(
+              Icons.info_outline_rounded,
+              size: 15,
+              color: Couleurs.encreLegere,
+            ),
             const SizedBox(width: Espace.s),
             Flexible(
               child: Text(
@@ -581,8 +588,7 @@ class _BoutonMode extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icone,
-                size: 24, color: actif ? teinte : Couleurs.encreDouce),
+            Icon(icone, size: 24, color: actif ? teinte : Couleurs.encreDouce),
             const SizedBox(height: Espace.xs),
             Text(
               libelle,
@@ -642,7 +648,6 @@ class _PastilleOperateur extends StatelessWidget {
     );
   }
 }
-
 
 /// Ce qu'on saisit pour un client qu'on ne connaît pas encore.
 class _SaisieClient {
@@ -718,14 +723,17 @@ class _VoletCredit extends StatelessWidget {
             const SizedBox(height: Espace.m),
             Row(
               children: [
-                const Icon(Icons.check_circle_rounded,
-                    size: 16, color: Couleurs.primaireVif),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: Couleurs.primaireVif,
+                ),
                 const SizedBox(width: Espace.xs),
                 Expanded(
                   child: Text(
                     choisi!.encoursCentimes > 0
                         ? '${choisi!.nom} doit déjà '
-                            '${Montant(choisi!.encoursCentimes).enFrancs}'
+                              '${Montant(choisi!.encoursCentimes).enFrancs}'
                         : '${choisi!.nom} ne doit rien pour l\'instant',
                     style: textes.labelSmall,
                   ),
@@ -808,12 +816,14 @@ class _FeuilleNouveauClientState extends State<_FeuilleNouveauClient> {
           const SizedBox(height: Espace.l),
           FilledButton(
             onPressed: complet
-                ? () => Navigator.of(context).pop(_SaisieClient(
+                ? () => Navigator.of(context).pop(
+                    _SaisieClient(
                       _nom.text.trim(),
                       _telephone.text.trim().isEmpty
                           ? null
                           : _telephone.text.trim(),
-                    ))
+                    ),
+                  )
                 : null,
             style: FilledButton.styleFrom(
               backgroundColor: Couleurs.primaire,

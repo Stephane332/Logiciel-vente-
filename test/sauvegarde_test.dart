@@ -51,13 +51,13 @@ void main() {
             designation: 'Riz 1 kg',
             prixUnitaire: f(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
           PaiementAEnregistrer(
             mode: clientId == null ? ModePaiement.especes : ModePaiement.credit,
             montant: f(prix),
-          )
+          ),
         ],
         clientId: clientId,
         operateur: par,
@@ -85,23 +85,27 @@ void main() {
   }
 
   group('Composer le fichier', () {
-    test('il porte les événements et les réglages, pas les projections',
-        () async {
-      await garnir();
+    test(
+      'il porte les événements et les réglages, pas les projections',
+      () async {
+        await garnir();
 
-      final contenu = await sauvegardes.composer(nomCommerce: 'Ma boutique');
-      final lu = jsonDecode(contenu) as Map<String, Object?>;
+        final contenu = await sauvegardes.composer(nomCommerce: 'Ma boutique');
+        final lu = jsonDecode(contenu) as Map<String, Object?>;
 
-      expect(lu['application'], 'carnet');
-      expect(lu['format'], formatSauvegarde);
-      expect(lu['version'], '0.6.0');
-      expect((lu['evenements'] as List), isNotEmpty);
-      expect((lu['reglages'] as Map)['commerce.nom'],
-          'Alimentation Nabonswendé');
-      // Les tables reconstructibles n'ont rien à faire dans le fichier.
-      expect(lu.containsKey('articles'), isFalse);
-      expect(lu.containsKey('ventes'), isFalse);
-    });
+        expect(lu['application'], 'carnet');
+        expect(lu['format'], formatSauvegarde);
+        expect(lu['version'], '0.6.0');
+        expect((lu['evenements'] as List), isNotEmpty);
+        expect(
+          (lu['reglages'] as Map)['commerce.nom'],
+          'Alimentation Nabonswendé',
+        );
+        // Les tables reconstructibles n'ont rien à faire dans le fichier.
+        expect(lu.containsKey('articles'), isFalse);
+        expect(lu.containsKey('ventes'), isFalse);
+      },
+    );
 
     test('une boutique neuve donne un fichier valide mais vide', () async {
       final ouvert = Sauvegardes.ouvrir(await sauvegardes.composer());
@@ -112,14 +116,18 @@ void main() {
 
     test("le nom de fichier se lit d'un coup d'œil", () {
       final nom = Sauvegardes.nomDeFichier(
-          'Alimentation Nabonswendé', DateTime(2026, 8, 8, 9, 5));
+        'Alimentation Nabonswendé',
+        DateTime(2026, 8, 8, 9, 5),
+      );
 
       expect(nom, 'carnet-alimentation-nabonswend-20260808-0905.carnet');
     });
 
     test('un commerce sans nom donne quand même un nom de fichier', () {
-      expect(Sauvegardes.nomDeFichier('', DateTime(2026, 1, 2, 3, 4)),
-          'carnet-boutique-20260102-0304.carnet');
+      expect(
+        Sauvegardes.nomDeFichier('', DateTime(2026, 1, 2, 3, 4)),
+        'carnet-boutique-20260102-0304.carnet',
+      );
     });
   });
 
@@ -130,18 +138,22 @@ void main() {
     });
 
     test("le fichier d'une autre application est refusé", () {
-      expect(Sauvegardes.ouvrir('{"application":"autre","evenements":[]}'),
-          isNull);
+      expect(
+        Sauvegardes.ouvrir('{"application":"autre","evenements":[]}'),
+        isNull,
+      );
     });
 
     test('un format plus récent est refusé plutôt que mal lu', () {
       // Mieux vaut dire « je ne sais pas lire ça » que restaurer de travers.
       expect(
-        Sauvegardes.ouvrir(jsonEncode({
-          'application': 'carnet',
-          'format': formatSauvegarde + 1,
-          'evenements': [],
-        })),
+        Sauvegardes.ouvrir(
+          jsonEncode({
+            'application': 'carnet',
+            'format': formatSauvegarde + 1,
+            'evenements': [],
+          }),
+        ),
         isNull,
       );
     });
@@ -149,7 +161,8 @@ void main() {
     test("l'aperçu annonce ce que porte le fichier", () async {
       await garnir();
       final ouvert = Sauvegardes.ouvrir(
-          await sauvegardes.composer(nomCommerce: 'Chez Awa'));
+        await sauvegardes.composer(nomCommerce: 'Chez Awa'),
+      );
 
       expect(ouvert!.apercu.nomCommerce, 'Chez Awa');
       expect(ouvert.apercu.nombreEvenements, greaterThan(3));
@@ -159,8 +172,8 @@ void main() {
 
     test('une ligne mutilée fait refuser tout le fichier', () async {
       await garnir();
-      final lu = jsonDecode(await sauvegardes.composer())
-          as Map<String, Object?>;
+      final lu =
+          jsonDecode(await sauvegardes.composer()) as Map<String, Object?>;
       (lu['evenements'] as List)[1] = {'id': 'X'};
 
       // Sauver la moitié d'un journal reviendrait à inventer une boutique.
@@ -178,8 +191,9 @@ void main() {
       final (autreBase, autreDepot, autresSauvegardes) = nouveauTelephone();
       addTearDown(autreBase.close);
 
-      final resultat = await autresSauvegardes
-          .restaurer(Sauvegardes.ouvrir(contenu)!);
+      final resultat = await autresSauvegardes.restaurer(
+        Sauvegardes.ouvrir(contenu)!,
+      );
       await autreDepot.reconstruireProjections();
 
       expect(resultat.reussie, isTrue);
@@ -191,8 +205,10 @@ void main() {
 
       final dettesApres = await autreDepot.clientsDebiteurs();
       expect(dettesApres.map((c) => c.nom), dettesAvant.map((c) => c.nom));
-      expect(dettesApres.single.encoursCentimes,
-          dettesAvant.single.encoursCentimes);
+      expect(
+        dettesApres.single.encoursCentimes,
+        dettesAvant.single.encoursCentimes,
+      );
     });
 
     test('le catalogue revient avec ses noms et ses prix', () async {
@@ -207,7 +223,10 @@ void main() {
 
       final apres = await autreDepot.catalogue();
       expect(apres.map((a) => a.designation), avant.map((a) => a.designation));
-      expect(apres.map((a) => a.prixCentimes), avant.map((a) => a.prixCentimes));
+      expect(
+        apres.map((a) => a.prixCentimes),
+        avant.map((a) => a.prixCentimes),
+      );
     });
 
     test('les réglages voyagent avec', () async {
@@ -239,10 +258,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(3000),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(3000))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(3000)),
         ],
       );
 
@@ -255,7 +274,8 @@ void main() {
       final avant = await depot.rapportDuJour();
 
       final vide = Sauvegardes.ouvrir(
-          jsonEncode({'application': 'carnet', 'format': 1, 'evenements': []}));
+        jsonEncode({'application': 'carnet', 'format': 1, 'evenements': []}),
+      );
       final resultat = await sauvegardes.restaurer(vide!);
 
       expect(resultat.reussie, isFalse);
@@ -268,15 +288,19 @@ void main() {
       final avant = await depot.rapportDuJour();
 
       // Quelqu'un gonfle une vente dans le fichier. L'empreinte ne suit pas.
-      final lu = jsonDecode(await sauvegardes.composer())
-          as Map<String, Object?>;
+      final lu =
+          jsonDecode(await sauvegardes.composer()) as Map<String, Object?>;
       final evenements = lu['evenements'] as List;
-      final vente = evenements.firstWhere(
-          (e) => (e as Map)['type'] == 'vente_enregistree') as Map;
+      final vente =
+          evenements.firstWhere(
+                (e) => (e as Map)['type'] == 'vente_enregistree',
+              )
+              as Map;
       (vente['charge'] as Map)['totalCentimes'] = 99999999;
 
-      final resultat =
-          await sauvegardes.restaurer(Sauvegardes.ouvrir(jsonEncode(lu))!);
+      final resultat = await sauvegardes.restaurer(
+        Sauvegardes.ouvrir(jsonEncode(lu))!,
+      );
 
       expect(resultat.reussie, isFalse);
       expect(resultat.motif, contains('abîmé ou modifié'));
@@ -287,12 +311,13 @@ void main() {
 
     test('un trou dans la chaîne est refusé', () async {
       await garnir();
-      final lu = jsonDecode(await sauvegardes.composer())
-          as Map<String, Object?>;
+      final lu =
+          jsonDecode(await sauvegardes.composer()) as Map<String, Object?>;
       (lu['evenements'] as List).removeAt(1);
 
-      final resultat =
-          await sauvegardes.restaurer(Sauvegardes.ouvrir(jsonEncode(lu))!);
+      final resultat = await sauvegardes.restaurer(
+        Sauvegardes.ouvrir(jsonEncode(lu))!,
+      );
 
       expect(resultat.reussie, isFalse);
       expect(resultat.motif, contains('manquent'));
@@ -310,10 +335,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(9999),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(9999))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(9999)),
         ],
       );
 
@@ -327,22 +352,24 @@ void main() {
       expect(rapport.encaisse, f(650));
     });
 
-    test('la même sauvegarde restaurée deux fois donne le même résultat',
-        () async {
-      await garnir();
-      final contenu = await sauvegardes.composer();
+    test(
+      'la même sauvegarde restaurée deux fois donne le même résultat',
+      () async {
+        await garnir();
+        final contenu = await sauvegardes.composer();
 
-      final (autreBase, autreDepot, autresSauvegardes) = nouveauTelephone();
-      addTearDown(autreBase.close);
+        final (autreBase, autreDepot, autresSauvegardes) = nouveauTelephone();
+        addTearDown(autreBase.close);
 
-      for (var i = 0; i < 2; i++) {
-        await autresSauvegardes.restaurer(Sauvegardes.ouvrir(contenu)!);
-        await autreDepot.reconstruireProjections();
-      }
+        for (var i = 0; i < 2; i++) {
+          await autresSauvegardes.restaurer(Sauvegardes.ouvrir(contenu)!);
+          await autreDepot.reconstruireProjections();
+        }
 
-      expect((await autreDepot.rapportDuJour()).nombreVentes, 2);
-      expect((await autreDepot.journal.verifier()).intact, isTrue);
-    });
+        expect((await autreDepot.rapportDuJour()).nombreVentes, 2);
+        expect((await autreDepot.journal.verifier()).intact, isTrue);
+      },
+    );
 
     test('un aller-retour complet ne perd rien du journal', () async {
       await garnir();
@@ -377,10 +404,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(400),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(400))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(400)),
         ],
       );
 
@@ -404,8 +431,10 @@ void main() {
       final verification = await autreDepot.journal.verifier();
       expect(verification.intact, isTrue);
       // Le compte couvre bien les deux chaînes.
-      expect(verification.nombreEvenements,
-          (await autreDepot.journal.tous()).length);
+      expect(
+        verification.nombreEvenements,
+        (await autreDepot.journal.tous()).length,
+      );
     });
   });
 
@@ -432,36 +461,40 @@ void main() {
     // explicitement, sinon trois ventes de suite tomberaient dans la même et
     // le test dépendrait de la vitesse de la machine.
     Future<void> vendreLe(DateTime quand, num prix) => depot.enregistrerVente(
-          lignes: [
-            LigneAEnregistrer(
-              codeArticle: 'RIZ',
-              designation: 'Riz 1 kg',
-              prixUnitaire: f(prix),
-              quantite: const Quantite.unites(1),
-            )
-          ],
-          paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
-          ],
-          horodatage: quand,
-        );
+      lignes: [
+        LigneAEnregistrer(
+          codeArticle: 'RIZ',
+          designation: 'Riz 1 kg',
+          prixUnitaire: f(prix),
+          quantite: const Quantite.unites(1),
+        ),
+      ],
+      paiements: [
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
+      ],
+      horodatage: quand,
+    );
 
-    test('le compte des écritures depuis une date ignore ce qui précède',
-        () async {
-      await vendreLe(DateTime(2026, 8, 10, 9), 500);
-      await vendreLe(DateTime(2026, 8, 14, 9), 650);
-      await vendreLe(DateTime(2026, 8, 15, 9), 700);
+    test(
+      'le compte des écritures depuis une date ignore ce qui précède',
+      () async {
+        await vendreLe(DateTime(2026, 8, 10, 9), 500);
+        await vendreLe(DateTime(2026, 8, 14, 9), 650);
+        await vendreLe(DateTime(2026, 8, 15, 9), 700);
 
-      expect(await journal.nombreDepuis(DateTime(2026, 8, 12)), 2);
-      expect(await journal.nombreDepuis(null), 3);
-    });
+        expect(await journal.nombreDepuis(DateTime(2026, 8, 12)), 2);
+        expect(await journal.nombreDepuis(null), 3);
+      },
+    );
 
-    test('rien depuis la dernière sauvegarde veut dire rien à perdre',
-        () async {
-      await vendreLe(DateTime(2026, 8, 10, 9), 500);
+    test(
+      'rien depuis la dernière sauvegarde veut dire rien à perdre',
+      () async {
+        await vendreLe(DateTime(2026, 8, 10, 9), 500);
 
-      expect(await journal.nombreDepuis(DateTime(2026, 8, 11)), 0);
-    });
+        expect(await journal.nombreDepuis(DateTime(2026, 8, 11)), 0);
+      },
+    );
   });
 
   group('Une sauvegarde sous mot de passe', () {

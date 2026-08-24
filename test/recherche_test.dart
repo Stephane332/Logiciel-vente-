@@ -70,8 +70,10 @@ void main() {
     test('un morceau de mot au milieu suffit', () async {
       await depot.creerArticle(designation: 'Huile de palme', prix: f(1200));
 
-      expect((await depot.catalogue(recherche: 'palme')).single.designation,
-          'Huile de palme');
+      expect(
+        (await depot.catalogue(recherche: 'palme')).single.designation,
+        'Huile de palme',
+      );
     });
 
     test('les espaces autour du mot cherché ne gênent pas', () async {
@@ -105,15 +107,17 @@ void main() {
     /// La tuile d'un article, et pas le texte tapé dans la barre de
     /// recherche : les deux portent le même mot à l'écran.
     Finder tuile(String nom) => find.descendant(
-          of: find.byType(TuileProduit),
-          matching: find.text(nom),
-        );
+      of: find.byType(TuileProduit),
+      matching: find.text(nom),
+    );
 
     Future<void> ouvrirCaisse(WidgetTester tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(depot: depot, documents: documents),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: EcranVente(depot: depot, documents: documents),
+        ),
+      );
       await tester.pumpAndSettle();
     }
 
@@ -123,17 +127,22 @@ void main() {
       await remplir(6);
       await ouvrirCaisse(tester);
 
-      expect(find.widgetWithText(TextField, 'Chercher un article'),
-          findsNothing);
+      expect(
+        find.widgetWithText(TextField, 'Chercher un article'),
+        findsNothing,
+      );
     });
 
-    testWidgets('elle apparaît quand la grille cesse de suffire',
-        (tester) async {
+    testWidgets('elle apparaît quand la grille cesse de suffire', (
+      tester,
+    ) async {
       await remplir(EcranVenteState.seuilDeRecherche + 1);
       await ouvrirCaisse(tester);
 
-      expect(find.widgetWithText(TextField, 'Chercher un article'),
-          findsOneWidget);
+      expect(
+        find.widgetWithText(TextField, 'Chercher un article'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('taper filtre la grille', (tester) async {
@@ -151,8 +160,9 @@ void main() {
       expect(find.byType(TuileAction), findsNothing);
     });
 
-    testWidgets('une recherche infructueuse le dit au lieu de vider l\'écran',
-        (tester) async {
+    testWidgets('une recherche infructueuse le dit au lieu de vider l\'écran', (
+      tester,
+    ) async {
       await remplir(20);
       await ouvrirCaisse(tester);
 

@@ -45,9 +45,11 @@ bool tientEnUnSms(String message) => nombreDeSms(message) <= 1;
 ///
 /// Volontairement restreint à ce dont on se sert : lettres non accentuées,
 /// chiffres, ponctuation courante et les symboles des codes USSD.
-final _gsm = RegExp(r"^[A-Za-z0-9 \r\n@£$¥èéùìòÇØøÅåΔ_ΦΓΛ"
-    r"ΩΠΨΣΘΞÆæßÉ!\x22#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿"
-    r'äöñüà]*$');
+final _gsm = RegExp(
+  r"^[A-Za-z0-9 \r\n@£$¥èéùìòÇØøÅåΔ_ΦΓΛ"
+  r"ΩΠΨΣΘΞÆæßÉ!\x22#¤%&'()*+,\-./:;<=>?¡ÄÖÑÜ§¿"
+  r'äöñüà]*$',
+);
 
 /// Raccourcit un nom trop long en gardant ses deux bouts.
 ///

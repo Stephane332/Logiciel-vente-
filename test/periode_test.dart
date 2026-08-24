@@ -89,7 +89,10 @@ void main() {
     test('une période se nomme par ses deux bouts, fin comprise', () {
       // La borne de fin est exclue : le dernier jour couvert est la veille,
       // et c'est celui-là qu'il faut annoncer.
-      expect(Periode.semaine.intitule(maintenant), 'Du 30/07/2026 au 05/08/2026');
+      expect(
+        Periode.semaine.intitule(maintenant),
+        'Du 30/07/2026 au 05/08/2026',
+      );
     });
 
     test('le résumé porte la date du jour concerné, pas du jour d\'envoi', () {
@@ -112,17 +115,17 @@ void main() {
     Montant f(num francs) => Montant.depuisDecimal(francs);
 
     Future<void> vendre(num prix, {DateTime? quand}) => depot.enregistrerVente(
-          lignes: [
-            LigneAEnregistrer(
-              prixUnitaire: f(prix),
-              quantite: const Quantite.unites(1),
-            )
-          ],
-          paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix))
-          ],
-          horodatage: quand,
-        );
+      lignes: [
+        LigneAEnregistrer(
+          prixUnitaire: f(prix),
+          quantite: const Quantite.unites(1),
+        ),
+      ],
+      paiements: [
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(prix)),
+      ],
+      horodatage: quand,
+    );
 
     /// Un instant à l'intérieur de la journée voulue, jamais sur sa frontière.
     DateTime ilYA(int jours) {
@@ -163,27 +166,31 @@ void main() {
       expect(semaine.nombreVentes, 3);
     });
 
-    test('une vente trop vieille sort de la semaine mais reste au mois',
-        () async {
-      await vendre(4000, quand: ilYA(10));
+    test(
+      'une vente trop vieille sort de la semaine mais reste au mois',
+      () async {
+        await vendre(4000, quand: ilYA(10));
 
-      expect((await sur(Periode.semaine)).nombreVentes, 0);
-      expect((await sur(Periode.mois)).encaisse, f(4000));
-    });
+        expect((await sur(Periode.semaine)).nombreVentes, 0);
+        expect((await sur(Periode.mois)).encaisse, f(4000));
+      },
+    );
 
-    test('le rapport du jour et la période du jour disent la même chose',
-        () async {
-      // Les deux chemins doivent rester alignés : le premier est un raccourci
-      // sur le second, et une divergence passerait inaperçue longtemps.
-      await vendre(1500);
-      await vendre(2500);
+    test(
+      'le rapport du jour et la période du jour disent la même chose',
+      () async {
+        // Les deux chemins doivent rester alignés : le premier est un raccourci
+        // sur le second, et une divergence passerait inaperçue longtemps.
+        await vendre(1500);
+        await vendre(2500);
 
-      final direct = await depot.rapportDuJour();
-      final periode = await sur(Periode.jour);
+        final direct = await depot.rapportDuJour();
+        final periode = await sur(Periode.jour);
 
-      expect(periode.encaisse, direct.encaisse);
-      expect(periode.nombreVentes, direct.nombreVentes);
-      expect(periode.aCredit, direct.aCredit);
-    });
+        expect(periode.encaisse, direct.encaisse);
+        expect(periode.nombreVentes, direct.nombreVentes);
+        expect(periode.aCredit, direct.aCredit);
+      },
+    );
   });
 }

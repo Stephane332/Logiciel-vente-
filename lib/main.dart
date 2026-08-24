@@ -24,21 +24,24 @@ Future<void> main() async {
   // Dans un navigateur, la persistance ne se promet pas : elle se constate.
   // On dépose un témoin au premier lancement, et c'est de le retrouver au
   // suivant qui prouve que ce qu'on écrit sera relu.
-  final stockageSur =
-      stockageADemontrer ? await parametres.temoinRetrouve() : true;
+  final stockageSur = stockageADemontrer
+      ? await parametres.temoinRetrouve()
+      : true;
 
-  runApp(Application(
-    depot: Depot(base, Journal(base, appareil: appareil)),
-    documents: Documents(
-      base,
-      nomCommerce: reglage.nomCommerce,
-      fiche: reglage.fiche,
+  runApp(
+    Application(
+      depot: Depot(base, Journal(base, appareil: appareil)),
+      documents: Documents(
+        base,
+        nomCommerce: reglage.nomCommerce,
+        fiche: reglage.fiche,
+      ),
+      analyses: Analyses(base),
+      parametres: parametres,
+      reglage: reglage,
+      stockageSur: stockageSur,
     ),
-    analyses: Analyses(base),
-    parametres: parametres,
-    reglage: reglage,
-    stockageSur: stockageSur,
-  ));
+  );
 }
 
 class Application extends StatelessWidget {
@@ -63,31 +66,31 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Carnet',
-        debugShowCheckedModeBanner: false,
+    title: 'Carnet',
+    debugShowCheckedModeBanner: false,
 
-        // Le français est imposé, pas déduit du téléphone. Toute
-        // l'application est écrite en français : sur un téléphone réglé en
-        // anglais, suivre le système donnerait « Paste » sous « Donne-lui un
-        // nom ». Et un téléphone dont la langue n'est pas reconnue faisait
-        // tomber l'application sur un écran blanc, sans message.
-        locale: const Locale('fr'),
-        supportedLocales: const [Locale('fr')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
+    // Le français est imposé, pas déduit du téléphone. Toute
+    // l'application est écrite en français : sur un téléphone réglé en
+    // anglais, suivre le système donnerait « Paste » sous « Donne-lui un
+    // nom ». Et un téléphone dont la langue n'est pas reconnue faisait
+    // tomber l'application sur un écran blanc, sans message.
+    locale: const Locale('fr'),
+    supportedLocales: const [Locale('fr')],
+    localizationsDelegates: const [
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
 
-        theme: themeClair(),
-        darkTheme: themeSombre(),
-        home: Accueil(
-          depot: depot,
-          documents: documents,
-          analyses: analyses,
-          parametres: parametres,
-          reglage: reglage,
-          stockageSur: stockageSur,
-        ),
-      );
+    theme: themeClair(),
+    darkTheme: themeSombre(),
+    home: Accueil(
+      depot: depot,
+      documents: documents,
+      analyses: analyses,
+      parametres: parametres,
+      reglage: reglage,
+      stockageSur: stockageSur,
+    ),
+  );
 }

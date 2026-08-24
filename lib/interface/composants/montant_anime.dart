@@ -133,7 +133,9 @@ class PastilleMontant extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: Espace.m, vertical: Espace.s + 2),
+        horizontal: Espace.m,
+        vertical: Espace.s + 2,
+      ),
       decoration: BoxDecoration(
         color: teinte.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(Rayon.s),
@@ -147,14 +149,9 @@ class PastilleMontant extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(libelle,
-                  style: textes.labelSmall?.copyWith(color: teinte)),
+              Text(libelle, style: textes.labelSmall?.copyWith(color: teinte)),
               const SizedBox(height: 1),
-              MontantAnime(
-                montant,
-                style: textes.titleMedium,
-                couleur: teinte,
-              ),
+              MontantAnime(montant, style: textes.titleMedium, couleur: teinte),
             ],
           ),
         ],

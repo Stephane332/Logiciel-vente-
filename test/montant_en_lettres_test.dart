@@ -153,16 +153,23 @@ void main() {
       // Le franc CFA n'a pas de subdivision en circulation. Écrire « et zéro
       // centime » sur chaque facture serait du bruit.
       expect(montantEnLettres(f(650)), isNot(contains('centime')));
-      expect(montantEnLettres(Montant(65050)),
-          'six cent cinquante francs CFA et cinquante centimes');
-      expect(montantEnLettres(Montant(65001)),
-          'six cent cinquante francs CFA et un centime');
+      expect(
+        montantEnLettres(Montant(65050)),
+        'six cent cinquante francs CFA et cinquante centimes',
+      );
+      expect(
+        montantEnLettres(Montant(65001)),
+        'six cent cinquante francs CFA et un centime',
+      );
     });
 
     test('un avoir se dit en négatif', () {
       // Une facture d'avoir porte un montant négatif du point de vue du
       // vendeur. Le taire serait ambigu sur un papier signé.
-      expect(montantEnLettres(Montant(-65000)), 'moins six cent cinquante francs CFA');
+      expect(
+        montantEnLettres(Montant(-65000)),
+        'moins six cent cinquante francs CFA',
+      );
     });
 
     test('la devise se change', () {

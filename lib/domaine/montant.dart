@@ -58,9 +58,9 @@ class Montant implements Comparable<Montant> {
   /// (§6.6). La taxe est arrondie à la valeur supérieure (§6.7), et le
   /// montant imposable s'obtient ensuite par différence, ce qui garantit
   /// l'égalité exacte.
-  Montant taxeIncluseArrondiSuperieur(int tauxMillieme) =>
-      Montant(_diviseArrondiSuperieur(
-          centimes * tauxMillieme, 1000 + tauxMillieme));
+  Montant taxeIncluseArrondiSuperieur(int tauxMillieme) => Montant(
+    _diviseArrondiSuperieur(centimes * tauxMillieme, 1000 + tauxMillieme),
+  );
 
   /// Division entière avec arrondi à la valeur la plus proche.
   static int _diviseArrondi(int numerateur, int denominateur) {
@@ -152,8 +152,10 @@ class Quantite implements Comparable<Quantite> {
     if (milliemes % 1000 == 0) return (milliemes ~/ 1000).toString();
     final signe = milliemes < 0 ? '-' : '';
     final abs = milliemes.abs();
-    final decimales =
-        (abs % 1000).toString().padLeft(3, '0').replaceAll(RegExp(r'0+$'), '');
+    final decimales = (abs % 1000)
+        .toString()
+        .padLeft(3, '0')
+        .replaceAll(RegExp(r'0+$'), '');
     return '$signe${abs ~/ 1000},$decimales';
   }
 }

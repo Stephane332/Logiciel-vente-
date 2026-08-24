@@ -57,8 +57,10 @@ void main() {
     });
 
     test('un code trop court est refusé à la pose', () async {
-      expect(() => parametres.definirCodePatron('123'),
-          throwsA(isA<ArgumentError>()));
+      expect(
+        () => parametres.definirCodePatron('123'),
+        throwsA(isA<ArgumentError>()),
+      );
       expect(await parametres.codePatronPose(), isFalse);
     });
 
@@ -84,8 +86,11 @@ void main() {
       await parametres.definirCodePatron('4271');
 
       final journal = Journal(base, appareil: 'CAISSE1');
-      final fichier = await Sauvegardes(base, journal, version: '0.7.1')
-          .composer(nomCommerce: 'Chez Awa');
+      final fichier = await Sauvegardes(
+        base,
+        journal,
+        version: '0.7.1',
+      ).composer(nomCommerce: 'Chez Awa');
 
       // Les réglages voyagent avec la sauvegarde, et une sauvegarde s'envoie
       // par WhatsApp. Si le code y était en clair, il suffirait d'ouvrir le
@@ -97,8 +102,7 @@ void main() {
       await parametres.definirCodePatron('4271');
 
       final lignes = await base.select(base.reglages).get();
-      final valeur =
-          lignes.firstWhere((l) => l.cle == 'patron.code').valeur;
+      final valeur = lignes.firstWhere((l) => l.cle == 'patron.code').valeur;
 
       expect(valeur, isNot('4271'));
       expect(valeur.length, 64, reason: 'une empreinte SHA-256');

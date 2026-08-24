@@ -75,8 +75,8 @@ class EvolutionArticle {
   double? get variation => chiffrePrecedent.estNul
       ? null
       : (chiffreActuel.centimes - chiffrePrecedent.centimes) *
-          100 /
-          chiffrePrecedent.centimes;
+            100 /
+            chiffrePrecedent.centimes;
 
   bool get enBaisse => ecart.estNegatif;
 }
@@ -159,8 +159,11 @@ class Analyses {
   /// Minuit prochain — la borne haute de toute période « jusqu'à aujourd'hui ».
   static DateTime _prochainMinuit(DateTime? maintenant) {
     final reference = maintenant ?? DateTime.now();
-    return DateTime(reference.year, reference.month, reference.day)
-        .add(const Duration(days: 1));
+    return DateTime(
+      reference.year,
+      reference.month,
+      reference.day,
+    ).add(const Duration(days: 1));
   }
 
   /// Ce qui s'est le mieux vendu sur une période.
@@ -181,8 +184,9 @@ class Analyses {
   }) async {
     final finEffective = fin ?? _prochainMinuit(maintenant);
     final debutEffectif = debut ?? finEffective.subtract(Duration(days: jours));
-    final lignes = await base.customSelect(
-      '''
+    final lignes = await base
+        .customSelect(
+          '''
       SELECT l.code_article               AS code,
              MAX(l.designation)           AS designation,
              SUM(l.quantite_milliemes)    AS quantite,
@@ -197,13 +201,14 @@ class Analyses {
       ORDER BY chiffre DESC
       LIMIT ?
       ''',
-      variables: [
-        Variable<DateTime>(debutEffectif),
-        Variable<DateTime>(finEffective),
-        Variable<int>(limite),
-      ],
-      readsFrom: {base.lignesVente, base.ventes},
-    ).get();
+          variables: [
+            Variable<DateTime>(debutEffectif),
+            Variable<DateTime>(finEffective),
+            Variable<int>(limite),
+          ],
+          readsFrom: {base.lignesVente, base.ventes},
+        )
+        .get();
 
     return lignes.map(_versPerformance).toList();
   }
@@ -226,10 +231,12 @@ class Analyses {
     // naturellement petit, et rien ne sert de calculer la valeur immobilisée
     // de cent articles pour n'en montrer que cinq.
     final requete = base.select(base.articles)
-      ..where((a) =>
-          a.retireLe.isNull() &
-          a.nombreVentes.isBiggerOrEqualValue(ventesMinimum) &
-          a.derniereVente.isSmallerThanValue(seuil))
+      ..where(
+        (a) =>
+            a.retireLe.isNull() &
+            a.nombreVentes.isBiggerOrEqualValue(ventesMinimum) &
+            a.derniereVente.isSmallerThanValue(seuil),
+      )
       ..orderBy([(a) => OrderingTerm.asc(a.derniereVente)]);
     if (limite != null) requete.limit(limite);
 
@@ -246,8 +253,7 @@ class Analyses {
             : reference.difference(a.derniereVente!).inDays,
         valeurImmobilisee: stock == null || stock <= 0
             ? null
-            : Montant(a.prixCentimes)
-                .multiplieParQuantite(Quantite(stock)),
+            : Montant(a.prixCentimes).multiplieParQuantite(Quantite(stock)),
       );
     }).toList();
   }
@@ -265,27 +271,29 @@ class Analyses {
     final duree = fin.difference(debut);
     final [actuelles, precedentes] = await Future.wait([
       meilleuresVentes(debut: debut, fin: fin, limite: 1000),
-      meilleuresVentes(
-          debut: debut.subtract(duree), fin: debut, limite: 1000),
+      meilleuresVentes(debut: debut.subtract(duree), fin: debut, limite: 1000),
     ]);
 
     final avant = {for (final p in precedentes) p.code: p.chiffre};
     final codes = {...actuelles.map((a) => a.code), ...avant.keys};
 
     final designations = {
-      for (final p in [...actuelles, ...precedentes]) p.code: p.designation
+      for (final p in [...actuelles, ...precedentes]) p.code: p.designation,
     };
     final apres = {for (final a in actuelles) a.code: a.chiffre};
 
-    final evolutions = codes
-        .map((code) => EvolutionArticle(
-              code: code,
-              designation: designations[code] ?? code,
-              chiffreActuel: apres[code] ?? const Montant.zero(),
-              chiffrePrecedent: avant[code] ?? const Montant.zero(),
-            ))
-        .toList()
-      ..sort((a, b) => a.ecart.centimes.compareTo(b.ecart.centimes));
+    final evolutions =
+        codes
+            .map(
+              (code) => EvolutionArticle(
+                code: code,
+                designation: designations[code] ?? code,
+                chiffreActuel: apres[code] ?? const Montant.zero(),
+                chiffrePrecedent: avant[code] ?? const Montant.zero(),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => a.ecart.centimes.compareTo(b.ecart.centimes));
 
     return evolutions.take(limite).toList();
   }
@@ -307,8 +315,9 @@ class Analyses {
     final debutEffectif =
         debut ?? finEffective.subtract(const Duration(days: 1));
 
-    final ligne = await base.customSelect(
-      '''
+    final ligne = await base
+        .customSelect(
+          '''
       SELECT COALESCE(SUM(-m.variation_milliemes * a.prix_centimes), 0) AS perdu
       FROM mouvements_stock m
       JOIN articles a ON a.code = m.code_article
@@ -316,12 +325,13 @@ class Analyses {
         AND m.horodatage >= ?
         AND m.horodatage <  ?
       ''',
-      variables: [
-        Variable<DateTime>(debutEffectif),
-        Variable<DateTime>(finEffective),
-      ],
-      readsFrom: {base.mouvementsStock, base.articles},
-    ).getSingle();
+          variables: [
+            Variable<DateTime>(debutEffectif),
+            Variable<DateTime>(finEffective),
+          ],
+          readsFrom: {base.mouvementsStock, base.articles},
+        )
+        .getSingle();
 
     // Les quantités sont en millièmes, les prix en centimes : le produit des
     // deux est en millièmes de centime.
@@ -336,15 +346,18 @@ class Analyses {
     final reference = maintenant ?? DateTime.now();
     final debut = reference.subtract(Duration(days: fenetreObservation));
 
-    final articles = await (base.select(base.articles)
-          ..where((a) =>
-              a.retireLe.isNull() &
-              a.suiviStock.equals(SuiviStock.direct.cle)))
-        .get();
+    final articles =
+        await (base.select(base.articles)..where(
+              (a) =>
+                  a.retireLe.isNull() &
+                  a.suiviStock.equals(SuiviStock.direct.cle),
+            ))
+            .get();
     if (articles.isEmpty) return [];
 
-    final vitesses = await base.customSelect(
-      '''
+    final vitesses = await base
+        .customSelect(
+          '''
       SELECT l.code_article            AS code,
              SUM(l.quantite_milliemes) AS quantite
       FROM lignes_vente l
@@ -352,16 +365,14 @@ class Analyses {
       WHERE v.annulee = 0 AND v.horodatage >= ? AND v.horodatage < ?
       GROUP BY l.code_article
       ''',
-      variables: [
-        Variable<DateTime>(debut),
-        Variable<DateTime>(reference),
-      ],
-      readsFrom: {base.lignesVente, base.ventes},
-    ).get();
+          variables: [Variable<DateTime>(debut), Variable<DateTime>(reference)],
+          readsFrom: {base.lignesVente, base.ventes},
+        )
+        .get();
 
     final vendu = {
       for (final ligne in vitesses)
-        ligne.read<String>('code'): ligne.read<int>('quantite')
+        ligne.read<String>('code'): ligne.read<int>('quantite'),
     };
 
     final alertes = <AlerteStock>[];
@@ -370,21 +381,23 @@ class Analyses {
       if (stock == null) continue;
 
       final parJour = (vendu[article.code] ?? 0) / 1000 / fenetreObservation;
-      final restants =
-          parJour <= 0 ? null : (stock / 1000 / parJour).floor();
+      final restants = parJour <= 0 ? null : (stock / 1000 / parJour).floor();
 
       // On alerte si c'est en rupture, ou s'il reste moins de jours que le
       // délai de réapprovisionnement.
-      final urgent = stock <= 0 || (restants != null && restants <= joursDAvance);
+      final urgent =
+          stock <= 0 || (restants != null && restants <= joursDAvance);
       if (!urgent) continue;
 
-      alertes.add(AlerteStock(
-        code: article.code,
-        designation: article.designation,
-        stockRestant: Quantite(stock),
-        parJour: parJour,
-        joursRestants: restants,
-      ));
+      alertes.add(
+        AlerteStock(
+          code: article.code,
+          designation: article.designation,
+          stockRestant: Quantite(stock),
+          parJour: parJour,
+          joursRestants: restants,
+        ),
+      );
     }
 
     alertes.sort((a, b) {
@@ -396,13 +409,14 @@ class Analyses {
 
   /// Ce qu'un client achète d'habitude, et depuis quand il n'est pas venu.
   Future<HabitudesClient?> habitudesDe(String clientId) async {
-    final client = await (base.select(base.clients)
-          ..where((c) => c.id.equals(clientId)))
-        .getSingleOrNull();
+    final client = await (base.select(
+      base.clients,
+    )..where((c) => c.id.equals(clientId))).getSingleOrNull();
     if (client == null) return null;
 
-    final lignes = await base.customSelect(
-      '''
+    final lignes = await base
+        .customSelect(
+          '''
       SELECT l.code_article             AS code,
              MAX(l.designation)         AS designation,
              SUM(l.quantite_milliemes)  AS quantite,
@@ -414,14 +428,18 @@ class Analyses {
       GROUP BY l.code_article
       ORDER BY chiffre DESC
       ''',
-      variables: [Variable<String>(clientId)],
-      readsFrom: {base.lignesVente, base.ventes},
-    ).get();
-
-    final ventes = await (base.select(base.ventes)
-          ..where((v) => v.clientId.equals(clientId) & v.annulee.equals(false))
-          ..orderBy([(v) => OrderingTerm.desc(v.horodatage)]))
+          variables: [Variable<String>(clientId)],
+          readsFrom: {base.lignesVente, base.ventes},
+        )
         .get();
+
+    final ventes =
+        await (base.select(base.ventes)
+              ..where(
+                (v) => v.clientId.equals(clientId) & v.annulee.equals(false),
+              )
+              ..orderBy([(v) => OrderingTerm.desc(v.horodatage)]))
+            .get();
 
     return HabitudesClient(
       clientId: clientId,

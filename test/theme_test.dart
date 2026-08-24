@@ -12,7 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:carnet/interface/theme/theme.dart';
 
 void main() {
-  for (final (nom, theme) in [('clair', themeClair()), ('sombre', themeSombre())]) {
+  for (final (nom, theme) in [
+    ('clair', themeClair()),
+    ('sombre', themeSombre()),
+  ]) {
     group('Thème $nom', () {
       test('tous les styles de texte portent la police embarquée', () {
         final styles = <String, TextStyle?>{
@@ -47,26 +50,29 @@ void main() {
     });
   }
 
-  testWidgets('le libellé d\'un bouton à icône garde la police du thème',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: themeClair(),
-      home: Scaffold(
-        body: Center(
-          child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add),
-            label: const Text('Nouveau client'),
+  testWidgets('le libellé d\'un bouton à icône garde la police du thème', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeClair(),
+        home: Scaffold(
+          body: Center(
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.add),
+              label: const Text('Nouveau client'),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     final libelle = tester.widget<Text>(find.text('Nouveau client'));
     final style = DefaultTextStyle.of(
-            tester.element(find.text('Nouveau client')))
-        .style;
+      tester.element(find.text('Nouveau client')),
+    ).style;
     expect(libelle.style?.fontFamily ?? style.fontFamily, police);
   });
 }

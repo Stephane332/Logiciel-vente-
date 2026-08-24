@@ -14,23 +14,23 @@ import 'package:carnet/interface/theme/theme.dart';
 
 void main() {
   Widget tuile({int quantite = 0, VoidCallback? onRetirer}) => MaterialApp(
-        theme: themeClair(),
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 180,
-              height: 180,
-              child: TuileProduit(
-                nom: 'Riz 1 kg',
-                prix: Montant.depuisDecimal(650),
-                quantiteAuPanier: quantite,
-                onPressed: () {},
-                onRetirer: onRetirer,
-              ),
-            ),
+    theme: themeClair(),
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 180,
+          height: 180,
+          child: TuileProduit(
+            nom: 'Riz 1 kg',
+            prix: Montant.depuisDecimal(650),
+            quantiteAuPanier: quantite,
+            onPressed: () {},
+            onRetirer: onRetirer,
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   testWidgets('la pastille tient entièrement dans la tuile', (tester) async {
     await tester.pumpWidget(tuile(quantite: 3, onRetirer: () {}));
@@ -50,39 +50,43 @@ void main() {
 
     // Un doigt vise mal un rond de vingt-six pixels : la zone tactile doit
     // dépasser les quarante.
-    final zone = tester.getRect(find.ancestor(
-      of: find.text('3'),
-      matching: find.byType(GestureDetector),
-    ).first);
+    final zone = tester.getRect(
+      find
+          .ancestor(of: find.text('3'), matching: find.byType(GestureDetector))
+          .first,
+    );
     expect(zone.height, greaterThanOrEqualTo(40));
 
     await tester.tap(find.text('3'));
     expect(retires, 1);
   });
 
-  testWidgets('sans quantité, la pastille ne prend pas les appuis',
-      (tester) async {
+  testWidgets('sans quantité, la pastille ne prend pas les appuis', (
+    tester,
+  ) async {
     // Elle reste dans l'arbre, réduite à rien pour pouvoir rebondir à
     // l'apparition — mais elle ne doit voler aucun appui au passage.
     var ajouts = 0;
     var retires = 0;
-    await tester.pumpWidget(MaterialApp(
-      theme: themeClair(),
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 180,
-            height: 180,
-            child: TuileProduit(
-              nom: 'Riz 1 kg',
-              prix: Montant.depuisDecimal(650),
-              onPressed: () => ajouts++,
-              onRetirer: () => retires++,
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeClair(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 180,
+              height: 180,
+              child: TuileProduit(
+                nom: 'Riz 1 kg',
+                prix: Montant.depuisDecimal(650),
+                onPressed: () => ajouts++,
+                onRetirer: () => retires++,
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     final carte = tester.getRect(find.byType(TuileProduit));
@@ -114,26 +118,29 @@ void main() {
     semantique.dispose();
   });
 
-  testWidgets("l'étiquette garde le nom entier, pas sa version rognée",
-      (tester) async {
+  testWidgets("l'étiquette garde le nom entier, pas sa version rognée", (
+    tester,
+  ) async {
     const long = 'Sac de riz parfumé importé 25 kg qualité supérieure';
     final semantique = tester.ensureSemantics();
-    await tester.pumpWidget(MaterialApp(
-      theme: themeClair(),
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: 180,
-            height: 180,
-            child: TuileProduit(
-              nom: long,
-              prix: Montant.depuisDecimal(18500),
-              onPressed: () {},
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: themeClair(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 180,
+              height: 180,
+              child: TuileProduit(
+                nom: long,
+                prix: Montant.depuisDecimal(18500),
+                onPressed: () {},
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel(RegExp(RegExp.escape(long))), findsOneWidget);

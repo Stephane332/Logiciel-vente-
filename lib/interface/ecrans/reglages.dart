@@ -39,22 +39,19 @@ class EcranReglages extends StatefulWidget {
     required Parametres parametres,
     required Reglage reglage,
     required Depot depot,
-  }) =>
-      Navigator.of(context).push<Reglage>(MaterialPageRoute(
-        builder: (_) => EcranReglages(
-          parametres: parametres,
-          reglage: reglage,
-          depot: depot,
-        ),
-      ));
+  }) => Navigator.of(context).push<Reglage>(
+    MaterialPageRoute(
+      builder: (_) =>
+          EcranReglages(parametres: parametres, reglage: reglage, depot: depot),
+    ),
+  );
 
   @override
   State<EcranReglages> createState() => _EcranReglagesState();
 }
 
 class _EcranReglagesState extends State<EcranReglages> {
-  late final _nom =
-      TextEditingController(text: widget.reglage.nomCommerce);
+  late final _nom = TextEditingController(text: widget.reglage.nomCommerce);
 
   late final _numeros = {
     for (final operateur in OperateurMobile.values)
@@ -70,21 +67,28 @@ class _EcranReglagesState extends State<EcranReglages> {
   final _nouveauVendeur = TextEditingController();
 
   /// Les mentions de la fiche entreprise, une par champ.
-  late final _raisonSociale =
-      TextEditingController(text: widget.reglage.fiche.raisonSociale ?? '');
+  late final _raisonSociale = TextEditingController(
+    text: widget.reglage.fiche.raisonSociale ?? '',
+  );
   late final _ifu = TextEditingController(text: widget.reglage.fiche.ifu ?? '');
   late final _cadastre = TextEditingController(
-      text: widget.reglage.fiche.cadastre?.lisible ?? '');
-  late final _adresse =
-      TextEditingController(text: widget.reglage.fiche.adresse ?? '');
-  late final _contact =
-      TextEditingController(text: widget.reglage.fiche.telephone ?? '');
-  late final _courriel =
-      TextEditingController(text: widget.reglage.fiche.courriel ?? '');
-  late final _serviceImpots =
-      TextEditingController(text: widget.reglage.fiche.serviceImpots ?? '');
+    text: widget.reglage.fiche.cadastre?.lisible ?? '',
+  );
+  late final _adresse = TextEditingController(
+    text: widget.reglage.fiche.adresse ?? '',
+  );
+  late final _contact = TextEditingController(
+    text: widget.reglage.fiche.telephone ?? '',
+  );
+  late final _courriel = TextEditingController(
+    text: widget.reglage.fiche.courriel ?? '',
+  );
+  late final _serviceImpots = TextEditingController(
+    text: widget.reglage.fiche.serviceImpots ?? '',
+  );
   late final _banque = TextEditingController(
-      text: widget.reglage.fiche.referencesBancaires ?? '');
+    text: widget.reglage.fiche.referencesBancaires ?? '',
+  );
   late RegimeImposition? _regime = widget.reglage.fiche.regime;
 
   /// Ce qui cloche dans les deux champs dont la forme est imposée. Affiché
@@ -117,19 +121,19 @@ class _EcranReglagesState extends State<EcranReglages> {
 
   /// La fiche telle qu'elle est à l'écran en ce moment.
   FicheEntreprise get _ficheSaisie => FicheEntreprise(
-        nomCommercial: _nom.text.trim().isEmpty
-            ? Parametres.nomCommerceParDefaut
-            : _nom.text.trim(),
-        raisonSociale: _raisonSociale.text,
-        ifu: Ifu.normaliser(_ifu.text),
-        cadastre: ReferenceCadastrale.analyser(_cadastre.text),
-        adresse: _adresse.text,
-        telephone: _contact.text,
-        courriel: _courriel.text,
-        regime: _regime,
-        serviceImpots: _serviceImpots.text,
-        referencesBancaires: _banque.text,
-      );
+    nomCommercial: _nom.text.trim().isEmpty
+        ? Parametres.nomCommerceParDefaut
+        : _nom.text.trim(),
+    raisonSociale: _raisonSociale.text,
+    ifu: Ifu.normaliser(_ifu.text),
+    cadastre: ReferenceCadastrale.analyser(_cadastre.text),
+    adresse: _adresse.text,
+    telephone: _contact.text,
+    courriel: _courriel.text,
+    regime: _regime,
+    serviceImpots: _serviceImpots.text,
+    referencesBancaires: _banque.text,
+  );
 
   void _ajouterVendeur() {
     final nom = _nouveauVendeur.text.trim();
@@ -173,8 +177,9 @@ class _EcranReglagesState extends State<EcranReglages> {
   Future<void> _ecrireReglages() async {
     await widget.parametres.definirFiche(_ficheSaisie);
     if (await _numerosAutorises()) {
-      for (final (operateur, champ)
-          in _numeros.entries.map((e) => (e.key, e.value))) {
+      for (final (operateur, champ) in _numeros.entries.map(
+        (e) => (e.key, e.value),
+      )) {
         await widget.parametres.definirNumeroMarchand(operateur, champ.text);
       }
     }
@@ -204,7 +209,8 @@ class _EcranReglagesState extends State<EcranReglages> {
     if (!pose) {
       final choisi = await _demanderCode(
         titre: 'Protéger les numéros',
-        explication: "Tu déclares une équipe. Choisis un code à quatre "
+        explication:
+            "Tu déclares une équipe. Choisis un code à quatre "
             "chiffres : il sera demandé pour changer un numéro marchand. "
             "Sans lui, n'importe qui derrière le comptoir peut faire payer "
             "sur son propre compte.",
@@ -226,9 +232,11 @@ class _EcranReglagesState extends State<EcranReglages> {
     if (mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text("Code refusé. Les numéros n'ont pas été changés."),
-        ));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text("Code refusé. Les numéros n'ont pas été changés."),
+          ),
+        );
     }
     return false;
   }
@@ -237,7 +245,8 @@ class _EcranReglagesState extends State<EcranReglages> {
   bool get _numerosModifies {
     for (final entree in _numeros.entries) {
       final avant = widget.reglage.comptes.numeroDe(entree.key) ?? '';
-      if (normaliserTelephone(entree.value.text) != normaliserTelephone(avant)) {
+      if (normaliserTelephone(entree.value.text) !=
+          normaliserTelephone(avant)) {
         return true;
       }
     }
@@ -309,9 +318,13 @@ class _EcranReglagesState extends State<EcranReglages> {
     if (!_ficheAcceptable()) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('Corrige ce qui est signalé dans la fiche entreprise.'),
-        ));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Corrige ce qui est signalé dans la fiche entreprise.',
+            ),
+          ),
+        );
       return;
     }
 
@@ -333,8 +346,10 @@ class _EcranReglagesState extends State<EcranReglages> {
         children: [
           Text('Ma boutique', style: textes.titleLarge),
           const SizedBox(height: 2),
-          Text("Le nom qui apparaît en tête des reçus et des ardoises.",
-              style: textes.labelSmall),
+          Text(
+            "Le nom qui apparaît en tête des reçus et des ardoises.",
+            style: textes.labelSmall,
+          ),
           const SizedBox(height: Espace.m),
           TextField(
             controller: _nom,
@@ -385,8 +400,11 @@ class _EcranReglagesState extends State<EcranReglages> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 18, color: Couleurs.alerte),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: Couleurs.alerte,
+                ),
                 const SizedBox(width: Espace.s),
                 Expanded(
                   child: Text(
@@ -505,8 +523,7 @@ class _EcranReglagesState extends State<EcranReglages> {
           Center(
             child: Text(
               empreinteVersion,
-              style:
-                  textes.labelSmall?.copyWith(color: Couleurs.encreLegere),
+              style: textes.labelSmall?.copyWith(color: Couleurs.encreLegere),
             ),
           ),
           const SizedBox(height: Espace.xxl),
@@ -684,7 +701,10 @@ class _FicheEntrepriseSectionState extends State<_FicheEntrepriseSection> {
               prefixIcon: Icon(Icons.account_balance_outlined),
             ),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Je ne sais pas')),
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Je ne sais pas'),
+              ),
               for (final choix in RegimeImposition.values)
                 DropdownMenuItem(
                   value: choix,
@@ -763,7 +783,7 @@ class _EtatDeLaFiche extends StatelessWidget {
                   manques.isEmpty
                       ? 'Ta fiche est complète.'
                       : 'Il manque ${manques.length} mention'
-                          '${manques.length > 1 ? 's' : ''} pour facturer.',
+                            '${manques.length > 1 ? 's' : ''} pour facturer.',
                   style: textes.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -776,19 +796,21 @@ class _EtatDeLaFiche extends StatelessWidget {
             for (final manque in manques)
               Padding(
                 padding: const EdgeInsets.only(bottom: Espace.xs),
-                child: Text('· ${manque.quoi} — ${manque.pourquoi}',
-                    style: textes.labelSmall),
+                child: Text(
+                  '· ${manque.quoi} — ${manque.pourquoi}',
+                  style: textes.labelSmall,
+                ),
               ),
           ],
           const SizedBox(height: Espace.s),
           Text(
             fiche.regime?.certificationObligatoire == true
                 ? "Au Régime Normal, la facture électronique certifiée est "
-                    "obligatoire. Elle demande en plus un module de contrôle "
-                    "agréé, qui ne se règle pas depuis cet écran."
+                      "obligatoire. Elle demande en plus un module de contrôle "
+                      "agréé, qui ne se règle pas depuis cet écran."
                 : "Ces mentions préparent la facture certifiée. Elles ne "
-                    "suffisent pas à elles seules : il y faut aussi un module "
-                    "de contrôle agréé.",
+                      "suffisent pas à elles seules : il y faut aussi un module "
+                      "de contrôle agréé.",
             style: textes.labelSmall,
           ),
         ],

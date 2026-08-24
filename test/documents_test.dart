@@ -36,14 +36,17 @@ void main() {
 
   Montant f(num francs) => Montant.depuisDecimal(francs);
 
-  LigneAEnregistrer ligne(String code, String nom, num prix,
-          {num quantite = 1}) =>
-      LigneAEnregistrer(
-        codeArticle: code,
-        designation: nom,
-        prixUnitaire: f(prix),
-        quantite: Quantite.depuisDecimal(quantite),
-      );
+  LigneAEnregistrer ligne(
+    String code,
+    String nom,
+    num prix, {
+    num quantite = 1,
+  }) => LigneAEnregistrer(
+    codeArticle: code,
+    designation: nom,
+    prixUnitaire: f(prix),
+    quantite: Quantite.depuisDecimal(quantite),
+  );
 
   final quand = DateTime(2026, 8, 5, 14, 32);
 
@@ -55,7 +58,7 @@ void main() {
           ligne('HUILE', 'Huile 1 L', 1200),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(2500)),
         ],
         horodatage: quand,
       );
@@ -80,7 +83,9 @@ void main() {
         paiements: [
           PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1000)),
           PaiementAEnregistrer(
-              mode: ModePaiement.mobileMoney, montant: f(2000)),
+            mode: ModePaiement.mobileMoney,
+            montant: f(2000),
+          ),
         ],
         horodatage: quand,
       );
@@ -92,19 +97,26 @@ void main() {
     test('reste lisible sur un petit écran', () async {
       final id = await depot.enregistrerVente(
         lignes: [
-          ligne('LONG', 'Sachet de riz parfumé importé qualité supérieure',
-              12500, quantite: 3),
+          ligne(
+            'LONG',
+            'Sachet de riz parfumé importé qualité supérieure',
+            12500,
+            quantite: 3,
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(37500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(37500)),
         ],
         horodatage: quand,
       );
 
       final recu = (await documents.pourVente(id))!;
       for (final ligne in recu.texte.split('\n')) {
-        expect(ligne.length, lessThanOrEqualTo(40),
-            reason: 'ligne trop longue : « $ligne »');
+        expect(
+          ligne.length,
+          lessThanOrEqualTo(40),
+          reason: 'ligne trop longue : « $ligne »',
+        );
       }
       // Le montant reste présent malgré la troncature du libellé.
       expect(recu.texte, contains('37 500 F'));
@@ -119,8 +131,7 @@ void main() {
         horodatage: quand,
       );
       await depot.ajouterAVente(table, [ligne('RIZGRAS', 'Riz gras', 1500)]);
-      await depot.ajouterAVente(
-          table, [ligne('EAU', 'Eau', 500, quantite: 2)]);
+      await depot.ajouterAVente(table, [ligne('EAU', 'Eau', 500, quantite: 2)]);
 
       final note = (await documents.pourVente(table))!;
       final texte = note.texte;
@@ -139,10 +150,12 @@ void main() {
 
     test('devient un reçu une fois la note soldée', () async {
       final table = await depot.ouvrirVente(
-          contenant: 'Table 4', horodatage: quand);
+        contenant: 'Table 4',
+        horodatage: quand,
+      );
       await depot.ajouterAVente(table, [ligne('TO', 'Tô', 500)]);
       await depot.solder(table, [
-        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
       ]);
 
       final document = (await documents.pourVente(table))!;
@@ -160,7 +173,7 @@ void main() {
       await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz', 2000)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(2000))
+          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(2000)),
         ],
         clientId: awa,
         horodatage: DateTime(2026, 7, 12, 9),
@@ -168,7 +181,7 @@ void main() {
       await depot.enregistrerVente(
         lignes: [ligne('HUILE', 'Huile', 1500)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(1500))
+          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(1500)),
         ],
         clientId: awa,
         horodatage: DateTime(2026, 7, 20, 9),
@@ -194,7 +207,7 @@ void main() {
       await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz', 1000)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(1000))
+          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(1000)),
         ],
         clientId: ali,
         horodatage: quand,
@@ -219,15 +232,18 @@ void main() {
       final comptoir = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz 1 kg', 650, quantite: 2)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(1300)),
         ],
         horodatage: quand,
       );
       final table = await depot.ouvrirVente(
-          contenant: 'Table 12', typeContenant: TypeContenant.table,
-          horodatage: quand);
-      await depot.ajouterAVente(
-          table, [ligne('RG', 'Riz gras poulet', 1500, quantite: 2)]);
+        contenant: 'Table 12',
+        typeContenant: TypeContenant.table,
+        horodatage: quand,
+      );
+      await depot.ajouterAVente(table, [
+        ligne('RG', 'Riz gras poulet', 1500, quantite: 2),
+      ]);
       final credit = await depot.enregistrerVente(
         lignes: [ligne('SAC', 'Sac de riz 50 kg', 25000)],
         paiements: [
@@ -247,8 +263,11 @@ void main() {
 
       for (final texte in textes) {
         for (final ligne in texte.split('\n')) {
-          expect(ligne.length, lessThanOrEqualTo(40),
-              reason: 'ligne trop longue : « $ligne »');
+          expect(
+            ligne.length,
+            lessThanOrEqualTo(40),
+            reason: 'ligne trop longue : « $ligne »',
+          );
         }
       }
     });
@@ -282,7 +301,7 @@ void main() {
       final id = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz', 2000)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(2000))
+          PaiementAEnregistrer(mode: ModePaiement.credit, montant: f(2000)),
         ],
         clientId: awa,
         horodatage: quand,
@@ -301,14 +320,13 @@ void main() {
       num credit = 0,
       num remises = 0,
       int ventes = 0,
-    }) =>
-        RapportDuJour(
-          encaisse: f(encaisse),
-          aCredit: f(credit),
-          remisesAccordees: f(remises),
-          nombreVentes: ventes,
-          articlesEnRupture: 0,
-        );
+    }) => RapportDuJour(
+      encaisse: f(encaisse),
+      aCredit: f(credit),
+      remisesAccordees: f(remises),
+      nombreVentes: ventes,
+      articlesEnRupture: 0,
+    );
 
     test('une journée ordinaire tient en quelques lignes alignées', () {
       final texte = documents
@@ -321,9 +339,10 @@ void main() {
       expect(texte, contains('CHEZ AWA'));
       expect(texte, contains('Journée du 05/08/2026'));
       // Chaque montant tombe sur la même colonne, comme sur un ticket.
-      for (final ligne in texte
-          .split('\n')
-          .where((l) => l.contains(' F') && l.contains(' '))) {
+      for (final ligne
+          in texte
+              .split('\n')
+              .where((l) => l.contains(' F') && l.contains(' '))) {
         expect(ligne.length, 38);
       }
       expect(texte, contains('Rien à racheter.'));
@@ -336,19 +355,24 @@ void main() {
       expect(texte, isNot(contains('Remises')));
     });
 
-    test('les alertes de stock arrivent telles que les analyses les disent',
-        () {
-      final texte = documents
-          .rapportDuSoir(
-            rapport: chiffres(encaisse: 5000, ventes: 3),
-            aRacheter: const ['Riz 1 kg — rupture', 'Huile — il te reste 2 jours'],
-          )
-          .texte;
+    test(
+      'les alertes de stock arrivent telles que les analyses les disent',
+      () {
+        final texte = documents
+            .rapportDuSoir(
+              rapport: chiffres(encaisse: 5000, ventes: 3),
+              aRacheter: const [
+                'Riz 1 kg — rupture',
+                'Huile — il te reste 2 jours',
+              ],
+            )
+            .texte;
 
-      expect(texte, contains('À racheter :'));
-      expect(texte, contains('· Riz 1 kg — rupture'));
-      expect(texte, contains('· Huile — il te reste 2 jours'));
-    });
+        expect(texte, contains('À racheter :'));
+        expect(texte, contains('· Riz 1 kg — rupture'));
+        expect(texte, contains('· Huile — il te reste 2 jours'));
+      },
+    );
   });
 
   group('Qui a servi', () {
@@ -356,7 +380,7 @@ void main() {
       final id = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650)),
         ],
         operateur: vendeur,
         horodatage: quand,
@@ -378,8 +402,10 @@ void main() {
 
     test('le nom arrive avant le détail, pas après le total', () async {
       final texte = await recuAvec(vendeur: 'Issouf');
-      expect(texte.indexOf('Servi par Issouf'),
-          lessThan(texte.indexOf('Riz 1 kg')));
+      expect(
+        texte.indexOf('Servi par Issouf'),
+        lessThan(texte.indexOf('Riz 1 kg')),
+      );
     });
 
     // La note de service n° 2025-0889 range le nom de l'opérateur parmi les
@@ -389,7 +415,7 @@ void main() {
       final id = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650)),
         ],
         operateur: 'Salif',
         horodatage: quand,
@@ -408,7 +434,7 @@ void main() {
       final id = await depot.enregistrerVente(
         lignes: [ligne('RIZ', 'Riz 1 kg', 650)],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(650)),
         ],
         horodatage: quand,
       );
@@ -426,51 +452,59 @@ void main() {
 
     test('une fiche sans mention fiscale ne change rien non plus', () async {
       // Ouvrir la section sans rien y taper ne doit pas modifier les reçus.
-      final lignes = (await recu(Documents(
-        base,
-        nomCommerce: 'Chez Awa',
-        fiche: const FicheEntreprise(nomCommercial: 'Chez Awa'),
-      )))
-          .texte
-          .split('\n');
+      final lignes = (await recu(
+        Documents(
+          base,
+          nomCommerce: 'Chez Awa',
+          fiche: const FicheEntreprise(nomCommercial: 'Chez Awa'),
+        ),
+      )).texte.split('\n');
 
       expect(lignes[1], 'Reçu');
     });
 
-    test('une entreprise voit ses mentions sur ce que le client emporte',
-        () async {
-      final texte = (await recu(Documents(
-        base,
-        nomCommerce: 'Chez Awa',
-        fiche: FicheEntreprise(
-          nomCommercial: 'Chez Awa',
-          ifu: '00012345A',
-          adresse: 'Gounghin, Ouagadougou',
-          cadastre: ReferenceCadastrale.analyser('12345678901'),
-          regime: RegimeImposition.rni,
-        ),
-      )))
-          .texte;
+    test(
+      'une entreprise voit ses mentions sur ce que le client emporte',
+      () async {
+        final texte = (await recu(
+          Documents(
+            base,
+            nomCommerce: 'Chez Awa',
+            fiche: FicheEntreprise(
+              nomCommercial: 'Chez Awa',
+              ifu: '00012345A',
+              adresse: 'Gounghin, Ouagadougou',
+              cadastre: ReferenceCadastrale.analyser('12345678901'),
+              regime: RegimeImposition.rni,
+            ),
+          ),
+        )).texte;
 
-      expect(texte, contains('IFU : 00012345A'));
-      expect(texte, contains('Gounghin, Ouagadougou'));
-      expect(texte, contains('Parcelle : 1234 567 8901'));
-      // Elles précèdent le titre : ce sont des mentions d'en-tête, pas une
-      // note de bas de page.
-      expect(texte.indexOf('IFU : 00012345A'), lessThan(texte.indexOf('Reçu')));
-    });
+        expect(texte, contains('IFU : 00012345A'));
+        expect(texte, contains('Gounghin, Ouagadougou'));
+        expect(texte, contains('Parcelle : 1234 567 8901'));
+        // Elles précèdent le titre : ce sont des mentions d'en-tête, pas une
+        // note de bas de page.
+        expect(
+          texte.indexOf('IFU : 00012345A'),
+          lessThan(texte.indexOf('Reçu')),
+        );
+      },
+    );
 
     test('le papier dit la même chose que le message', () async {
       // Deux versions d'un même reçu qui divergeraient, c'est une
       // contestation gagnée d'avance par le client.
-      final document = await recu(Documents(
-        base,
-        nomCommerce: 'Chez Awa',
-        fiche: const FicheEntreprise(
-          nomCommercial: 'Chez Awa',
-          ifu: '00012345A',
+      final document = await recu(
+        Documents(
+          base,
+          nomCommerce: 'Chez Awa',
+          fiche: const FicheEntreprise(
+            nomCommercial: 'Chez Awa',
+            ifu: '00012345A',
+          ),
         ),
-      ));
+      );
 
       final papier = latin1.decode(
         const TicketEscPos(page: PageDeCode.cp1252).composer(document),
@@ -489,16 +523,19 @@ void main() {
       // — rien n'était peint, et le reçu s'affichait dans un cadre vide. C'est
       // exactement ce que voit quelqu'un qui essaie l'application depuis un
       // iPhone. Vu sur une capture d'écran, jamais par un test.
-      final source =
-          await File('lib/interface/composants/partage.dart').readAsString();
+      final source = await File(
+        'lib/interface/composants/partage.dart',
+      ).readAsString();
 
       expect(source, contains("fontFamily: 'CarnetMono'"));
       expect(source, isNot(contains("fontFamily: 'monospace'")));
     });
 
     test('elle est déclarée et présente dans le dépôt', () async {
-      expect(await File('pubspec.yaml').readAsString(),
-          contains('family: CarnetMono'));
+      expect(
+        await File('pubspec.yaml').readAsString(),
+        contains('family: CarnetMono'),
+      );
       expect(
         await File('assets/polices/DejaVuSansMono-Carnet.ttf').exists(),
         isTrue,

@@ -95,11 +95,13 @@ class _AccueilState extends State<Accueil> {
     final nouveautes = await widget.depot.journal.nombreDepuis(derniere);
     if (!mounted) return;
 
-    setState(() => _rappel = RappelSauvegarde(
-          nouveautes: nouveautes,
-          derniere: derniere,
-          maintenant: DateTime.now(),
-        ));
+    setState(
+      () => _rappel = RappelSauvegarde(
+        nouveautes: nouveautes,
+        derniere: derniere,
+        maintenant: DateTime.now(),
+      ),
+    );
   }
 
   Future<void> _ouvrirSauvegardes() async {
@@ -162,12 +164,14 @@ class _AccueilState extends State<Accueil> {
   Future<void> _changerVendeur(String nom) async {
     await widget.parametres.definirVendeurActif(nom);
     if (!mounted) return;
-    setState(() => _reglage = Reglage(
-          nomCommerce: _reglage.nomCommerce,
-          comptes: _reglage.comptes,
-          vendeurs: _reglage.vendeurs,
-          vendeurActif: nom,
-        ));
+    setState(
+      () => _reglage = Reglage(
+        nomCommerce: _reglage.nomCommerce,
+        comptes: _reglage.comptes,
+        vendeurs: _reglage.vendeurs,
+        vendeurActif: nom,
+      ),
+    );
   }
 
   /// Change d'écran et rafraîchit celui qu'on ouvre.
@@ -211,59 +215,67 @@ class _AccueilState extends State<Accueil> {
     return Scaffold(
       // Les écrans sont conservés en pile : revenir à la caisse ne doit pas
       // faire perdre le panier en cours.
-      body: Column(children: [
-        if (!widget.stockageSur && !_avertissementEcarte)
-          _BandeauDemonstration(onFermer: () =>
-              setState(() => _avertissementEcarte = true)),
-        if (_rappel != null && _rappel!.faut && !_rappelEcarte)
-          _BandeauSauvegarde(
-            message: _rappel!.message,
-            surSauvegarde: _ouvrirSauvegardes,
-            onFermer: () => setState(() => _rappelEcarte = true),
-          ),
-        Expanded(child: IndexedStack(
-        index: _destination,
+      body: Column(
         children: [
-          EcranVente(
-            key: _cleCaisse,
-            depot: widget.depot,
-            documents: _documents,
-            comptes: _reglage.comptes,
-            surConfiguration: _ouvrirReglages,
-            vendeurs: _reglage.vendeurs,
-            vendeurActif: _reglage.vendeurActif,
-            surVendeur: _changerVendeur,
-          ),
-          _onglet(
-            1,
-            () => EcranDettes(
-              key: _cleDettes,
-              depot: widget.depot,
-              documents: _documents,
+          if (!widget.stockageSur && !_avertissementEcarte)
+            _BandeauDemonstration(
+              onFermer: () => setState(() => _avertissementEcarte = true),
             ),
-          ),
-          _onglet(2, () => EcranStock(key: _cleStock, depot: widget.depot)),
-          _onglet(
-            3,
-            () => EcranRapport(
-              key: _cleRapport,
-              depot: widget.depot,
-              documents: _documents,
-              analyses: widget.analyses,
-              surReglages: _ouvrirReglages,
-              // La fiche vient des réglages en cours, pas de celle du
-              // démarrage : un IFU saisi il y a une minute doit être sur le
-              // Z de ce soir.
-              rapports: Rapports(
-                widget.depot.base,
-                widget.depot.journal,
-                fiche: _reglage.fiche,
-              ),
+          if (_rappel != null && _rappel!.faut && !_rappelEcarte)
+            _BandeauSauvegarde(
+              message: _rappel!.message,
+              surSauvegarde: _ouvrirSauvegardes,
+              onFermer: () => setState(() => _rappelEcarte = true),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _destination,
+              children: [
+                EcranVente(
+                  key: _cleCaisse,
+                  depot: widget.depot,
+                  documents: _documents,
+                  comptes: _reglage.comptes,
+                  surConfiguration: _ouvrirReglages,
+                  vendeurs: _reglage.vendeurs,
+                  vendeurActif: _reglage.vendeurActif,
+                  surVendeur: _changerVendeur,
+                ),
+                _onglet(
+                  1,
+                  () => EcranDettes(
+                    key: _cleDettes,
+                    depot: widget.depot,
+                    documents: _documents,
+                  ),
+                ),
+                _onglet(
+                  2,
+                  () => EcranStock(key: _cleStock, depot: widget.depot),
+                ),
+                _onglet(
+                  3,
+                  () => EcranRapport(
+                    key: _cleRapport,
+                    depot: widget.depot,
+                    documents: _documents,
+                    analyses: widget.analyses,
+                    surReglages: _ouvrirReglages,
+                    // La fiche vient des réglages en cours, pas de celle du
+                    // démarrage : un IFU saisi il y a une minute doit être sur le
+                    // Z de ce soir.
+                    rapports: Rapports(
+                      widget.depot.base,
+                      widget.depot.journal,
+                      fiche: _reglage.fiche,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
-        )),
-      ]),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _destination,
         height: 68,
@@ -328,12 +340,19 @@ class _BandeauSauvegarde extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding:
-              const EdgeInsets.fromLTRB(Espace.l, Espace.s, Espace.s, Espace.s),
+          padding: const EdgeInsets.fromLTRB(
+            Espace.l,
+            Espace.s,
+            Espace.s,
+            Espace.s,
+          ),
           child: Row(
             children: [
-              const Icon(Icons.shield_outlined,
-                  size: 18, color: Couleurs.accent),
+              const Icon(
+                Icons.shield_outlined,
+                size: 18,
+                color: Couleurs.accent,
+              ),
               const SizedBox(width: Espace.s),
               Expanded(child: Text(message, style: textes.labelSmall)),
               const SizedBox(width: Espace.s),
@@ -370,12 +389,19 @@ class _BandeauDemonstration extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Espace.l, Espace.s, Espace.s,
-              Espace.s),
+          padding: const EdgeInsets.fromLTRB(
+            Espace.l,
+            Espace.s,
+            Espace.s,
+            Espace.s,
+          ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline_rounded,
-                  size: 18, color: Couleurs.alerte),
+              const Icon(
+                Icons.info_outline_rounded,
+                size: 18,
+                color: Couleurs.alerte,
+              ),
               const SizedBox(width: Espace.s),
               Expanded(
                 child: Text(

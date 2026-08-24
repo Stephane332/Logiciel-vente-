@@ -40,9 +40,9 @@ void main() {
   Montant f(num francs) => Montant.depuisDecimal(francs);
 
   Widget application() => MaterialApp(
-        theme: themeClair(),
-        home: EcranVente(depot: depot, documents: documents),
-      );
+    theme: themeClair(),
+    home: EcranVente(depot: depot, documents: documents),
+  );
 
   /// Garnit le catalogue comme le ferait l'usage : par des ventes.
   Future<void> garnirCatalogue() async {
@@ -57,13 +57,13 @@ void main() {
             designation: nom,
             prixUnitaire: Montant.depuisDecimal(prix),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
           PaiementAEnregistrer(
             mode: ModePaiement.especes,
             montant: Montant.depuisDecimal(prix),
-          )
+          ),
         ],
       );
     }
@@ -174,19 +174,20 @@ void main() {
     expect(rapport.encaisse, f(650 + 1200 + 1200));
   });
 
-  testWidgets("le bandeau de nommage n'apparaît qu'après trois ventes",
-      (tester) async {
+  testWidgets("le bandeau de nommage n'apparaît qu'après trois ventes", (
+    tester,
+  ) async {
     Future<void> vendreMontantLibre() => depot.enregistrerVente(
-          lignes: [
-            LigneAEnregistrer(
-              prixUnitaire: f(500),
-              quantite: const Quantite.unites(1),
-            )
-          ],
-          paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
-          ],
-        );
+      lignes: [
+        LigneAEnregistrer(
+          prixUnitaire: f(500),
+          quantite: const Quantite.unites(1),
+        ),
+      ],
+      paiements: [
+        PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
+      ],
+    );
 
     await vendreMontantLibre();
     await vendreMontantLibre();
@@ -210,10 +211,10 @@ void main() {
           LigneAEnregistrer(
             prixUnitaire: f(500),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
         ],
       );
     }
@@ -233,17 +234,19 @@ void main() {
     expect(find.textContaining('Tu vends souvent'), findsNothing);
   });
 
-  testWidgets("répondre « plusieurs choses » arrête la question", (tester) async {
+  testWidgets("répondre « plusieurs choses » arrête la question", (
+    tester,
+  ) async {
     for (var i = 0; i < 3; i++) {
       await depot.enregistrerVente(
         lignes: [
           LigneAEnregistrer(
             prixUnitaire: f(500),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
         ],
       );
     }
@@ -273,25 +276,29 @@ void main() {
     // ne revient plus sur le fourre-tout.
     final catalogue = await depot.catalogue();
     final crees = catalogue.where((a) => !a.code.startsWith('AUTO-')).toList();
-    expect(crees.map((a) => a.designation).toSet(), {"Sachet d'eau", 'Beignet'});
+    expect(crees.map((a) => a.designation).toSet(), {
+      "Sachet d'eau",
+      'Beignet',
+    });
     expect(crees.every((a) => a.prixCentimes == f(500).centimes), isTrue);
 
     expect(find.textContaining('Tu vends souvent'), findsNothing);
     expect(await depot.articlesANommer(), isEmpty);
   });
 
-  testWidgets('les ventes déjà faites restent sur le fourre-tout',
-      (tester) async {
+  testWidgets('les ventes déjà faites restent sur le fourre-tout', (
+    tester,
+  ) async {
     for (var i = 0; i < 3; i++) {
       await depot.enregistrerVente(
         lignes: [
           LigneAEnregistrer(
             prixUnitaire: f(500),
             quantite: const Quantite.unites(1),
-          )
+          ),
         ],
         paiements: [
-          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+          PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
         ],
       );
     }
@@ -314,8 +321,9 @@ void main() {
 
     // Personne ne saurait dire lesquelles des trois ventes étaient du pain :
     // le journal ne se réécrit pas, et on ne devine pas le passé.
-    final ancien = (await depot.catalogue())
-        .firstWhere((a) => a.code == 'AUTO-50000');
+    final ancien = (await depot.catalogue()).firstWhere(
+      (a) => a.code == 'AUTO-50000',
+    );
     expect(ancien.nombreVentes, 3);
 
     final rapport = await depot.rapportDuJour();
@@ -354,7 +362,11 @@ void main() {
     /// L'appui long ouvre d'abord la feuille d'ajustement — la quantité et le
     /// prix y tombent au même endroit, plutôt que d'inventer un second geste
     /// que personne ne trouverait.
-    Future<void> negocier(WidgetTester tester, String nom, String saisie) async {
+    Future<void> negocier(
+      WidgetTester tester,
+      String nom,
+      String saisie,
+    ) async {
       await tester.longPress(find.text(nom));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Changer le prix pour cette vente'));
@@ -371,8 +383,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets("l'appui long change le prix pour cette vente seulement",
-        (tester) async {
+    testWidgets("l'appui long change le prix pour cette vente seulement", (
+      tester,
+    ) async {
       await garnirCatalogue();
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -389,8 +402,9 @@ void main() {
       expect(find.text('1 article'), findsOneWidget);
     });
 
-    testWidgets('le catalogue garde son prix après la vente négociée',
-        (tester) async {
+    testWidgets('le catalogue garde son prix après la vente négociée', (
+      tester,
+    ) async {
       await garnirCatalogue();
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -411,8 +425,9 @@ void main() {
       expect(Montant(riz.prixCentimes), f(650));
     });
 
-    testWidgets('la remise consentie est comptée dans le rapport',
-        (tester) async {
+    testWidgets('la remise consentie est comptée dans le rapport', (
+      tester,
+    ) async {
       await garnirCatalogue();
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -551,7 +566,10 @@ void main() {
       await tester.tap(find.text('Valider la vente'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining("beaucoup plus que d'habitude"), findsOneWidget);
+      expect(
+        find.textContaining("beaucoup plus que d'habitude"),
+        findsOneWidget,
+      );
 
       // Corriger : rien ne s'enregistre.
       await tester.tap(find.text('Corriger'));
@@ -591,43 +609,52 @@ void main() {
 
       // Le bouton reste inerte au lieu de fermer la feuille sans rien dire.
       final bouton = tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'Encaisser'));
+        find.widgetWithText(FilledButton, 'Encaisser'),
+      );
       expect(bouton.onPressed, isNull);
     });
   });
 
   group('Le stockage se prouve, il ne se promet pas', () {
     testWidgets('un stockage non démontré se signale', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: Accueil(
-          depot: depot,
-          documents: documents,
-          analyses: analyses,
-          parametres: Parametres(base),
-          reglage: const Reglage(
-              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
-          stockageSur: false,
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: Accueil(
+            depot: depot,
+            documents: documents,
+            analyses: analyses,
+            parametres: Parametres(base),
+            reglage: const Reglage(
+              nomCommerce: 'Test',
+              comptes: ComptesMarchands.aucun(),
+            ),
+            stockageSur: false,
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('peut ne pas être retrouvé'), findsOneWidget);
     });
 
     testWidgets("l'avertissement se ferme et ne revient pas", (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: Accueil(
-          depot: depot,
-          documents: documents,
-          analyses: analyses,
-          parametres: Parametres(base),
-          reglage: const Reglage(
-              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
-          stockageSur: false,
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: Accueil(
+            depot: depot,
+            documents: documents,
+            analyses: analyses,
+            parametres: Parametres(base),
+            reglage: const Reglage(
+              nomCommerce: 'Test',
+              comptes: ComptesMarchands.aucun(),
+            ),
+            stockageSur: false,
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip("J'ai compris"));
@@ -638,17 +665,21 @@ void main() {
     testWidgets('sur un téléphone, rien ne prévient de rien', (tester) async {
       // La base y est un fichier : la question ne se pose pas, et un
       // avertissement inutile use la confiance.
-      await tester.pumpWidget(MaterialApp(
-        theme: themeClair(),
-        home: Accueil(
-          depot: depot,
-          documents: documents,
-          analyses: analyses,
-          parametres: Parametres(base),
-          reglage: const Reglage(
-              nomCommerce: 'Test', comptes: ComptesMarchands.aucun()),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeClair(),
+          home: Accueil(
+            depot: depot,
+            documents: documents,
+            analyses: analyses,
+            parametres: Parametres(base),
+            reglage: const Reglage(
+              nomCommerce: 'Test',
+              comptes: ComptesMarchands.aucun(),
+            ),
+          ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('peut ne pas être retrouvé'), findsNothing);

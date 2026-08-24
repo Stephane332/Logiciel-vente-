@@ -63,7 +63,9 @@ void main() {
     DateTime? quand,
     ModePaiement mode = ModePaiement.especes,
   }) {
-    final total = f(prix).multiplieParQuantite(Quantite.depuisDecimal(quantite));
+    final total = f(
+      prix,
+    ).multiplieParQuantite(Quantite.depuisDecimal(quantite));
     return depot.enregistrerVente(
       lignes: [
         LigneAEnregistrer(
@@ -71,7 +73,7 @@ void main() {
           designation: nom,
           prixUnitaire: f(prix),
           quantite: Quantite.depuisDecimal(quantite),
-        )
+        ),
       ],
       paiements: [PaiementAEnregistrer(mode: mode, montant: total)],
       clientId: clientId,
@@ -81,11 +83,11 @@ void main() {
 
   group('Cahier de dettes', () {
     Widget application() => MaterialApp(
-          theme: themeClair(),
-          home: Scaffold(
-            body: EcranDettes(depot: depot, documents: documents),
-          ),
-        );
+      theme: themeClair(),
+      home: Scaffold(
+        body: EcranDettes(depot: depot, documents: documents),
+      ),
+    );
 
     testWidgets('un cahier vide le dit clairement', (tester) async {
       await tester.pumpWidget(application());
@@ -94,14 +96,21 @@ void main() {
       expect(find.text('Personne ne te doit rien'), findsOneWidget);
     });
 
-    testWidgets('une vente à crédit fait apparaître le débiteur',
-        (tester) async {
+    testWidgets('une vente à crédit fait apparaître le débiteur', (
+      tester,
+    ) async {
       final client = await depot.creerClient(
         nom: 'Salif Ouédraogo',
         telephone: '70 11 22 33',
       );
-      await vendre('RIZ', 'Riz 1 kg', 650,
-          quantite: 4, clientId: client, mode: ModePaiement.credit);
+      await vendre(
+        'RIZ',
+        'Riz 1 kg',
+        650,
+        quantite: 4,
+        clientId: client,
+        mode: ModePaiement.credit,
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -120,8 +129,13 @@ void main() {
     testWidgets('le total additionne tous les débiteurs', (tester) async {
       for (final (nom, montant) in const [('Awa', 1000), ('Boukary', 500)]) {
         final client = await depot.creerClient(nom: nom);
-        await vendre('DIVERS', 'Divers', montant,
-            clientId: client, mode: ModePaiement.credit);
+        await vendre(
+          'DIVERS',
+          'Divers',
+          montant,
+          clientId: client,
+          mode: ModePaiement.credit,
+        );
       }
 
       await tester.pumpWidget(application());
@@ -139,12 +153,21 @@ void main() {
       final ancien = await depot.creerClient(nom: 'Vieille dette');
       final recent = await depot.creerClient(nom: 'Dette du jour');
 
-      await vendre('DIVERS', 'Divers', 1000,
-          clientId: ancien,
-          mode: ModePaiement.credit,
-          quand: DateTime.now().subtract(const Duration(days: 60)));
-      await vendre('DIVERS', 'Divers', 1000,
-          clientId: recent, mode: ModePaiement.credit);
+      await vendre(
+        'DIVERS',
+        'Divers',
+        1000,
+        clientId: ancien,
+        mode: ModePaiement.credit,
+        quand: DateTime.now().subtract(const Duration(days: 60)),
+      );
+      await vendre(
+        'DIVERS',
+        'Divers',
+        1000,
+        clientId: recent,
+        mode: ModePaiement.credit,
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -158,11 +181,17 @@ void main() {
       expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
-    testWidgets('encaisser un remboursement partiel réduit la dette',
-        (tester) async {
+    testWidgets('encaisser un remboursement partiel réduit la dette', (
+      tester,
+    ) async {
       final client = await depot.creerClient(nom: 'Salif');
-      await vendre('DIVERS', 'Divers', 3000,
-          clientId: client, mode: ModePaiement.credit);
+      await vendre(
+        'DIVERS',
+        'Divers',
+        3000,
+        clientId: client,
+        mode: ModePaiement.credit,
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -183,8 +212,13 @@ void main() {
 
     testWidgets('le raccourci « Tout » solde la dette', (tester) async {
       final client = await depot.creerClient(nom: 'Salif');
-      await vendre('DIVERS', 'Divers', 3000,
-          clientId: client, mode: ModePaiement.credit);
+      await vendre(
+        'DIVERS',
+        'Divers',
+        3000,
+        clientId: client,
+        mode: ModePaiement.credit,
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -203,18 +237,19 @@ void main() {
 
   group('Rapport du soir', () {
     Widget application() => MaterialApp(
-          theme: themeClair(),
-          home: Scaffold(
-            body: EcranRapport(
-              depot: depot,
-              documents: documents,
-              analyses: analyses,
-            ),
-          ),
-        );
+      theme: themeClair(),
+      home: Scaffold(
+        body: EcranRapport(
+          depot: depot,
+          documents: documents,
+          analyses: analyses,
+        ),
+      ),
+    );
 
-    testWidgets('une journée sans vente affiche zéro sans planter',
-        (tester) async {
+    testWidgets('une journée sans vente affiche zéro sans planter', (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
 
@@ -222,14 +257,19 @@ void main() {
       expect(find.text('0 vente'), findsOneWidget);
     });
 
-    testWidgets("le rapport montre ce qui a été encaissé aujourd'hui",
-        (tester) async {
+    testWidgets("le rapport montre ce qui a été encaissé aujourd'hui", (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650, quantite: 2);
       await vendre('HUILE', 'Huile 1 L', 1200);
 
       // Une vente d'hier ne doit pas remonter dans le total du jour.
-      await vendre('RIZ', 'Riz 1 kg', 650,
-          quand: DateTime.now().subtract(const Duration(days: 1)));
+      await vendre(
+        'RIZ',
+        'Riz 1 kg',
+        650,
+        quand: DateTime.now().subtract(const Duration(days: 1)),
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
@@ -242,28 +282,38 @@ void main() {
       expect(find.text('2 ventes'), findsOneWidget);
     });
 
-    testWidgets('le crédit du jour est distingué de l\'encaissé',
-        (tester) async {
+    testWidgets('le crédit du jour est distingué de l\'encaissé', (
+      tester,
+    ) async {
       final client = await depot.creerClient(nom: 'Salif');
       await vendre('RIZ', 'Riz 1 kg', 650);
-      await vendre('HUILE', 'Huile 1 L', 1200,
-          clientId: client, mode: ModePaiement.credit);
+      await vendre(
+        'HUILE',
+        'Huile 1 L',
+        1200,
+        clientId: client,
+        mode: ModePaiement.credit,
+      );
 
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
 
       // Encaissé en grand, crédit dans sa pastille : ce sont deux natures
       // d'argent différentes et l'écran ne doit jamais les additionner.
-      final entete = tester.widget<MontantAnime>(find.byType(MontantAnime).first);
+      final entete = tester.widget<MontantAnime>(
+        find.byType(MontantAnime).first,
+      );
       expect(entete.montant, f(650));
 
       final credit = tester.widget<PastilleMontant>(
-          find.widgetWithText(PastilleMontant, 'À crédit'));
+        find.widgetWithText(PastilleMontant, 'À crédit'),
+      );
       expect(credit.montant, f(1200));
     });
 
-    testWidgets('« Ce qui rapporte » classe les articles de la semaine',
-        (tester) async {
+    testWidgets('« Ce qui rapporte » classe les articles de la semaine', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650, quantite: 10);
       await vendre('HUILE', 'Huile 1 L', 1200);
 
@@ -277,8 +327,9 @@ void main() {
       expect(riz.dy, lessThan(huile.dy));
     });
 
-    testWidgets('la rupture de stock apparaît dans « À racheter »',
-        (tester) async {
+    testWidgets('la rupture de stock apparaît dans « À racheter »', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650, quantite: 5);
       await depot.definirSuiviStock('RIZ', SuiviStock.direct);
       await depot.ajusterStock('RIZ', const Quantite.unites(0));
@@ -292,8 +343,9 @@ void main() {
       expect(find.text('rupture'), findsOneWidget);
     });
 
-    testWidgets('le résumé envoyé reprend les chiffres affichés',
-        (tester) async {
+    testWidgets('le résumé envoyé reprend les chiffres affichés', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650, quantite: 2);
 
       await tester.pumpWidget(application());
@@ -304,8 +356,12 @@ void main() {
 
       // Le document part en un seul bloc de texte, aligné en chasse fixe.
       expect(
-        find.textContaining(RegExp(r'ALIMENTATION NABONSWENDÉ[\s\S]*'
-            r'Encaissé\s+1 300 F')),
+        find.textContaining(
+          RegExp(
+            r'ALIMENTATION NABONSWENDÉ[\s\S]*'
+            r'Encaissé\s+1 300 F',
+          ),
+        ),
         findsOneWidget,
       );
     });
@@ -313,18 +369,18 @@ void main() {
 
   group('Coquille de navigation', () {
     Widget application() => MaterialApp(
-          theme: themeClair(),
-          home: Accueil(
-            depot: depot,
-            documents: documents,
-            analyses: analyses,
-            parametres: Parametres(base),
-            reglage: const Reglage(
-              nomCommerce: 'Alimentation Nabonswendé',
-              comptes: ComptesMarchands.aucun(),
-            ),
-          ),
-        );
+      theme: themeClair(),
+      home: Accueil(
+        depot: depot,
+        documents: documents,
+        analyses: analyses,
+        parametres: Parametres(base),
+        reglage: const Reglage(
+          nomCommerce: 'Alimentation Nabonswendé',
+          comptes: ComptesMarchands.aucun(),
+        ),
+      ),
+    );
 
     testWidgets('les trois destinations sont accessibles', (tester) async {
       await tester.pumpWidget(application());
@@ -341,8 +397,9 @@ void main() {
       expect(find.text('encaissés'), findsOneWidget);
     });
 
-    testWidgets("le bandeau de vente ne suit pas sur les autres onglets",
-        (tester) async {
+    testWidgets("le bandeau de vente ne suit pas sur les autres onglets", (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
 
@@ -372,8 +429,9 @@ void main() {
       expect(find.textContaining('Vente enregistrée'), findsNothing);
     });
 
-    testWidgets('revenir à la caisse ne perd pas le panier en cours',
-        (tester) async {
+    testWidgets('revenir à la caisse ne perd pas le panier en cours', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650);
 
       await tester.pumpWidget(application());
@@ -421,13 +479,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('1 vente'), findsOneWidget);
-      final entete =
-          tester.widget<MontantAnime>(find.byType(MontantAnime).first);
+      final entete = tester.widget<MontantAnime>(
+        find.byType(MontantAnime).first,
+      );
       expect(entete.montant, f(500));
     });
 
-    testWidgets('un article créé au stock est vendable à la caisse',
-        (tester) async {
+    testWidgets('un article créé au stock est vendable à la caisse', (
+      tester,
+    ) async {
       await tester.pumpWidget(application());
       await tester.pumpAndSettle();
 
@@ -437,9 +497,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextField, "Nom de l'article"), 'Savon');
+        find.widgetWithText(TextField, "Nom de l'article"),
+        'Savon',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'Prix de vente'), '350');
+        find.widgetWithText(TextField, 'Prix de vente'),
+        '350',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
       await tester.pumpAndSettle();
@@ -451,95 +515,118 @@ void main() {
       expect(find.text('Savon'), findsOneWidget);
     });
 
-    testWidgets('le cahier de dettes se remet à jour après une vente à crédit',
-        (tester) async {
-      await tester.pumpWidget(application());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'le cahier de dettes se remet à jour après une vente à crédit',
+      (tester) async {
+        await tester.pumpWidget(application());
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Dettes'));
-      await tester.pumpAndSettle();
-      expect(find.text('Personne ne te doit rien'), findsOneWidget);
+        await tester.tap(find.text('Dettes'));
+        await tester.pumpAndSettle();
+        expect(find.text('Personne ne te doit rien'), findsOneWidget);
 
-      final client = await depot.creerClient(nom: 'Salif');
-      await vendre('DIVERS', 'Divers', 2000,
-          clientId: client, mode: ModePaiement.credit);
+        final client = await depot.creerClient(nom: 'Salif');
+        await vendre(
+          'DIVERS',
+          'Divers',
+          2000,
+          clientId: client,
+          mode: ModePaiement.credit,
+        );
 
-      await tester.tap(find.text('Caisse'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Dettes'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Caisse'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Dettes'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Salif'), findsOneWidget);
-    });
+        expect(find.text('Salif'), findsOneWidget);
+      },
+    );
   });
 
   group("Règles descendues dans le domaine", () {
-    test('un numéro se rend en forme internationale quelle que soit sa saisie',
-        () {
-      for (final saisie in ['70112233', '+226 70 11 22 33', '0022670112233']) {
-        expect(telephoneInternational(saisie), '22670112233');
-      }
-      expect(telephoneInternational(null), isNull);
-      expect(telephoneInternational('12'), isNull);
-    });
+    test(
+      'un numéro se rend en forme internationale quelle que soit sa saisie',
+      () {
+        for (final saisie in [
+          '70112233',
+          '+226 70 11 22 33',
+          '0022670112233',
+        ]) {
+          expect(telephoneInternational(saisie), '22670112233');
+        }
+        expect(telephoneInternational(null), isNull);
+        expect(telephoneInternational('12'), isNull);
+      },
+    );
 
     test("l'ancienneté d'une dette se mesure au jour près", () async {
       final client = await depot.creerClient(nom: 'Salif');
       final maintenant = DateTime(2026, 8, 5, 12);
 
-      await vendre('DIVERS', 'Divers', 1000,
-          clientId: client,
-          mode: ModePaiement.credit,
-          quand: maintenant.subtract(const Duration(days: 40)));
+      await vendre(
+        'DIVERS',
+        'Divers',
+        1000,
+        clientId: client,
+        mode: ModePaiement.credit,
+        quand: maintenant.subtract(const Duration(days: 40)),
+      );
 
       final ligne = (await depot.clientsDebiteurs()).single;
       expect(ligne.ageEnJours(maintenant), 40);
       expect(ligne.detteAncienne(maintenant), isTrue);
     });
 
-    test('une dette de la veille reste une facilité, pas une créance',
-        () async {
-      final client = await depot.creerClient(nom: 'Awa');
-      final maintenant = DateTime(2026, 8, 5, 12);
+    test(
+      'une dette de la veille reste une facilité, pas une créance',
+      () async {
+        final client = await depot.creerClient(nom: 'Awa');
+        final maintenant = DateTime(2026, 8, 5, 12);
 
-      await vendre('DIVERS', 'Divers', 1000,
+        await vendre(
+          'DIVERS',
+          'Divers',
+          1000,
           clientId: client,
           mode: ModePaiement.credit,
-          quand: maintenant.subtract(const Duration(days: 1)));
+          quand: maintenant.subtract(const Duration(days: 1)),
+        );
 
-      final ligne = (await depot.clientsDebiteurs()).single;
-      expect(ligne.detteAncienne(maintenant), isFalse);
-    });
+        final ligne = (await depot.clientsDebiteurs()).single;
+        expect(ligne.detteAncienne(maintenant), isFalse);
+      },
+    );
 
     test('le seuil est franc : 30 jours bascule, 29 non', () async {
       final client = await depot.creerClient(nom: 'Boukary');
       final maintenant = DateTime(2026, 8, 5, 12);
 
-      await vendre('DIVERS', 'Divers', 1000,
-          clientId: client,
-          mode: ModePaiement.credit,
-          quand: maintenant.subtract(Duration(days: Depot.joursDetteAncienne)));
+      await vendre(
+        'DIVERS',
+        'Divers',
+        1000,
+        clientId: client,
+        mode: ModePaiement.credit,
+        quand: maintenant.subtract(Duration(days: Depot.joursDetteAncienne)),
+      );
 
       final ligne = (await depot.clientsDebiteurs()).single;
       expect(ligne.detteAncienne(maintenant), isTrue);
       expect(
-        ligne.detteAncienne(
-            maintenant.subtract(const Duration(days: 1))),
+        ligne.detteAncienne(maintenant.subtract(const Duration(days: 1))),
         isFalse,
       );
     });
   });
 
   group('Encaissement par téléphone', () {
-    Widget caisse({ComptesMarchands comptes = const ComptesMarchands.aucun()}) =>
-        MaterialApp(
-          theme: themeClair(),
-          home: EcranVente(
-            depot: depot,
-            documents: documents,
-            comptes: comptes,
-          ),
-        );
+    Widget caisse({
+      ComptesMarchands comptes = const ComptesMarchands.aucun(),
+    }) => MaterialApp(
+      theme: themeClair(),
+      home: EcranVente(depot: depot, documents: documents, comptes: comptes),
+    );
 
     Future<void> ouvrirMobileMoney(WidgetTester tester) async {
       await tester.tap(find.text('Riz 1 kg'));
@@ -550,26 +637,33 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets("sans compte marchand, on explique au lieu d'afficher un code",
-        (tester) async {
+    testWidgets(
+      "sans compte marchand, on explique au lieu d'afficher un code",
+      (tester) async {
+        await vendre('RIZ', 'Riz 1 kg', 2500);
+        await tester.pumpWidget(caisse());
+        await tester.pumpAndSettle();
+
+        await ouvrirMobileMoney(tester);
+
+        // Un code QR sans numéro configuré ne paierait personne.
+        expect(
+          find.textContaining('sur quel numéro tu veux être payé'),
+          findsOneWidget,
+        );
+        expect(find.byType(QrImageView), findsNothing);
+      },
+    );
+
+    testWidgets('avec un compte, le code du client est affiché en entier', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 2500);
-      await tester.pumpWidget(caisse());
-      await tester.pumpAndSettle();
-
-      await ouvrirMobileMoney(tester);
-
-      // Un code QR sans numéro configuré ne paierait personne.
-      expect(find.textContaining('sur quel numéro tu veux être payé'),
-          findsOneWidget);
-      expect(find.byType(QrImageView), findsNothing);
-    });
-
-    testWidgets('avec un compte, le code du client est affiché en entier',
-        (tester) async {
-      await vendre('RIZ', 'Riz 1 kg', 2500);
-      await tester.pumpWidget(caisse(
-        comptes: const ComptesMarchands({OperateurMobile.orange: '70000000'}),
-      ));
+      await tester.pumpWidget(
+        caisse(
+          comptes: const ComptesMarchands({OperateurMobile.orange: '70000000'}),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await ouvrirMobileMoney(tester);
@@ -578,15 +672,18 @@ void main() {
       expect(find.byType(QrImageView), findsOneWidget);
     });
 
-    testWidgets("seuls les opérateurs configurés sont proposés",
-        (tester) async {
+    testWidgets("seuls les opérateurs configurés sont proposés", (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 2500);
-      await tester.pumpWidget(caisse(
-        comptes: const ComptesMarchands({
-          OperateurMobile.orange: '70000000',
-          OperateurMobile.moov: '60112233',
-        }),
-      ));
+      await tester.pumpWidget(
+        caisse(
+          comptes: const ComptesMarchands({
+            OperateurMobile.orange: '70000000',
+            OperateurMobile.moov: '60112233',
+          }),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await ouvrirMobileMoney(tester);
@@ -598,12 +695,14 @@ void main() {
 
     testWidgets("changer d'opérateur change le code affiché", (tester) async {
       await vendre('RIZ', 'Riz 1 kg', 2500);
-      await tester.pumpWidget(caisse(
-        comptes: const ComptesMarchands({
-          OperateurMobile.orange: '70000000',
-          OperateurMobile.moov: '60112233',
-        }),
-      ));
+      await tester.pumpWidget(
+        caisse(
+          comptes: const ComptesMarchands({
+            OperateurMobile.orange: '70000000',
+            OperateurMobile.moov: '60112233',
+          }),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await ouvrirMobileMoney(tester);
@@ -616,15 +715,18 @@ void main() {
 
   group('Stock', () {
     Widget application() => MaterialApp(
-          theme: themeClair(),
-          home: Scaffold(body: EcranStock(depot: depot)),
-        );
+      theme: themeClair(),
+      home: Scaffold(body: EcranStock(depot: depot)),
+    );
 
     Quantite q(num unites) => Quantite.depuisDecimal(unites);
 
     /// Saisit une quantité sur le pavé, puis valide.
-    Future<void> saisir(WidgetTester tester, String chiffres,
-        String valider) async {
+    Future<void> saisir(
+      WidgetTester tester,
+      String chiffres,
+      String valider,
+    ) async {
       for (final touche in chiffres.split('')) {
         await tester.tap(find.widgetWithText(InkWell, touche));
         await tester.pump();
@@ -641,8 +743,9 @@ void main() {
       expect(find.text('Rien à compter pour le moment'), findsOneWidget);
     });
 
-    testWidgets('un article vendu souvent finit par être proposé',
-        (tester) async {
+    testWidgets('un article vendu souvent finit par être proposé', (
+      tester,
+    ) async {
       for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
         await vendre('RIZ', 'Riz 1 kg', 650);
       }
@@ -653,8 +756,9 @@ void main() {
       expect(find.textContaining('Tu vends souvent Riz 1 kg'), findsOneWidget);
     });
 
-    testWidgets('accepter le suivi fait entrer l\'article dans le stock',
-        (tester) async {
+    testWidgets('accepter le suivi fait entrer l\'article dans le stock', (
+      tester,
+    ) async {
       for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
         await vendre('RIZ', 'Riz 1 kg', 650);
       }
@@ -671,7 +775,9 @@ void main() {
       expect(find.text('40'), findsOneWidget);
     });
 
-    testWidgets('« plus tard » range l\'article sans le perdre', (tester) async {
+    testWidgets('« plus tard » range l\'article sans le perdre', (
+      tester,
+    ) async {
       for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
         await vendre('RIZ', 'Riz 1 kg', 650);
       }
@@ -690,8 +796,9 @@ void main() {
       expect(find.text('Riz 1 kg'), findsOneWidget);
     });
 
-    testWidgets('on peut compter un article rangé après un « plus tard »',
-        (tester) async {
+    testWidgets('on peut compter un article rangé après un « plus tard »', (
+      tester,
+    ) async {
       for (var i = 0; i < Depot.seuilDeSuiviStock; i++) {
         await vendre('RIZ', 'Riz 1 kg', 650);
       }
@@ -716,12 +823,17 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextField, "Nom de l'article"), 'Savon');
+        find.widgetWithText(TextField, "Nom de l'article"),
+        'Savon',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'Prix de vente'), '350');
+        find.widgetWithText(TextField, 'Prix de vente'),
+        '350',
+      );
       await tester.enterText(
-          find.widgetWithText(TextField, 'Quantité en stock (facultatif)'),
-          '24');
+        find.widgetWithText(TextField, 'Quantité en stock (facultatif)'),
+        '24',
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Enregistrer'));
@@ -731,8 +843,9 @@ void main() {
       expect(find.text('24'), findsOneWidget);
     });
 
-    testWidgets('un article sans nom se signale dans la liste du bas',
-        (tester) async {
+    testWidgets('un article sans nom se signale dans la liste du bas', (
+      tester,
+    ) async {
       // Trois ventes à montant libre : l'article existe mais n'a pas de nom.
       for (var i = 0; i < 3; i++) {
         await depot.enregistrerVente(
@@ -740,10 +853,10 @@ void main() {
             LigneAEnregistrer(
               prixUnitaire: f(500),
               quantite: const Quantite.unites(1),
-            )
+            ),
           ],
           paiements: [
-            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500))
+            PaiementAEnregistrer(mode: ModePaiement.especes, montant: f(500)),
           ],
         );
       }
@@ -817,9 +930,9 @@ void main() {
 
   group('Vente à crédit', () {
     Widget caisse() => MaterialApp(
-          theme: themeClair(),
-          home: EcranVente(depot: depot, documents: documents),
-        );
+      theme: themeClair(),
+      home: EcranVente(depot: depot, documents: documents),
+    );
 
     Future<void> ouvrirCredit(WidgetTester tester) async {
       await tester.tap(find.text('Riz 1 kg'));
@@ -830,8 +943,9 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('on ne peut pas valider une dette sans savoir à qui',
-        (tester) async {
+    testWidgets('on ne peut pas valider une dette sans savoir à qui', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650);
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -841,12 +955,14 @@ void main() {
       // Une dette sans nom, c'est de l'argent perdu.
       expect(find.text('À qui ?'), findsWidgets);
       final bouton = tester.widget<FilledButton>(
-          find.widgetWithText(FilledButton, 'À qui ?'));
+        find.widgetWithText(FilledButton, 'À qui ?'),
+      );
       expect(bouton.onPressed, isNull);
     });
 
-    testWidgets('créer un client au comptoir puis noter la dette',
-        (tester) async {
+    testWidgets('créer un client au comptoir puis noter la dette', (
+      tester,
+    ) async {
       await vendre('RIZ', 'Riz 1 kg', 650);
       await tester.pumpWidget(caisse());
       await tester.pumpAndSettle();
@@ -857,8 +973,9 @@ void main() {
 
       await tester.enterText(find.widgetWithText(TextField, 'Nom'), 'Salif');
       await tester.enterText(
-          find.widgetWithText(TextField, 'Téléphone (facultatif)'),
-          '70112233');
+        find.widgetWithText(TextField, 'Téléphone (facultatif)'),
+        '70112233',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Enregistrer'));
       await tester.pumpAndSettle();
@@ -885,10 +1002,11 @@ void main() {
       await tester.tap(find.text('Montant\nlibre'));
       await tester.pumpAndSettle();
       for (final touche in ['7', '5', '0', '0']) {
-        await tester.tap(find.descendant(
-          of: find.byType(InkWell),
-          matching: find.text(touche),
-        ).first);
+        await tester.tap(
+          find
+              .descendant(of: find.byType(InkWell), matching: find.text(touche))
+              .first,
+        );
       }
       await tester.pumpAndSettle();
       await tester.tap(find.text('Encaisser').last);

@@ -328,6 +328,31 @@ void main() {
       expect(mouvements.single.nature, NatureMouvementCaisse.retrait);
     });
 
+    testWidgets('le résumé envoyé au patron porte le comptage', (
+      tester,
+    ) async {
+      // Le patron absent ne lit que ce message. Un écart qui n'y figure pas
+      // est un écart que personne ne voit, et le comptage n'aura servi à
+      // rien.
+      await vendre(prix: 1500);
+      await depot.pointerLaCaisse(
+        compte: Montant.depuisDecimal(1000),
+        attendu: Montant.depuisDecimal(1500),
+        operateur: 'Awa',
+      );
+      await ouvrir(tester);
+
+      await tester.tap(find.text('Envoyer le résumé'));
+      await tester.pumpAndSettle();
+
+      final texte = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data ?? '')
+          .join('\n');
+      expect(texte, contains('Caisse comptée'));
+      expect(texte, contains('il manque 500 F'));
+    });
+
     testWidgets("sans comptage, la section n'existe pas", (tester) async {
       await vendre();
       await ouvrir(tester);

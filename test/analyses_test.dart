@@ -246,6 +246,20 @@ void main() {
       expect(alertes.single.message, contains('4 jours'));
     });
 
+    test("un article arrivé hier n'est pas jugé sur quinze jours", () async {
+      // Vingt sachets vendus hier, cent en stock : ça part en cinq jours, et
+      // il faut le racheter. Étalé de force sur quinze jours d'observation,
+      // le même article annonce soixante-dix jours de tranquillité — et la
+      // boutique tombe en rupture pendant que l'application rassure.
+      await vendre('EAU', 'Sachet', 100, quantite: 20, quand: ilYA(1));
+      await depot.ajusterStock('EAU', const Quantite.unites(100));
+
+      final alertes = await analyses.aReapprovisionner(maintenant: maintenant);
+
+      expect(alertes.map((a) => a.code), ['EAU']);
+      expect(alertes.single.joursRestants, 5);
+    });
+
     test("n'alerte pas quand le stock tient largement", () async {
       for (var j = 14; j > 0; j--) {
         await vendre('RIZ', 'Riz', 650, quand: ilYA(j));

@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 
 import '../../donnees/analyses.dart';
 import '../../donnees/depot.dart';
+import '../../domaine/document_client.dart';
 import '../../domaine/montant.dart';
 import '../../domaine/periode.dart';
 import '../../domaine/rapport_fiscal.dart';
@@ -541,8 +542,33 @@ class EcranRapportState extends State<EcranRapport> {
                 combien: part.total,
               ),
         ],
+        comptage: _comptageDuSoir,
       )
       .texte;
+
+  /// Les comptages de la période, réunis en une ligne pour le message.
+  ///
+  /// Le patron qui n'est pas au magasin ne lit que ce message : mesurer le
+  /// tiroir ne sert à rien si la mesure ne lui remonte pas. Nul quand
+  /// personne n'a compté — et le message se tait alors, au lieu d'afficher un
+  /// zéro qui laisserait croire que la caisse a été vérifiée.
+  ComptageDuSoir? get _comptageDuSoir {
+    if (_ecarts.isEmpty) return null;
+
+    var comptages = 0;
+    var cumul = const Montant.zero();
+    var manques = const Montant.zero();
+    for (final ecart in _ecarts) {
+      comptages += ecart.comptages;
+      cumul = cumul + ecart.cumul;
+      manques = manques + ecart.manques;
+    }
+    return ComptageDuSoir(
+      comptages: comptages,
+      cumul: cumul,
+      manques: manques,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

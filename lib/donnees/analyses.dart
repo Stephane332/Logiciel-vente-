@@ -359,7 +359,8 @@ class Analyses {
         .customSelect(
           '''
       SELECT l.code_article            AS code,
-             SUM(l.quantite_milliemes) AS quantite
+             SUM(l.quantite_milliemes) AS quantite,
+             MIN(v.horodatage)         AS premiere
       FROM lignes_vente l
       JOIN ventes v ON v.id = l.vente_id
       WHERE v.annulee = 0 AND v.horodatage >= ? AND v.horodatage < ?
@@ -375,12 +376,33 @@ class Analyses {
         ligne.read<String>('code'): ligne.read<int>('quantite'),
     };
 
+    // Depuis quand chaque article se vend, pour ne pas diviser son rythme par
+    // des jours où il n'existait pas.
+    final depuis = {
+      for (final ligne in vitesses)
+        ligne.read<String>('code'): ligne.read<DateTime>('premiere'),
+    };
+
     final alertes = <AlerteStock>[];
     for (final article in articles) {
       final stock = article.stockMilliemes;
       if (stock == null) continue;
 
-      final parJour = (vendu[article.code] ?? 0) / 1000 / fenetreObservation;
+      // Le rythme se calcule sur les jours où l'article existait, pas sur la
+      // fenêtre entière.
+      //
+      // C'était le défaut : vingt sachets vendus hier, étalés d'office sur
+      // quinze jours, donnaient un sachet et demi par jour. Cent en stock
+      // annonçaient alors soixante-dix jours de tranquillité au lieu de cinq,
+      // et la boutique tombait en rupture pendant que l'application
+      // rassurait. Un article neuf est exactement celui dont on ne connaît
+      // pas encore le rythme — c'est là qu'il ne faut pas inventer.
+      final jours = _joursObserves(
+        depuis[article.code],
+        reference,
+        fenetreObservation,
+      );
+      final parJour = (vendu[article.code] ?? 0) / 1000 / jours;
       final restants = parJour <= 0 ? null : (stock / 1000 / parJour).floor();
 
       // On alerte si c'est en rupture, ou s'il reste moins de jours que le
@@ -405,6 +427,23 @@ class Analyses {
       return (a.joursRestants ?? 9999).compareTo(b.joursRestants ?? 9999);
     });
     return alertes;
+  }
+
+  /// Sur combien de jours juger le rythme d'un article.
+  ///
+  /// Depuis sa première vente, sans jamais dépasser la fenêtre d'observation
+  /// et sans jamais descendre sous un jour — sinon un article vendu il y a
+  /// une heure aurait un rythme infini et crierait à la rupture d'un stock
+  /// plein.
+  static int _joursObserves(
+    DateTime? premiere,
+    DateTime reference,
+    int fenetre,
+  ) {
+    if (premiere == null) return fenetre;
+    final ecoules = reference.difference(premiere).inDays;
+    if (ecoules >= fenetre) return fenetre;
+    return ecoules < 1 ? 1 : ecoules;
   }
 
   /// Ce qu'un client achète d'habitude, et depuis quand il n'est pas venu.

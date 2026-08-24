@@ -355,6 +355,49 @@ void main() {
       expect(texte, isNot(contains('Remises')));
     });
 
+    test('le comptage de la caisse arrive au patron absent', () {
+      // C'est le seul écran que regarde un patron qui n'est pas au magasin.
+      // Un écart qui n'y figure pas est un écart que personne ne voit.
+      final texte = documents
+          .rapportDuSoir(
+            rapport: chiffres(encaisse: 145000, ventes: 27),
+            comptage: const ComptageDuSoir(
+              comptages: 1,
+              cumul: Montant(-50000),
+              manques: Montant(50000),
+            ),
+          )
+          .texte;
+
+      expect(texte, contains('Caisse comptée'));
+      expect(texte, contains('il manque 500 F'));
+    });
+
+    test('une caisse juste se dit, elle ne se tait pas', () {
+      // Sinon « comptée et juste » et « jamais comptée » se ressemblent, et
+      // le patron ne sait pas laquelle des deux il a.
+      final texte = documents
+          .rapportDuSoir(
+            rapport: chiffres(encaisse: 145000, ventes: 27),
+            comptage: const ComptageDuSoir(
+              comptages: 3,
+              cumul: Montant.zero(),
+              manques: Montant.zero(),
+            ),
+          )
+          .texte;
+
+      expect(texte, contains('Caisse comptée'));
+      expect(texte, contains('3 fois, juste'));
+    });
+
+    test("une caisse jamais comptée n'invente pas de ligne", () {
+      final texte = documents.rapportDuSoir(rapport: chiffres()).texte;
+
+      expect(texte, isNot(contains('Caisse comptée')));
+      expect(texte, isNot(contains('Écart')));
+    });
+
     test(
       'les alertes de stock arrivent telles que les analyses les disent',
       () {

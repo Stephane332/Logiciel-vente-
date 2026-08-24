@@ -310,6 +310,7 @@ class Documents {
     List<String> aRacheter = const [],
     Montant perdu = const Montant.zero(),
     List<PartEncaissee> parts = const [],
+    ComptageDuSoir? comptage,
     String? intitule,
     DateTime? date,
   }) => RapportDuSoir(
@@ -322,6 +323,7 @@ class Documents {
     nombreVentes: rapport.nombreVentes,
     aRacheter: aRacheter,
     parts: parts,
+    comptage: comptage,
     intitule: intitule,
   );
 }

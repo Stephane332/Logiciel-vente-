@@ -414,6 +414,52 @@ typedef PartEncaissee = ({String qui, Montant combien});
 /// propriétaire. Il tient dans un message : ce qui est rentré, ce qui a été
 /// promis, et ce qu'il faut racheter demain. Le patron qui n'est pas au
 /// magasin voit son commerce sans y être.
+/// Ce que les comptages de caisse de la période ont donné, en une ligne.
+///
+/// Le patron qui n'est pas au magasin ne lit que ce message : un écart absent
+/// d'ici est un écart que personne ne voit. C'est même la raison d'être du
+/// comptage — mesurer ne sert à rien si la mesure ne remonte pas.
+class ComptageDuSoir {
+  /// Nombre de fois que la caisse a été comptée sur la période.
+  final int comptages;
+
+  /// La somme des écarts, signée. Manques et excédents se compensent.
+  final Montant cumul;
+
+  /// Ce qui a manqué, excédents non déduits.
+  final Montant manques;
+
+  const ComptageDuSoir({
+    required this.comptages,
+    required this.cumul,
+    required this.manques,
+  });
+
+  /// Vrai quand la caisse n'a pas été comptée. Le message n'en dit alors
+  /// rien : mieux vaut le silence qu'une ligne à zéro, qui laisserait croire
+  /// que le tiroir a été vérifié.
+  bool get muet => comptages == 0;
+
+  /// La phrase que lit le patron.
+  ///
+  /// Le nombre de comptages y est toujours : mille francs manquants sur
+  /// trente soirs et les mêmes mille francs sur un seul ne racontent pas la
+  /// même histoire, et le montant seul ne fait pas la différence.
+  String get resume {
+    final fois = '$comptages fois';
+    if (cumul.centimes == 0 && !manques.estPositif) return '$fois, juste';
+
+    final absolu = Montant(cumul.centimes.abs());
+    if (cumul.estNegatif) return '$fois, il manque ${absolu.enFrancs}';
+    if (cumul.estPositif && !manques.estPositif) {
+      return '$fois, ${absolu.enFrancs} de trop';
+    }
+    // Les deux sens sur la période : le cumul seul effacerait les erreurs
+    // les unes par les autres, et c'est le nombre d'erreurs qui parle.
+    return '$fois, ${manques.enFrancs} manquants rattrapés';
+  }
+}
+
 class RapportDuSoir {
   final String nomCommerce;
   final DateTime date;
@@ -438,6 +484,9 @@ class RapportDuSoir {
   /// cas ordinaire.
   final String? intitule;
 
+  /// Ce que le comptage de la caisse a donné. Nul quand personne n'a compté.
+  final ComptageDuSoir? comptage;
+
   const RapportDuSoir({
     required this.nomCommerce,
     required this.date,
@@ -449,6 +498,7 @@ class RapportDuSoir {
     this.aRacheter = const [],
     this.parts = const [],
     this.intitule,
+    this.comptage,
   });
 
   String get texte {
@@ -469,9 +519,13 @@ class RapportDuSoir {
       lignes.add(DocumentClient.aligne('Perdu en stock', perdu.enFrancs));
     }
 
-    lignes
-      ..add(DocumentClient.aligne('Ventes', '$nombreVentes'))
-      ..add(DocumentClient._separateur);
+    lignes.add(DocumentClient.aligne('Ventes', '$nombreVentes'));
+
+    if (comptage case final compte? when !compte.muet) {
+      lignes.add(DocumentClient.aligne('Caisse comptée', compte.resume));
+    }
+
+    lignes.add(DocumentClient._separateur);
 
     if (parts.isNotEmpty) {
       lignes.add('Par vendeur :');

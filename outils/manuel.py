@@ -474,6 +474,11 @@ sections.append(recette(
      "En haut, quatre périodes : <b>aujourd'hui</b>, <b>hier</b>, "
      "<b>7 jours</b>, <b>30 jours</b>.",
      "<b>Envoyer le résumé</b> l'expédie par WhatsApp ou SMS."],
+    "<b>Le résumé porte le comptage de la caisse.</b> Si tu as compté en "
+    "clôturant, la ligne « Caisse comptée » dit combien de fois et ce qui "
+    "manquait. C'est ce que lit un patron qui n'est pas au magasin : sans "
+    "cette ligne, il ne saurait rien de l'écart."
+    "<br><br>"
     "« À racheter » se calcule sur ton rythme de vente réel. « Ce qui dort » "
     "signale l'argent immobilisé — on remarque tout de suite ce qui se vend "
     "bien, presque jamais ce qui a cessé de se vendre. Le résumé porte la "

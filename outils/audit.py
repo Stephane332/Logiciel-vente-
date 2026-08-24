@@ -254,6 +254,53 @@ exactement quand ça coûte le plus cher.</p>
 pixels. Le reste du bandeau ne répond plus. Un test vérifie maintenant les
 deux moitiés de la règle : le bouton annule, le texte non."""))
 
+sections.append(defaut('14', 'grave', "« À avoir en caisse » comptait faux", """
+<p>Le chiffre que le commerçant vient chercher le soir valait le <b>total des
+ventes réglées en espèces</b>. Or personne ne tient une caisse comme ça : on
+met un fonds le matin pour rendre la monnaie, on paie un fournisseur en
+liquide, on porte la recette à la banque avant de fermer. Rien de tout ça n'est
+une vente, et tout ça change ce qu'il y a dans le tiroir.</p>
+<p>Tant que personne ne comptait, l'erreur restait théorique. Elle a cessé de
+l'être le jour où j'ai branché le comptage du soir : l'application allait
+annoncer un <b>manque de vingt mille francs</b> partis chez le fournisseur,
+facture à l'appui. Une accusation fausse coûte plus cher que pas de contrôle
+du tout.</p>
+<p class="qui">Touche : toute boutique qui emploie quelqu'un — c'est-à-dire
+celles pour qui le comptage a été écrit.</p>
+""", corrige="""Deux gestes, <b>Mettre</b> et <b>Sortir</b>, notent l'argent
+qui entre et sort du tiroir sans être une vente — ce que la note de service
+réclamait déjà au §2.13. Le rapport détaille le tiroir dès qu'il a bougé, et
+se tait quand il n'a pas bougé."""))
+
+sections.append(defaut('15', 'moyen', "Le rapport promettait deux mois de stock", """
+<p>Le rythme de vente d'un article se calculait toujours sur quinze jours,
+même quand l'article n'existait que depuis la veille. Vingt sachets vendus
+hier, étalés d'office sur quinze jours, donnaient un sachet et demi par
+jour.</p>
+<p>Résultat : cent sachets en stock — cinq jours de vente réelle — annonçaient
+<b>soixante-dix jours de tranquillité</b>. La boutique tombait en rupture
+pendant que l'application rassurait. Et c'est justement sur un article neuf
+qu'on ne connaît pas encore le rythme : c'est là qu'il ne fallait pas
+inventer.</p>
+<p class="qui">Touche : tout article récent, donc tout ce qu'un commerçant
+vient d'ajouter à son catalogue.</p>
+""", corrige="""Le rythme se divise par les jours où l'article s'est vendu,
+jamais par ceux où il n'existait pas. Un test le vérifie sur un article né la
+veille."""))
+
+sections.append(defaut('16', 'moyen', "L'écart de caisse ne remontait pas au patron", """
+<p>Le comptage du soir enregistrait bien la différence entre le tiroir et
+l'attendu, et l'écran du rapport la montrait. Mais le <b>résumé envoyé par
+WhatsApp</b> ne la portait pas.</p>
+<p>Or c'est souvent le seul écran qu'un patron absent regarde de la journée.
+Un écart qui n'y figure pas est un écart que personne ne voit — et le
+comptage n'aura servi à rien.</p>
+<p class="qui">Touche : le patron qui n'est pas au magasin, c'est-à-dire celui
+pour qui la fonction existe.</p>
+""", corrige="""Le résumé porte une ligne « Caisse comptée », avec le nombre de
+comptages et ce qui manque. Une caisse juste le dit aussi : sans ça, « comptée
+et juste » et « jamais comptée » se ressembleraient."""))
+
 sections.append('</div>')
 
 sections.append("""<section class="bloc">
@@ -453,7 +500,12 @@ STYLE = """
 
 STYLE = STYLE.replace('REGULIER', REGULIER).replace('GRAS', GRAS)
 
-HTML = ("<title>Ce qui va coincer — audit d'usage</title><style>" + STYLE
+# Le charset d'abord, avant le titre : sans lui, ce fichier ouvert depuis une
+# clé USB affiche des caractères cassés à la place des accents. C'est le seul
+# des cinq documents qui l'avait perdu, et ça ne se voit pas depuis un serveur
+# — seulement chez la personne à qui on tend la clé.
+HTML = ('<meta charset="utf-8">\n'
+        "<title>Ce qui va coincer — audit d'usage</title><style>" + STYLE
         + '</style><main>' + ''.join(sections) + '</main>')
 
 SORTIE.write_text(HTML, encoding='utf-8')

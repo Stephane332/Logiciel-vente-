@@ -33,6 +33,13 @@ quatre secrets sont posés (`MAGASIN_ANDROID`, `MOT_DE_PASSE_MAGASIN`,
 `docs/13-installation-android.md`. Le titre de la version le dit :
 `(signature de débogage)` tant que la clé n'est pas là.
 
+**Fabriquer la clé ne demande pas d'attendre.** `keytool` suffit, et le
+fichier produit ne va jamais dans le dépôt. Ce qui ne peut pas se faire
+ailleurs que depuis le compte propriétaire, c'est **poser les quatre
+secrets** : aucun jeton de workflow n'a le droit d'écrire un secret. La
+bonne façon d'aider est donc de préparer les quatre valeurs prêtes à coller,
+pas de renvoyer à la commande.
+
 ## Les étapes, dans l'ordre
 
 ### 1. Vert en local
@@ -95,7 +102,12 @@ Trois routes, de la meilleure à la plus lourde :
    **livrer**. L'APK de la dernière version est déposé sur une branche
    `livraison` sans rien recompiler ; on le récupère avec
    `git fetch origin livraison`, on le transmet, puis **on supprime la
-   branche** : `git push origin --delete livraison`.
+   branche** : Actions → APK → *Run workflow* → cocher **nettoyer**.
+
+   La suppression passe par le workflow et non par `git push --delete` :
+   selon d'où l'on travaille, la poussée d'une suppression de branche peut
+   être refusée par le réseau. Une consigne qu'on ne peut pas suivre là où on
+   est est une consigne qu'on ne suit pas, et la branche restait en place.
 2. **Se connecter à GitHub** dans le navigateur qui ouvre le lien.
 3. **Ouvrir le dépôt** — voir `docs/14-rendre-le-depot-public.md`. Ça publie
    tout l'historique, la note de cadrage et les prix compris, et ça exige

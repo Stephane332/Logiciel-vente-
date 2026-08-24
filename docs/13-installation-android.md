@@ -72,6 +72,11 @@ keyPassword=…
 
 ### Pour que GitHub signe
 
+**C'est la seule étape que personne ne peut faire à ma place.** Fabriquer la
+clé se délègue — c'est une commande, et le fichier produit ne va jamais dans
+le dépôt. Écrire un secret de dépôt, non : aucun jeton de workflow n'en a le
+droit, seul le compte propriétaire l'a. Quatre copier-coller, une fois.
+
 Quatre secrets à poser dans **Settings → Secrets and variables → Actions** :
 
 | Secret | Contenu |

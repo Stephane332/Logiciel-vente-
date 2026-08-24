@@ -40,6 +40,16 @@ on:
           supprime. Ce n'est pas un canal de distribution, c'est un dépannage.
         type: boolean
         default: false
+      nettoyer:
+        description: >
+          Supprimer la branche `livraison`. Elle ne doit jamais traîner : elle
+          porte un APK de plusieurs mégaoctets dans un dépôt qui n'est pas
+          fait pour ça, et elle périme en silence dès la version suivante. La
+          suppression se faisait à la main depuis un poste ayant le droit de
+          pousser — donc pas toujours depuis là où on travaille. Elle se fait
+          maintenant d'ici, avec le jeton du workflow.
+        type: boolean
+        default: false
       demo:
         description: >
           Publier la démonstration web sur GitHub Pages. C'est la seule façon
@@ -59,7 +69,7 @@ jobs:
     name: Construire l'APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ !inputs.livrer && !inputs.demo }}
+    if: ${{ !inputs.livrer && !inputs.demo && !inputs.nettoyer }}
 
     steps:
       - uses: actions/checkout@v4
@@ -250,7 +260,34 @@ jobs:
           git push -q --force \
             "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" livraison
           echo "Déposé. À supprimer une fois récupéré :"
-          echo "  git push origin --delete livraison"
+          echo "  Actions → APK → Run workflow → cocher « nettoyer »"
+
+  # Ranger derrière soi, sans avoir à pousser depuis un poste.
+  #
+  # La branche `livraison` est un dépannage, pas un canal : elle porte un APK
+  # dans un dépôt de code, et elle ment dès la version suivante. La consigne
+  # « supprime-la après récupération » supposait un poste autorisé à pousser,
+  # ce qui n'est pas toujours le cas — et une consigne qu'on ne peut pas
+  # suivre là où on travaille est une consigne qu'on ne suit pas.
+  nettoyer:
+    name: Supprimer la branche livraison
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ inputs.nettoyer }}
+
+    steps:
+      - name: Supprimer la branche
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git ls-remote --exit-code --heads \
+               "https://github.com/$GITHUB_REPOSITORY" livraison >/dev/null; then
+            gh api -X DELETE \
+              "repos/$GITHUB_REPOSITORY/git/refs/heads/livraison"
+            echo "Branche livraison supprimée."
+          else
+            echo "Aucune branche livraison : rien à faire."
+          fi
 
   # La démonstration web, publiée par GitHub lui-même.
   #

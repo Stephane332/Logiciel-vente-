@@ -122,6 +122,40 @@ class PartDeVendeur {
   bool get estAnonyme => vendeur.isEmpty;
 }
 
+/// Ce que les comptages de caisse d'un vendeur ont donné sur une période.
+///
+/// Un écart isolé ne dit rien : on se trompe en rendant la monnaie, un client
+/// revient chercher son reste, un billet tombe. C'est la **répétition** qui
+/// parle, et c'est pour ça que ça se lit par personne et cumulé, jamais ligne
+/// à ligne.
+class EcartsDeVendeur {
+  /// Vide quand la caisse n'était attribuée à personne.
+  final String vendeur;
+
+  /// Nombre de fois que la caisse a été comptée.
+  final int comptages;
+
+  /// La somme des écarts, signée. Les manques et les excédents se compensent :
+  /// quelqu'un qui manque 500 F un soir et en a 500 de trop le lendemain
+  /// s'est trompé deux fois, il n'a rien pris.
+  final Montant cumul;
+
+  /// Ce qui a manqué, sans les excédents. C'est le chiffre qui intéresse.
+  final Montant manques;
+
+  const EcartsDeVendeur({
+    required this.vendeur,
+    required this.comptages,
+    required this.cumul,
+    required this.manques,
+  });
+
+  bool get estAnonyme => vendeur.isEmpty;
+
+  /// Vrai quand tous les comptages sont tombés juste.
+  bool get impeccable => cumul.centimes == 0 && manques.centimes == 0;
+}
+
 /// Le résumé du jour, celui qui part le soir au patron.
 class RapportDuJour {
   final Montant encaisse;
@@ -1666,16 +1700,161 @@ class Depot {
     required Montant montant,
     String? motif,
     String? operateur,
+    DateTime? horodatage,
   }) async {
     await base.transaction(() async {
-      final evenement = await journal.ajouter(TypeEvenement.caisseMouvement, {
-        'nature': nature,
-        'montant': montant.centimes,
-        'motif': motif,
-        'operateur': operateur,
-      });
+      final evenement = await journal.ajouter(
+        TypeEvenement.caisseMouvement,
+        {
+          'nature': nature,
+          'montant': montant.centimes,
+          'motif': motif,
+          'operateur': operateur,
+        },
+        horodatage: horodatage,
+      );
       await _appliquerMouvementCaisse(evenement);
     });
+  }
+
+  /// Met de l'argent dans la caisse sans que ce soit une vente.
+  ///
+  /// Le fonds du matin, surtout : personne ne peut rendre la monnaie sur un
+  /// tiroir vide, et cet argent-là n'a rien à voir avec le chiffre
+  /// d'affaires. Exigé au §2.13, et nécessaire au comptage du soir : sans
+  /// lui, l'application annoncerait un excédent tous les jours.
+  Future<void> mettreEnCaisse(
+    Montant montant, {
+    String? motif,
+    String? operateur,
+    DateTime? horodatage,
+  }) => mouvementCaisse(
+    nature: NatureMouvementCaisse.depot,
+    montant: montant,
+    motif: motif,
+    operateur: operateur,
+    horodatage: horodatage,
+  );
+
+  /// Sort de l'argent de la caisse sans que ce soit un remboursement.
+  ///
+  /// Un sac de riz payé au fournisseur, un versement à la banque, le patron
+  /// qui prend de quoi faire une course. C'est la ligne qui manquait le plus :
+  /// sans elle, chaque sortie devenait un manque au comptage du soir, et
+  /// l'application accusait quelqu'un pour de l'argent parti avec une facture.
+  Future<void> sortirDeCaisse(
+    Montant montant, {
+    String? motif,
+    String? operateur,
+    DateTime? horodatage,
+  }) => mouvementCaisse(
+    nature: NatureMouvementCaisse.retrait,
+    montant: montant,
+    motif: motif,
+    operateur: operateur,
+    horodatage: horodatage,
+  );
+
+  /// Les mouvements d'argent d'une période, hors comptages.
+  Future<List<LigneMouvementCaisse>> mouvementsDeCaisse(
+    DateTime debut,
+    DateTime fin,
+  ) =>
+      (base.select(base.mouvementsCaisse)
+            ..where(
+              (m) =>
+                  m.nature.isNotValue(NatureMouvementCaisse.ecart) &
+                  m.horodatage.isBiggerOrEqualValue(debut) &
+                  m.horodatage.isSmallerThanValue(fin),
+            )
+            ..orderBy([(m) => OrderingTerm.desc(m.horodatage)]))
+          .get();
+
+  /// Enregistre le comptage de la caisse.
+  ///
+  /// C'est le geste du soir : on compte ce qu'il y a dans le tiroir, et
+  /// l'application dit ce qu'il aurait dû y avoir. L'écart est la seule
+  /// mesure honnête d'une caisse — le reste se raconte.
+  ///
+  /// **Le montant compté se saisit avant de voir l'attendu.** Un comptage où
+  /// l'on connaît déjà le résultat ne mesure rien du tout : il suffit de
+  /// recopier. La règle est dans l'écran, mais elle est la raison d'être de
+  /// cette méthode et elle mérite d'être écrite ici aussi.
+  ///
+  /// Un écart nul s'enregistre comme les autres. C'est même le plus utile des
+  /// quatre-vingt-dix-neuf soirs où tout tombe juste : il prouve que la
+  /// caisse a été comptée. Une absence d'écart et une absence de comptage ne
+  /// doivent pas se ressembler.
+  Future<Montant> pointerLaCaisse({
+    required Montant compte,
+    required Montant attendu,
+    String? operateur,
+    DateTime? horodatage,
+  }) async {
+    final ecart = compte - attendu;
+
+    await base.transaction(() async {
+      final evenement = await journal.ajouter(TypeEvenement.caisseMouvement, {
+        'nature': NatureMouvementCaisse.ecart,
+        'montant': ecart.centimes,
+        // Le motif porte la phrase déjà écrite plutôt que l'écran ne la
+        // refabrique : le journal doit se relire tout seul dans dix ans,
+        // sans l'application qui l'a écrit.
+        'motif': 'Attendu ${attendu.enFrancs}, compté ${compte.enFrancs}',
+        'operateur': operateur,
+        // Les deux nombres bruts, en plus de la phrase : une phrase se lit,
+        // elle ne se recalcule pas.
+        'attendu': attendu.centimes,
+        'compte': compte.centimes,
+      }, horodatage: horodatage);
+      await _appliquerMouvementCaisse(evenement);
+    });
+
+    return ecart;
+  }
+
+  /// Les comptages de caisse d'une période, par personne.
+  ///
+  /// C'est la question du patron, et elle ne se pose pas autrement : « qui
+  /// accumule les manques ? ». Une ligne par vendeur, les plus gros manques
+  /// en tête.
+  Future<List<EcartsDeVendeur>> ecartsParVendeur(
+    DateTime debut,
+    DateTime fin,
+  ) async {
+    final lignes = await base
+        .customSelect(
+          '''
+      SELECT COALESCE(m.operateur, '')  AS vendeur,
+             COUNT(*)                   AS comptages,
+             SUM(m.montant_centimes)    AS cumul,
+             SUM(CASE WHEN m.montant_centimes < 0
+                      THEN -m.montant_centimes ELSE 0 END) AS manques
+      FROM mouvements_caisse m
+      WHERE m.nature = ?
+        AND m.horodatage >= ?
+        AND m.horodatage <  ?
+      GROUP BY COALESCE(m.operateur, '')
+      ORDER BY manques DESC
+      ''',
+          variables: [
+            Variable<String>(NatureMouvementCaisse.ecart),
+            Variable<DateTime>(debut),
+            Variable<DateTime>(fin),
+          ],
+          readsFrom: {base.mouvementsCaisse},
+        )
+        .get();
+
+    return [
+      for (final ligne in lignes)
+        EcartsDeVendeur(
+          vendeur: ligne.read<String>('vendeur'),
+          comptages: ligne.read<int>('comptages'),
+          cumul: Montant(ligne.read<int>('cumul')),
+          manques: Montant(ligne.read<int>('manques')),
+        ),
+    ];
   }
 
   Future<void> _appliquerMouvementCaisse(Evenement evenement) async {

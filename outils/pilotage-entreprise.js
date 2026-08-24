@@ -312,9 +312,42 @@ const constat = (quoi, vrai) => {
     await present(p, 'Clôturer la journée ?'));
 
   await clic(p, 'Clôturer');
+  await pause(p, 1500);
+
+  // ------------------------------------------------------- le comptage
+  //
+  // Il s'intercale entre la confirmation et le Z, et c'est le seul ordre
+  // qui vaille : le Z dit ce qu'il aurait dû y avoir dans le tiroir.
+  await capture(p, 'entreprise-09-compter');
+  const boite = await texteVisible(p);
+
+  constat('la clôture demande de compter la caisse',
+    boite.includes('Compte la caisse'));
+  constat("elle ne montre pas l'attendu avant la saisie",
+    !boite.includes('avoir en caisse'));
+
+  // Un chiffre au hasard : ce qui se vérifie ici, c'est que l'application
+  // annonce quelque chose et montre les deux nombres — le calcul lui-même
+  // est couvert au franc près par `test/ecart_caisse_test.dart`.
+  await p.locator('input').last().fill('11500');
+  await pause(p, 600);
+  await clic(p, 'Valider');
+  await pause(p, 1500);
+
+  const verdict = await texteVisible(p);
+  await capture(p, 'entreprise-10-ecart');
+  constat("le comptage annonce l'écart",
+    verdict.includes('Il manque') || verdict.includes('tombe juste')
+      || verdict.includes('de trop'));
+  constat('il montre les deux nombres côte à côte',
+    verdict.includes('Ce que tu as compté')
+      && verdict.includes("Ce qui aurait dû y être"));
+
+  await clic(p, 'Continuer');
   await pause(p, 1800);
+
   const z = await texteVisible(p);
-  await capture(p, 'entreprise-09-cloture');
+  await capture(p, 'entreprise-11-cloture');
 
   constat('le Z porte son numéro', z.includes('Clôture n° 1'));
   constat('le Z porte l\'IFU', z.includes('IFU : 00012345A'));
@@ -325,12 +358,22 @@ const constat = (quoi, vrai) => {
   await pause(p, 1200);
   await p.mouse.wheel(0, 3000);
   await pause(p, 900);
-  await capture(p, 'entreprise-10-apres-cloture');
+  await capture(p, 'entreprise-12-apres-cloture');
 
   constat('l\'écran retient la dernière clôture',
     await present(p, 'Dernière clôture le', { exact: false }));
   constat('il ne dit plus qu\'on n\'a jamais clôturé',
     !(await present(p, 'jamais clôturé', { exact: false })));
+
+  // Et le comptage ressort là où le patron le lira.
+  await p.mouse.wheel(0, -3000);
+  await pause(p, 900);
+  const rapport = await texteVisible(p);
+  constat('le rapport montre ce que le comptage a donné',
+    rapport.includes('Ce que la caisse a donné au comptage'));
+  constat('il prévient qu\'une fois ne prouve rien',
+    rapport.includes('répétition'));
+  await capture(p, 'entreprise-13-ecarts-au-rapport');
 
   await n.close();
   console.log('\ncaptures dans ' + SORTIE);

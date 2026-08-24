@@ -156,7 +156,9 @@ Huit lignes au minimum.
 - **Journal électronique** contenant le contenu de toutes les factures et de tous les
   rapports, avec le code SECeF/DGI de chaque facture (§2.23).
 - Contrôle d'inventaire avec entrées, sorties et rapport d'état (§2.20).
-- Enregistrement des **dépôts et retraits de numéraires** (§2.13).
+- Enregistrement des **dépôts et retraits de numéraires** (§2.13). *Écrit* : deux gestes
+  dans la section « Arrêter la caisse », et le rapport X/Z détaille le tiroir dès qu'il a
+  bougé — ventes en espèces, mis en caisse, sorti de caisse, total à avoir.
 - Le SFE ne peut pas enregistrer une facture sans identifier les articles (§2.6).
 - Configuration du **port de connexion du MCF** (§2.26), des comptes bancaires (§2.32), du
   régime d'imposition (§2.33), du service des impôts de rattachement (§2.34) et des tables
@@ -262,6 +264,34 @@ La procédure complète est détaillée dans [`09-homologation.md`](09-homologat
 Point essentiel : **l'homologation peut porter sur un périmètre restreint.** Un SFE n'est pas
 tenu de couvrir tous les types de facture ni tous les groupes de taxation — il est seulement
 limité, à l'usage, à ceux qui ont été validés.
+
+## Ce que je sais de faux, et que je n'ai pas encore corrigé
+
+Je préfère tenir cette liste que la découvrir devant un comité.
+
+**Un angle mort d'une seconde à la clôture.** Les horodatages du journal sont à la seconde
+entière. Une vente faite juste après un Z porte donc la même seconde que la borne : elle
+n'était pas dans le Z — elle n'existait pas — et elle se trouve déjà avant la borne
+suivante. Aucune convention de comparaison ne sépare ces deux instants, parce qu'à cette
+précision c'en est un seul. J'ai essayé de renverser les bornes : ça déplace le trou sans
+le fermer, et ça vide le Z de la journée qu'il vient de clore. La sortie propre est une
+borne exprimée en **position de journal** plutôt qu'en heure.
+
+**Une clôture ne connaît que sa propre caisse.** Quand deux caisses se réunissent, les
+ventes reçues portent des heures antérieures au dernier Z tiré localement : elles tombent
+dans une période déjà close, dont les totaux sont figés dans le journal. Elles
+n'apparaissent donc dans aucun Z. La règle de travail est la même que pour les factures —
+une seule caisse clôture — mais elle mérite mieux qu'une consigne, et c'est le même
+chantier que le point précédent : la borne doit devenir une position de journal, par
+appareil.
+
+**La numérotation des factures est par appareil.** Détaillé plus haut : deux caisses hors
+réseau émettent le même numéro. Détecté et signalé à la réunion, pas empêché. La sortie
+demande de savoir ce que le protocole MCF attend d'une référence, et je ne l'ai pas.
+
+Les trois se rejoignent : ce sont trois façons dont le temps et l'identité d'appareil se
+mélangent mal. Je les traiterai ensemble, une fois le protocole obtenu — le format de la
+référence conditionne la réponse.
 
 ## Conséquence sur ma conception
 

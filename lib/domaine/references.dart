@@ -265,6 +265,25 @@ enum NatureMouvementStock {
       values.firstWhere((n) => n.cle == cle, orElse: () => inventaire);
 }
 
+/// Ce qui a fait bouger l'argent du tiroir, hors vente.
+///
+/// Les trois clés sont écrites telles quelles dans le journal des commerçants
+/// déjà installés : elles ne se renomment pas.
+abstract final class NatureMouvementCaisse {
+  /// Le commerçant met de l'argent dans la caisse — le fonds du matin.
+  static const depot = 'depot';
+
+  /// Il en sort — la banque, un achat, sa poche.
+  static const retrait = 'retrait';
+
+  /// Ce que le comptage du soir a trouvé en plus ou en moins.
+  ///
+  /// Signé : négatif quand il manque, positif quand il y en a trop. Les deux
+  /// se notent, parce qu'un excédent est une erreur autant qu'un manque —
+  /// simplement une erreur qui ne coûte rien ce jour-là.
+  static const ecart = 'ecart';
+}
+
 /// Où en est une vente.
 ///
 /// Ce qui distingue les commerces n'est pas leur métier mais l'ordre de trois

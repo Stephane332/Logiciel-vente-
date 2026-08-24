@@ -34,6 +34,12 @@ class EcranRapport extends StatefulWidget {
   /// regardent pas la clôture — la section disparaît alors entièrement.
   final Rapports? rapports;
 
+  /// Qui tient la caisse au moment de la clôture.
+  ///
+  /// C'est ce nom qui reste attaché au comptage du soir. Sans lui, l'écart
+  /// existe mais n'appartient à personne, et un patron ne peut rien en faire.
+  final String? vendeurActif;
+
   const EcranRapport({
     super.key,
     required this.depot,
@@ -41,6 +47,7 @@ class EcranRapport extends StatefulWidget {
     required this.analyses,
     this.surReglages,
     this.rapports,
+    this.vendeurActif,
   });
 
   @override
@@ -53,6 +60,7 @@ class EcranRapportState extends State<EcranRapport> {
   List<ArticleEndormi> _endormis = const [];
   List<PerformanceArticle> _meilleures = const [];
   List<PartDeVendeur> _parVendeur = const [];
+  List<EcartsDeVendeur> _ecarts = const [];
   Montant _perdu = const Montant.zero();
 
   /// La tranche de temps regardée. La journée en cours par défaut : c'est la
@@ -78,14 +86,16 @@ class EcranRapportState extends State<EcranRapport> {
     // Les lectures ne dépendent pas les unes des autres. Les enchaîner ferait
     // six allers-retours au lieu d'un sur un téléphone d'entrée de gamme, à
     // chaque ouverture de l'onglet.
-    final (rapport, alertes, endormis, meilleures, perdu, parVendeur) = await (
-      widget.depot.rapportSurPeriode(debut, fin),
-      widget.analyses.aReapprovisionner(),
-      widget.analyses.articlesQuiDorment(limite: _plafondEndormis),
-      widget.analyses.meilleuresVentes(limite: 5),
-      widget.analyses.pertesEtEcarts(debut: debut, fin: fin),
-      widget.depot.parVendeur(debut, fin),
-    ).wait;
+    final (rapport, alertes, endormis, meilleures, perdu, parVendeur, ecarts) =
+        await (
+          widget.depot.rapportSurPeriode(debut, fin),
+          widget.analyses.aReapprovisionner(),
+          widget.analyses.articlesQuiDorment(limite: _plafondEndormis),
+          widget.analyses.meilleuresVentes(limite: 5),
+          widget.analyses.pertesEtEcarts(debut: debut, fin: fin),
+          widget.depot.parVendeur(debut, fin),
+          widget.depot.ecartsParVendeur(debut, fin),
+        ).wait;
 
     final cloture = await widget.rapports?.derniereCloture(NatureRapport.z);
 
@@ -97,6 +107,7 @@ class EcranRapportState extends State<EcranRapport> {
       _meilleures = meilleures;
       _perdu = perdu;
       _parVendeur = parVendeur;
+      _ecarts = ecarts;
       _derniereCloture = cloture;
     });
   }
@@ -161,6 +172,12 @@ class EcranRapportState extends State<EcranRapport> {
     );
     if (confirme != true || !mounted) return;
 
+    // Le comptage vient avant le Z, et l'ordre n'est pas un détail : le Z
+    // dit ce qu'il aurait dû y avoir dans le tiroir. Le tirer d'abord, ce
+    // serait donner la réponse avant de poser la question.
+    await _compterLaCaisse();
+    if (!mounted) return;
+
     final z = await rapports.z();
     if (!mounted) return;
 
@@ -169,6 +186,267 @@ class EcranRapportState extends State<EcranRapport> {
       context,
       titre: 'Clôture n° ${z.numero}',
       texte: z.texte,
+    );
+  }
+
+  /// Note de l'argent entré ou sorti du tiroir sans que ce soit une vente.
+  ///
+  /// C'est ce qui manquait le plus, et ça ne se voyait pas tant que personne
+  /// ne comptait : un commerçant met un fonds le matin, paie un fournisseur
+  /// dans la journée, porte la recette à la banque avant de fermer. Sans ces
+  /// lignes, le tiroir ne correspond jamais au total des ventes, et le
+  /// comptage du soir accuse quelqu'un pour de l'argent parti avec une
+  /// facture.
+  Future<void> _bougerLaCaisse({required bool entree}) async {
+    final saisie = TextEditingController();
+    final motif = TextEditingController();
+    final textes = Theme.of(context).textTheme;
+
+    final montant = await showDialog<Montant>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text(
+          entree ? 'Mettre de l'"'"'argent en caisse' : 'Sortir de l'"'"'argent',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              entree
+                  ? "Le fonds du matin, ou un apport en cours de journée. Ce "
+                        "n'est pas une vente : ça ne compte pas dans le "
+                        'chiffre du jour, seulement dans le tiroir.'
+                  : "Un achat payé en liquide, un versement à la banque, une "
+                        "course. Note-le : sinon le comptage du soir dira "
+                        'que cet argent manque.',
+              style: textes.bodyMedium,
+            ),
+            const SizedBox(height: Espace.m),
+            TextField(
+              controller: saisie,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(),
+              style: textes.headlineSmall,
+              decoration: const InputDecoration(
+                labelText: 'Combien',
+                suffixText: 'F',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: Espace.s),
+            TextField(
+              controller: motif,
+              decoration: const InputDecoration(
+                labelText: 'Pourquoi (facultatif)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(contexte).pop(_lireFrancs(saisie.text)),
+            child: const Text('Noter'),
+          ),
+        ],
+      ),
+    );
+
+    // Zéro n'est pas un mouvement : ça n'ajoute rien au tiroir et ça ajoute
+    // une ligne à lire dans le rapport.
+    if (montant == null || !montant.estPositif || !mounted) return;
+
+    final pourquoi = motif.text.trim();
+    if (entree) {
+      await widget.depot.mettreEnCaisse(
+        montant,
+        motif: pourquoi.isEmpty ? null : pourquoi,
+        operateur: widget.vendeurActif,
+      );
+    } else {
+      await widget.depot.sortirDeCaisse(
+        montant,
+        motif: pourquoi.isEmpty ? null : pourquoi,
+        operateur: widget.vendeurActif,
+      );
+    }
+
+    if (!mounted) return;
+    await recharger();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            entree
+                ? '${montant.enFrancs} mis en caisse'
+                : '${montant.enFrancs} sortis de la caisse',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  /// Demande combien il y a dans le tiroir, puis dit ce qu'il aurait dû y
+  /// avoir.
+  ///
+  /// **Dans cet ordre, et l'écran ne montre jamais l'attendu avant la
+  /// saisie.** Un comptage dont on connaît déjà le résultat ne mesure rien :
+  /// il suffit de recopier le nombre affiché. C'est toute la valeur du geste,
+  /// et c'est aussi ce qui le rend un peu désagréable — tant pis, un
+  /// comptage confortable ne sert à rien.
+  ///
+  /// On peut passer. Une caisse qu'on ne compte pas est un choix du
+  /// commerçant, pas une erreur de l'application, et refuser de clôturer
+  /// tant qu'il n'a pas compté ferait surtout qu'il ne clôturerait plus.
+  Future<void> _compterLaCaisse() async {
+    final rapports = widget.rapports;
+    if (rapports == null) return;
+
+    final compte = await _demanderLeCompte();
+    if (compte == null || !mounted) return;
+
+    final attendu = (await rapports.x()).enCaisse;
+    final ecart = await widget.depot.pointerLaCaisse(
+      compte: compte,
+      attendu: attendu,
+      operateur: widget.vendeurActif,
+    );
+    if (!mounted) return;
+
+    // Le rapport a été lu à l'ouverture de l'écran, donc avant ce comptage :
+    // sans cette relecture, le commerçant referme la boîte et ne retrouve
+    // nulle part le chiffre qu'on vient de lui montrer. Un écran qui oublie
+    // ce qu'il vient d'enregistrer, c'est un écran auquel on cesse de croire.
+    await recharger();
+    if (!mounted) return;
+
+    await _direLEcart(compte: compte, attendu: attendu, ecart: ecart);
+  }
+
+  /// Le champ de saisie. Rien d'autre à l'écran : ni total du jour, ni
+  /// attendu, ni rappel de ce qui a été encaissé.
+  Future<Montant?> _demanderLeCompte() {
+    final saisie = TextEditingController();
+    final textes = Theme.of(context).textTheme;
+
+    return showDialog<Montant>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: const Text('Compte la caisse'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Sors l'argent du tiroir et compte-le. Écris ce que tu as "
+              'trouvé — je te dirai ensuite ce qu'"'"'il aurait dû y avoir.',
+              style: textes.bodyMedium,
+            ),
+            const SizedBox(height: Espace.m),
+            TextField(
+              controller: saisie,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(),
+              style: textes.headlineSmall,
+              decoration: const InputDecoration(
+                labelText: 'Ce que je compte',
+                suffixText: 'F',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => Navigator.of(
+                contexte,
+              ).pop(_lireFrancs(saisie.text)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text('Je ne compte pas'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(contexte).pop(_lireFrancs(saisie.text)),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Le nombre saisi, ou nul si ce n'en est pas un.
+  ///
+  /// Zéro est une réponse valable — une caisse vidée en fin de journée se
+  /// compte à zéro, et c'est même le cas le plus courant chez qui dépose tout
+  /// le soir. Seul un champ vide ou illisible vaut « je ne compte pas ».
+  static Montant? _lireFrancs(String saisie) {
+    final propre = saisie.replaceAll(RegExp(r'[^0-9]'), '');
+    if (propre.isEmpty) return null;
+    final francs = int.tryParse(propre);
+    return francs == null ? null : Montant.depuisDecimal(francs);
+  }
+
+  /// Dit ce que le comptage a donné.
+  Future<void> _direLEcart({
+    required Montant compte,
+    required Montant attendu,
+    required Montant ecart,
+  }) {
+    final juste = ecart.centimes == 0;
+    final manque = ecart.estNegatif;
+    final ecartAbsolu = Montant(ecart.centimes.abs());
+
+    return showDialog<void>(
+      context: context,
+      builder: (contexte) => AlertDialog(
+        title: Text(
+          juste
+              ? 'La caisse tombe juste'
+              : manque
+              ? 'Il manque ${ecartAbsolu.enFrancs}'
+              : 'Il y a ${ecartAbsolu.enFrancs} de trop',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _LigneComptage(
+              libelle: 'Ce que tu as compté',
+              montant: compte.enFrancs,
+            ),
+            _LigneComptage(
+              libelle: 'Ce qui aurait dû y être',
+              montant: attendu.enFrancs,
+            ),
+            const SizedBox(height: Espace.m),
+            Text(
+              juste
+                  ? "C'est noté. Compter tous les soirs, même quand tout "
+                        'tombe juste, c'"'"'est ce qui rend un écart lisible le '
+                        'jour où il arrive.'
+                  : "C'est noté, et rattaché à ${widget.vendeurActif ?? 'la caisse'}. "
+                        "Un écart isolé n'accuse personne — on se trompe en "
+                        'rendant la monnaie. C'"'"'est quand ça se répète que ça '
+                        'veut dire quelque chose, et le rapport le montre.',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(contexte).pop(),
+            child: const Text('Continuer'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -192,6 +470,40 @@ class EcranRapportState extends State<EcranRapport> {
   bool get _partsUtiles =>
       _parVendeur.length > 1 ||
       (_parVendeur.length == 1 && !_parVendeur.first.estAnonyme);
+
+  /// Ce qui se lit sous le titre des écarts.
+  ///
+  /// Il dit la période **et** ce que la section n'est pas. Un tableau qui
+  /// nomme des gens à côté de sommes manquantes se lit comme une accusation
+  /// si personne ne prévient du contraire, et c'est le genre de malentendu
+  /// qui coûte un employé honnête.
+  String get _sousTitreEcarts =>
+      '${_periode.libelle.toLowerCase()} · une fois ne prouve rien, '
+      "c'est la répétition qui parle";
+
+  /// Le chiffre à droite du nom : ce qui manque, ou l'excédent, ou rien.
+  String _resultatDuComptage(EcartsDeVendeur ecart) {
+    if (ecart.manques.estPositif) return '− ${ecart.manques.enFrancs}';
+    if (ecart.cumul.estPositif) return '+ ${ecart.cumul.enFrancs}';
+    return 'juste';
+  }
+
+  /// Le détail sous le nom : combien de fois la caisse a été comptée, et
+  /// combien de fois elle est tombée juste.
+  ///
+  /// Le nombre de comptages compte autant que la somme : quelqu'un qui manque
+  /// 1 000 F en trente soirs et quelqu'un qui les manque en un seul ne
+  /// racontent pas la même histoire.
+  String _detailComptage(EcartsDeVendeur ecart) {
+    final fois =
+        '${ecart.comptages} comptage${ecart.comptages > 1 ? 's' : ''}';
+    if (ecart.impeccable) return '$fois, tous justes';
+    if (!ecart.manques.estPositif) return '$fois, jamais de manque';
+    if (ecart.cumul.estPositif) {
+      return '$fois · les excédents couvrent les manques';
+    }
+    return fois;
+  }
 
   /// Le détail sous le nom d'un vendeur : combien de ventes, et ce qu'il a
   /// lâché en remises.
@@ -341,6 +653,31 @@ class EcranRapportState extends State<EcranRapport> {
               ),
             ],
 
+            if (_ecarts.isNotEmpty) ...[
+              const SizedBox(height: Espace.xl),
+              _Section(
+                titre: 'Ce que la caisse a donné au comptage',
+                sousTitre: _sousTitreEcarts,
+                enfants: [
+                  for (final ecart in _ecarts)
+                    _Ligne(
+                      libelle: ecart.estAnonyme
+                          ? 'Non attribué'
+                          : ecart.vendeur,
+                      detail: _resultatDuComptage(ecart),
+                      // Rouge quand il manque, et seulement là. Un excédent
+                      // est une erreur aussi, mais il ne coûte rien : le
+                      // signaler de la même couleur ferait lire les deux
+                      // avec la même inquiétude, donc aucune des deux.
+                      pastille: ecart.manques.estPositif
+                          ? Couleurs.alerte
+                          : Couleurs.primaire,
+                      sousLigne: _detailComptage(ecart),
+                    ),
+                ],
+              ),
+            ],
+
             if (_alertes.isNotEmpty) ...[
               const SizedBox(height: Espace.xl),
               _Section(
@@ -438,6 +775,36 @@ class EcranRapportState extends State<EcranRapport> {
                 ),
               ),
               const SizedBox(height: Espace.s),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _bougerLaCaisse(entree: true),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Mettre'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Couleurs.encreDouce,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => _bougerLaCaisse(entree: false),
+                      icon: const Icon(Icons.remove_rounded, size: 18),
+                      label: const Text('Sortir'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Couleurs.encreDouce,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                "De l'argent qui entre ou sort du tiroir sans être une vente : "
+                'le fonds du matin, un achat, un versement à la banque.',
+                style: textes.labelSmall,
+              ),
+              const SizedBox(height: Espace.s),
               TextButton.icon(
                 onPressed: _etatDesArticles,
                 icon: const Icon(Icons.inventory_2_outlined, size: 18),
@@ -451,6 +818,33 @@ class EcranRapportState extends State<EcranRapport> {
             const SizedBox(height: Espace.xxl),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Une ligne du récapitulatif de comptage : le libellé à gauche, le montant
+/// à droite, alignés pour qu'on lise la différence sans la calculer.
+class _LigneComptage extends StatelessWidget {
+  final String libelle;
+  final String montant;
+
+  const _LigneComptage({required this.libelle, required this.montant});
+
+  @override
+  Widget build(BuildContext context) {
+    final textes = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(libelle, style: textes.bodyMedium),
+          Text(
+            montant,
+            style: textes.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }

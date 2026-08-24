@@ -129,6 +129,17 @@ cahier de dettes, l'objet le plus précieux du commerçant.
 sans vente. Personne ne sert ce besoin, et c'est exactement ce pour quoi un patron accepte
 de payer.
 
+Le premier morceau est écrit : à la clôture, l'application demande combien il y a
+réellement dans le tiroir **avant** de montrer ce qu'il devrait y avoir, note l'écart au
+nom du vendeur en poste, et le rapport donne le cumul par personne avec le nombre de
+comptages. Les manques et les excédents restent séparés — mille francs manquants un soir
+et mille francs de trop le lendemain, ce sont deux erreurs, pas un vol.
+
+Ce que ça ne fait pas, et que je ne prétends pas : le total de la journée reste affiché
+sur l'écran du rapport, derrière la boîte de saisie. Le comptage révèle les erreurs et les
+dérives dans le temps ; il n'arrête pas quelqu'un qui triche exprès. C'est la même
+honnêteté que pour les noms de vendeurs, qui ne sont pas des comptes.
+
 ## Modèle économique
 
 Les frais d'installation seuls ne construisent rien : je revends le même effort à chaque

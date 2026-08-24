@@ -48,7 +48,8 @@ for _n in ['01-caisse-vide', '02-pave-montant-libre', '05-proposition-de-nom',
            '13-cahier-dettes', '15-creer-article', '16-stock-suivi',
            '17-rapport-du-soir', '18-reglages', '19-mobile-money-qr',
            '20-fiche-repliee', '21-fiche-depliee', '25-facture',
-           '26-cloturer', '27-cloture']:
+           '26-cloturer', '27-cloture', '28-compter-la-caisse',
+           '29-ecart-de-caisse', '30-ecarts-au-rapport']:
     ECRAN[_n] = 'data:image/png;base64,' + b64(CAPTURES / (_n + '.png'))
 for _n in ['equipe-02-qui-encaisse', 'equipe-03-liste', 'equipe-05-rapport',
            'equipe-07-semaine', 'equipe-09-recherche']:
@@ -620,6 +621,29 @@ sections.append(recette(
     [('25-facture', 'Une facture, telle qu\'elle part')]))
 
 sections.append(recette(
+    'mouvements-caisse', "Sortir ou mettre de l'argent dans la caisse",
+    "Tu mets un fonds le matin pour rendre la monnaie, tu paies un "
+    "fournisseur en liquide, tu portes la recette à la banque. Rien de tout "
+    "ça n'est une vente, et tout ça change ce qu'il y a dans le tiroir.",
+    ["Onglet <b>Rapport</b>, section <b>Arrêter la caisse</b>.",
+     "<b>Mettre</b> ou <b>Sortir</b>, selon le sens.",
+     "Le montant, et pourquoi si tu veux — « sac de riz », « banque »."],
+    "<b>Note-le au moment où tu le fais</b>, pas le soir de mémoire. Ces "
+    "lignes ne comptent pas dans ton chiffre du jour : elles ne servent qu'à "
+    "savoir ce qu'il doit y avoir dans le tiroir."
+    "<br><br>"
+    "<b>C'est ce qui rend le comptage du soir juste.</b> Sans ces lignes, "
+    "l'argent que tu as sorti pour payer ton fournisseur apparaît comme un "
+    "manque, et l'application accuse quelqu'un pour de l'argent parti avec "
+    "une facture. Une accusation fausse coûte plus cher que pas de contrôle "
+    "du tout."
+    "<br><br>"
+    "Quand le tiroir a bougé, le rapport de clôture montre le détail : les "
+    "ventes en espèces, ce qui a été mis, ce qui a été sorti, et le total à "
+    "avoir. Quand il n'a pas bougé, il n'affiche pas deux lignes à zéro.",
+    [('30-ecarts-au-rapport', 'Ce que le comptage a donné, par personne')]))
+
+sections.append(recette(
     'cloture', 'Arrêter la caisse le soir',
     "Tu comptes ton argent avant de fermer, et tu veux savoir ce qu'il "
     "devrait y avoir dans le tiroir.",
@@ -628,10 +652,39 @@ sections.append(recette(
      "quel moment de la journée.",
      "<b>Clôturer la journée</b> quand tu fermes. L'application demande "
      "confirmation.",
+     "Elle demande ensuite <b>combien il y a dans le tiroir</b>. Compte, "
+     "écris le nombre.",
+     "Elle te dit alors ce qu'il aurait dû y avoir, et la différence.",
      "Le rapport s'affiche et part par WhatsApp comme les autres documents."],
-    "La ligne qui compte est en bas : <b>à avoir en caisse (espèces)</b>. "
-    "C'est ce que tu dois trouver dans le tiroir — le mobile money est sur "
-    "ton téléphone, et le crédit n'est nulle part encore."
+    "<b>Compte avant d'ouvrir l'application, pas après.</b> Elle ne te montre "
+    "pas l'attendu tant que tu n'as pas écrit ton chiffre — un comptage dont "
+    "on connaît déjà le résultat ne mesure rien, il suffit de recopier. Mais "
+    "le total de la journée est affiché sur l'écran du rapport, juste "
+    "derrière : je ne peux pas t'empêcher de le lire. Le comptage sert à "
+    "voir tes erreurs, pas à piéger quelqu'un."
+    "<br><br>"
+    "<b>Compte même quand tu es sûr.</b> Un soir où tout tombe juste "
+    "s'enregistre aussi, et c'est ce qui rend un écart lisible le jour où il "
+    "arrive : sans les soirs justes, on ne sait pas si la caisse est bien "
+    "tenue ou si personne ne la compte."
+    "<br><br>"
+    "<b>Tu peux passer.</b> « Je ne compte pas » clôture quand même. Rien "
+    "n'est enregistré ce soir-là, et c'est mieux qu'un chiffre inventé."
+    "<br><br>"
+    "<b>Ce que ça donne au patron.</b> Dans le rapport, une section dit ce "
+    "que le comptage a donné pour chacun : combien de fois la caisse a été "
+    "comptée, et ce qui manquait. Un écart isolé n'accuse personne — on se "
+    "trompe en rendant la monnaie, un client revient chercher son reste. "
+    "C'est la répétition qui parle. Un manque de 500 F un soir et 500 F de "
+    "trop le lendemain, c'est deux erreurs, pas un vol : l'application "
+    "affiche les deux séparément pour qu'on puisse faire la différence."
+    "<br><br>"
+    "La ligne qui compte est en bas du rapport : <b>à avoir en caisse "
+    "(espèces)</b>. C'est ce que tu dois trouver dans le tiroir — le mobile "
+    "money est sur ton téléphone, et le crédit n'est nulle part encore. Elle "
+    "tient compte de ce que tu as "
+    "<a href=\"#mouvements-caisse\">mis ou sorti de la caisse</a> ; si tu "
+    "ne notes pas ces mouvements-là, elle ne peut pas tomber juste."
     "<br><br>"
     "<b>La clôture ne se défait pas.</b> Le rapport suivant repart d'ici : "
     "c'est ce qui fait qu'on ne compte jamais deux fois la même journée. "
@@ -642,6 +695,8 @@ sections.append(recette(
     "qui est sorti, ce qui est revenu et ce qu'il reste depuis le dernier "
     "arrêté. C'est le rapport qu'on sort quand un chiffre ne tombe pas juste.",
     [('26-cloturer', 'Elle demande confirmation'),
+     ('28-compter-la-caisse', "Elle demande de compter, sans montrer l'attendu"),
+     ('29-ecart-de-caisse', 'Puis elle dit la différence'),
      ('27-cloture', 'Ce qui doit être dans le tiroir')]))
 
 sections.append('</div>')

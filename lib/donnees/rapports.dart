@@ -66,6 +66,7 @@ class Rapports {
       'totalCentimes': rapport.total.centimes,
       'taxeCentimes': rapport.taxe.centimes,
       'especesCentimes': rapport.especes.centimes,
+      'enCaisseCentimes': rapport.enCaisse.centimes,
       'nombreFactures': rapport.nombreFactures,
     }, horodatage: maintenant);
 
@@ -101,6 +102,13 @@ class Rapports {
       'totalCentimes': rapport.total.centimes,
       'taxeCentimes': rapport.taxe.centimes,
       'especesCentimes': rapport.especes.centimes,
+      // Une clé de plus, jamais une clé renommée. `especesCentimes` reste ce
+      // qu'il a toujours été — les ventes réglées en liquide — et le tiroir
+      // s'écrit à côté. Les deux diffèrent dès qu'on met ou sort de l'argent,
+      // et c'est le second qui est imprimé sur le rapport : le figer aussi,
+      // c'est pouvoir répondre au contrôleur qui demande d'où sort le chiffre
+      // de la feuille.
+      'enCaisseCentimes': rapport.enCaisse.centimes,
       'nombreFactures': rapport.nombreFactures,
     }, horodatage: maintenant);
 
@@ -166,7 +174,13 @@ class Rapports {
           debut: DateTime.parse(evenement.charge['debut']! as String),
           fin: DateTime.parse(evenement.charge['fin']! as String),
           total: Montant(evenement.charge['totalCentimes'] as int? ?? 0),
-          especes: Montant(evenement.charge['especesCentimes'] as int? ?? 0),
+          // Le tiroir quand il a été écrit ; à défaut les ventes en espèces,
+          // qui étaient la même chose avant que les mouvements existent.
+          especes: Montant(
+            evenement.charge['enCaisseCentimes'] as int? ??
+                evenement.charge['especesCentimes'] as int? ??
+                0,
+          ),
           nombreFactures: evenement.charge['nombreFactures'] as int? ?? 0,
         ),
       );
@@ -198,6 +212,9 @@ class Rapports {
   Future<DateTime> _origine() async {
     final premier = await journal.premier();
     if (premier == null) return DateTime.now();
+    // Une seconde en arrière : la borne de début est exclusive, et sans ce
+    // recul le tout premier événement du journal tomberait hors de sa propre
+    // première période.
     return premier.horodatage.subtract(const Duration(seconds: 1));
   }
 
@@ -208,6 +225,22 @@ class Rapports {
     required DateTime tireLe,
     required int numero,
   }) async {
+    // La période est ouverte au début et fermée à la fin : `debut < t <=
+    // fin`. Ce qui tombe sur la seconde de la clôture appartient à la journée
+    // qu'on ferme — comme dans un commerce, où le dernier client est servi
+    // avant qu'on compte.
+    //
+    // Il reste un angle mort d'une seconde, et je préfère l'écrire que le
+    // taire : les horodatages du journal sont à la seconde entière, donc une
+    // vente faite **juste après** un Z porte la même seconde que la borne.
+    // Elle n'était pas dans le Z — elle n'existait pas — et elle se trouve
+    // déjà avant la borne. Aucune comparaison ne les sépare : à cette
+    // précision, les deux ventes sont le même instant. J'ai essayé de
+    // renverser les bornes ; ça déplace le trou sans le fermer, et ça vide le
+    // Z de la journée qu'il vient de clore. La sortie propre est une borne
+    // exprimée en **position de journal** plutôt qu'en heure — un chantier à
+    // part, qui demande d'abord de décider ce que devient une clôture quand
+    // deux caisses se réunissent.
     final ventes =
         await (base.select(base.ventes)..where(
               (v) =>
@@ -233,6 +266,7 @@ class Rapports {
 
     final parGroupe = await _parGroupe(identifiants);
     final parMode = await _parMode(identifiants);
+    final (depots, retraits) = await _mouvementsDeCaisse(debut, fin);
 
     var total = const Montant.zero();
     var taxable = const Montant.zero();
@@ -272,10 +306,52 @@ class Rapports {
       ],
       parGroupe: parGroupe,
       parMode: parMode,
+      depotsCaisse: depots,
+      retraitsCaisse: retraits,
       reductions: remises,
       autresReductions: annule,
       ventesIncompletes: incompletes.length,
     );
+  }
+
+  /// Ce qui est entré et sorti du tiroir sans être une vente.
+  ///
+  /// Le fonds du matin, un achat payé en liquide, un versement à la banque.
+  /// Rien de tout ça n'est du chiffre d'affaires — ça ne touche donc ni les
+  /// groupes de taxation ni les totaux par mode de règlement — mais tout ça
+  /// change ce qu'il doit y avoir dans la caisse le soir, et c'est ce
+  /// chiffre-là que le commerçant vient chercher.
+  ///
+  /// Les comptages sont écartés : un écart constate le tiroir, il ne le
+  /// remplit pas. Le compter ici reviendrait à effacer l'écart en le
+  /// reportant sur l'attendu du lendemain.
+  Future<(Montant, Montant)> _mouvementsDeCaisse(
+    DateTime debut,
+    DateTime fin,
+  ) async {
+    // Les mêmes bornes que les ventes, et il faut que ça reste vrai : un
+    // retrait et une vente faits au même moment doivent tomber dans la même
+    // journée.
+    final lignes =
+        await (base.select(base.mouvementsCaisse)..where(
+              (m) =>
+                  m.nature.isNotValue(NatureMouvementCaisse.ecart) &
+                  m.horodatage.isBiggerThanValue(debut) &
+                  m.horodatage.isSmallerOrEqualValue(fin),
+            ))
+            .get();
+
+    var depots = const Montant.zero();
+    var retraits = const Montant.zero();
+    for (final ligne in lignes) {
+      final montant = Montant(ligne.montantCentimes);
+      if (ligne.nature == NatureMouvementCaisse.depot) {
+        depots = depots + montant;
+      } else {
+        retraits = retraits + montant;
+      }
+    }
+    return (depots, retraits);
   }
 
   /// Les totaux par groupe de taxation.

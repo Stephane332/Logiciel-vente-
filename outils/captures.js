@@ -83,7 +83,11 @@ async function vendreMontant(page, chiffres) {
 // construit n'est pas dans l'arbre de sémantique.
 async function clicPlusBas(page, texte, options = {}) {
   await page.mouse.move(TEL.width / 2, TEL.height / 2);
-  for (let i = 0; i < 14; i++) {
+  // Le budget de défilement suit la page la plus longue, pas la page
+  // d'aujourd'hui : le rapport grandit à chaque section ajoutée, et un
+  // bouton passé sous le bord fait échouer la génération des captures
+  // longtemps après le changement qui l'a poussé là.
+  for (let i = 0; i < 30; i++) {
     const vu = await page.evaluate(({ texte, exact }) =>
       [...document.querySelectorAll('flt-semantics')].some((e) => {
         const t = e.textContent.trim();
@@ -295,8 +299,29 @@ async function clicPlusBas(page, texte, options = {}) {
   await pause(page, 1200);
   await capture(page, '26-cloturer');
   await clic(page, 'Clôturer');
+  await pause(page, 1500);
+
+  // Le comptage s'intercale entre la confirmation et le Z. La capture doit
+  // montrer que l'attendu n'est pas encore là : c'est ce qui rend le geste
+  // honnête, et c'est ce qu'un commerçant doit comprendre en regardant.
+  await capture(page, '28-compter-la-caisse');
+  await page.locator('input').last().fill('11500');
+  await pause(page, 600);
+  await clic(page, 'Valider');
+  await pause(page, 1500);
+  await capture(page, '29-ecart-de-caisse');
+
+  await clic(page, 'Continuer');
   await pause(page, 1800);
   await capture(page, '27-cloture');
+
+  // Et ce que le patron lit ensuite.
+  await page.keyboard.press('Escape');
+  await pause(page, 1200);
+  await page.mouse.move(TEL.width / 2, TEL.height / 2);
+  await page.mouse.wheel(0, -3000);
+  await pause(page, 900);
+  await capture(page, '30-ecarts-au-rapport');
 
   await navigateur.close();
 })();

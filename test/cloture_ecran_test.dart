@@ -141,6 +141,10 @@ void main() {
       await tester.tap(find.text('Clôturer'));
       await tester.pumpAndSettle();
 
+      // Le comptage s'intercale, et on peut le passer.
+      await tester.tap(find.text('Je ne compte pas'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Clôture n° 1'), findsOneWidget);
 
       final texte = tester
@@ -153,6 +157,182 @@ void main() {
       expect(texte, contains('1 500 F'));
 
       expect(await rapports.derniereCloture(NatureRapport.z), isNotNull);
+    });
+  });
+
+  group('Le comptage de la caisse', () {
+    /// Va jusqu'au champ de saisie du comptage.
+    Future<void> jusquAuComptage(WidgetTester tester) async {
+      await tester.tap(find.text('Clôturer la journée'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clôturer'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("il ne montre jamais l'attendu avant la saisie", (
+      tester,
+    ) async {
+      // C'est toute la valeur du geste. Un comptage dont on connaît déjà le
+      // résultat ne mesure rien : il suffit de recopier le nombre affiché.
+      await vendre(prix: 1500);
+      await ouvrir(tester);
+      await jusquAuComptage(tester);
+
+      expect(find.text('Compte la caisse'), findsOneWidget);
+
+      // Le contenu de la boîte, et rien d'autre : l'écran du rapport est
+      // derrière, et lui affiche bien le total du jour. C'est une limite
+      // que j'assume et que le manuel dit — compter le tiroir avant
+      // d'ouvrir l'application, pas après.
+      final texte = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((t) => t.data ?? '')
+          .join('\n');
+      expect(texte, isNot(contains('1 500')));
+      expect(texte, isNot(contains('avoir en caisse')));
+      expect(texte, isNot(contains('encaissé')));
+    });
+
+    testWidgets("ce qui est compté donne l'écart, et il est enregistré", (
+      tester,
+    ) async {
+      await vendre(prix: 1500);
+      await ouvrir(tester);
+      await jusquAuComptage(tester);
+
+      await tester.enterText(find.byType(TextField), '1000');
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Il manque 500 F'), findsOneWidget);
+      expect(find.text('Ce que tu as compté'), findsOneWidget);
+      expect(find.text('Ce qui aurait dû y être'), findsOneWidget);
+
+      final ecarts = await depot.ecartsParVendeur(
+        DateTime.now().subtract(const Duration(days: 1)),
+        DateTime.now().add(const Duration(days: 1)),
+      );
+      expect(ecarts.single.manques, Montant.depuisDecimal(500));
+
+      // Et le rapport doit le montrer sans qu'on ait à ressortir de l'écran.
+      await tester.tap(find.text('Continuer'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Ce que la caisse a donné au comptage'),
+        findsOneWidget,
+        reason: "un écran qui oublie ce qu'il vient d'enregistrer est un "
+            'écran auquel on cesse de croire',
+      );
+    });
+
+    testWidgets('une caisse juste se dit autrement, et se note quand même', (
+      tester,
+    ) async {
+      await vendre(prix: 1500);
+      await ouvrir(tester);
+      await jusquAuComptage(tester);
+
+      await tester.enterText(find.byType(TextField), '1500');
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('La caisse tombe juste'), findsOneWidget);
+
+      final ecarts = await depot.ecartsParVendeur(
+        DateTime.now().subtract(const Duration(days: 1)),
+        DateTime.now().add(const Duration(days: 1)),
+      );
+      expect(ecarts.single.comptages, 1);
+      expect(ecarts.single.impeccable, isTrue);
+    });
+
+    testWidgets('passer le comptage ne bloque pas la clôture', (tester) async {
+      await vendre(prix: 1500);
+      await ouvrir(tester);
+      await jusquAuComptage(tester);
+
+      await tester.tap(find.text('Je ne compte pas'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Clôture n° 1'), findsOneWidget);
+      final ecarts = await depot.ecartsParVendeur(
+        DateTime.now().subtract(const Duration(days: 1)),
+        DateTime.now().add(const Duration(days: 1)),
+      );
+      expect(ecarts, isEmpty, reason: 'ne rien compter ne s\'invente pas');
+    });
+
+    testWidgets('le rapport montre qui accumule les manques', (tester) async {
+      await depot.pointerLaCaisse(
+        compte: Montant.depuisDecimal(99500),
+        attendu: Montant.depuisDecimal(100000),
+        operateur: 'Awa',
+      );
+      await ouvrir(tester);
+
+      expect(
+        find.text('Ce que la caisse a donné au comptage'),
+        findsOneWidget,
+      );
+      expect(find.text('Awa'), findsWidgets);
+      expect(find.text('− 500 F'), findsOneWidget);
+      expect(
+        find.textContaining("c'est la répétition qui parle"),
+        findsOneWidget,
+        reason: "nommer des gens à côté de sommes manquantes se lit comme "
+            'une accusation si personne ne prévient du contraire',
+      );
+    });
+
+    testWidgets("l'argent sorti du tiroir n'est pas compté comme un manque", (
+      tester,
+    ) async {
+      // Le cas qui rendait le comptage nuisible : le commerçant paie son
+      // fournisseur en liquide, et le soir l'application l'accuse d'un
+      // manque de 1 000 F qui sont partis avec une facture.
+      await vendre(prix: 1500);
+      await depot.sortirDeCaisse(
+        Montant.depuisDecimal(1000),
+        motif: 'Sac de riz',
+      );
+      await ouvrir(tester);
+      await jusquAuComptage(tester);
+
+      await tester.enterText(find.byType(TextField), '500');
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('La caisse tombe juste'), findsOneWidget);
+    });
+
+    testWidgets("sortir de l'argent se note depuis l'écran", (tester) async {
+      await vendre(prix: 1500);
+      await ouvrir(tester);
+
+      await tester.tap(find.text('Sortir'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, '1000');
+      await tester.tap(find.text('Noter'));
+      await tester.pumpAndSettle();
+
+      final mouvements = await depot.mouvementsDeCaisse(
+        DateTime.now().subtract(const Duration(days: 1)),
+        DateTime.now().add(const Duration(days: 1)),
+      );
+      expect(mouvements.single.montantCentimes, 100000);
+      expect(mouvements.single.nature, NatureMouvementCaisse.retrait);
+    });
+
+    testWidgets("sans comptage, la section n'existe pas", (tester) async {
+      await vendre();
+      await ouvrir(tester);
+
+      expect(find.text('Ce que la caisse a donné au comptage'), findsNothing);
     });
   });
 

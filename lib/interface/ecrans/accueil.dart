@@ -261,6 +261,7 @@ class _AccueilState extends State<Accueil> {
                     documents: _documents,
                     analyses: widget.analyses,
                     surReglages: _ouvrirReglages,
+                    vendeurActif: _reglage.vendeurActif,
                     // La fiche vient des réglages en cours, pas de celle du
                     // démarrage : un IFU saisi il y a une minute doit être sur le
                     // Z de ce soir.

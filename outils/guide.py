@@ -343,6 +343,40 @@ la caisse — son nom ne doit pas continuer de s'écrire après son départ.</p>
       ('equipe-03-liste', 'On change de vendeur en un appui'),
       ('equipe-05-rapport', "Le compte de chacun, dans le rapport")]))
 
+sections.append(bloc('Le comptage de la caisse, et ce qui manque', """
+<p>Le compte d'un vendeur dit ce qu'il a encaissé. Il ne dit pas si l'argent y
+est. C'est le tiroir qui le dit, et lui seul : tout le reste se raconte.</p>
+<p>À la clôture, l'application demande <b>combien il y a dans la caisse</b>,
+avant de montrer quoi que ce soit. Le commerçant compte, écrit son chiffre, et
+c'est <b>ensuite</b> qu'elle affiche ce qu'il aurait dû y avoir et la
+différence. L'ordre est tout : un comptage dont on connaît déjà le résultat ne
+mesure rien, il suffit de recopier le nombre affiché.</p>
+<p>Pour que l'attendu soit juste, il faut aussi que le tiroir soit suivi
+quand il bouge sans vente : le fonds du matin, un fournisseur payé en liquide,
+un versement à la banque. Deux boutons, <b>Mettre</b> et <b>Sortir</b>, notent
+ces mouvements — c'est aussi le contrôle des dépôts et retraits de numéraire
+exigé au §2.13. Sans eux, l'argent parti chez le fournisseur apparaît comme un
+manque au comptage, et le contrôle se retourne contre un employé honnête.</p>
+<p>L'écart est signé et reste attaché au vendeur en poste. Le rapport en donne
+le cumul par personne, avec le nombre de comptages — parce que mille francs
+manquants sur trente soirs et les mêmes mille francs sur un seul ne racontent
+pas la même histoire. <b>Les manques et les excédents se comptent
+séparément</b> : quelqu'un qui manque 500 F un soir et en a 500 de trop le
+lendemain s'est trompé deux fois, il n'a rien pris, et une somme unique
+l'aurait effacé.</p>
+<p>Un soir où tout tombe juste s'enregistre comme les autres. C'est même le
+plus utile des quatre-vingt-dix-neuf soirs sans histoire : sans eux, une caisse
+bien tenue et une caisse jamais comptée se ressemblent — aucune ligne d'écart
+ni dans l'un ni dans l'autre.</p>
+<p class="note">Deux limites que je préfère écrire. Le total de la journée est
+affiché sur l'écran du rapport, juste derrière la boîte de saisie : quelqu'un
+qui veut tricher peut le lire. Le comptage sert à voir les erreurs et à faire
+apparaître une dérive dans le temps, pas à piéger un voleur décidé — c'est la
+même honnêteté que pour les noms de vendeurs, qui ne sont pas des comptes. Et
+on peut passer le comptage : rien n'est alors enregistré, ce qui vaut mieux
+qu'un chiffre inventé.</p>
+""", []))
+
 sections.append(bloc('Le rapport du soir', """
 <p>C'est ce qui crée l'habitude. Le patron qui n'est pas au magasin voit son
 commerce : ce qui est rentré, ce qui a été promis, ce qu'il faut racheter demain,

@@ -133,6 +133,14 @@ class RapportFiscal {
   final List<TotauxParGroupe> parGroupe;
   final Map<ModePaiement, Montant> parMode;
 
+  /// L'argent mis dans la caisse sans être une vente : le fonds du matin,
+  /// un apport en cours de journée. Exigé au §2.13.
+  final Montant depotsCaisse;
+
+  /// L'argent sorti de la caisse sans être un remboursement : un achat, un
+  /// versement à la banque, un prélèvement du patron.
+  final Montant retraitsCaisse;
+
   /// Les remises accordées sur la période (§5, « réductions commerciales »).
   final Montant reductions;
 
@@ -157,6 +165,8 @@ class RapportFiscal {
     this.parType = const [],
     this.parGroupe = const [],
     this.parMode = const {},
+    this.depotsCaisse = const Montant.zero(),
+    this.retraitsCaisse = const Montant.zero(),
     this.reductions = const Montant.zero(),
     this.autresReductions = const Montant.zero(),
     this.ventesIncompletes = 0,
@@ -182,6 +192,21 @@ class RapportFiscal {
   /// considération fiscale. Le mobile money est sur son téléphone, le crédit
   /// n'est nulle part encore.
   Montant get especes => parMode[ModePaiement.especes] ?? const Montant.zero();
+
+  /// Ce qui devrait réellement se trouver dans le tiroir.
+  ///
+  /// **Ce n'est pas le total des ventes en espèces**, et c'était le défaut :
+  /// un commerçant met un fonds de caisse le matin pour rendre la monnaie,
+  /// paie un fournisseur en cours de journée, porte une partie à la banque
+  /// avant de fermer. Rien de tout ça n'est une vente, et tout ça change ce
+  /// qu'il y a dans le tiroir.
+  ///
+  /// Tant que personne ne comptait, l'erreur restait théorique. Depuis que
+  /// l'application compare le comptage du soir à ce chiffre, elle accuserait
+  /// quelqu'un d'un manque de vingt mille francs qui sont partis chez le
+  /// fournisseur, facture à l'appui. Une accusation fausse coûte plus cher
+  /// que pas de contrôle du tout.
+  Montant get enCaisse => especes + depotsCaisse - retraitsCaisse;
 
   /// Le rapport, ligne par ligne, tel qu'il s'imprime et tel qu'il s'envoie.
   List<String> get lignes {
@@ -259,11 +284,26 @@ class RapportFiscal {
       ..add(DocumentClient.aligne('Total taxable', taxable.enFrancs))
       ..add(DocumentClient.aligne('Total taxe', taxe.enFrancs))
       ..add(DocumentClient.aligne('TOTAL', total.enFrancs))
-      ..add('')
-      // Le chiffre que le commerçant vient chercher, mis en évidence.
-      ..add(
-        DocumentClient.aligne('À avoir en caisse (espèces)', especes.enFrancs),
-      );
+      ..add('');
+
+    // Le détail du tiroir, et seulement s'il y a eu des mouvements. Un
+    // commerçant qui n'a rien sorti de sa caisse n'a pas à lire deux lignes
+    // à zéro pour arriver au chiffre qu'il vient chercher.
+    if (depotsCaisse.estPositif || retraitsCaisse.estPositif) {
+      sortie
+        ..add(DocumentClient.aligne('  Ventes en espèces', especes.enFrancs))
+        ..add(
+          DocumentClient.aligne('  Mis en caisse', depotsCaisse.enFrancs),
+        )
+        ..add(
+          DocumentClient.aligne('  Sorti de caisse', retraitsCaisse.enFrancs),
+        );
+    }
+
+    // Le chiffre que le commerçant vient chercher, mis en évidence.
+    sortie.add(
+      DocumentClient.aligne('À avoir en caisse (espèces)', enCaisse.enFrancs),
+    );
 
     if (!certifie) {
       sortie

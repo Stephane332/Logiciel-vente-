@@ -175,6 +175,15 @@ les cacherait au lieu de les corriger. La sortie propre est une facture d'avoir.
 numérotation par caisse réglerait le problème à la source, mais le format de la référence
 dépend du protocole MCF que je n'ai pas encore : je ne l'invente pas.
 
+**Une clôture ne connaît que sa propre caisse.** Les ventes reçues d'un autre appareil
+portent des heures antérieures au dernier Z tiré ici : elles tombent dans une période déjà
+close, dont les totaux sont figés dans le journal. Elles n'apparaissent donc dans aucun Z.
+La consigne est la même que pour les factures — une seule caisse clôture — et la sortie
+propre est la même : une borne de clôture exprimée en position de journal, par appareil,
+plutôt qu'en heure. C'est écrit dans
+[`02-conformite-dgi.md`](02-conformite-dgi.md) avec les deux autres défauts de la même
+famille.
+
 **Il n'y a pas de verrou entre deux caisses.** Deux vendeuses peuvent vendre le dernier
 sac de riz en même temps. Le stock sera juste après la réunion — il descendra de deux —
 mais personne n'aura été prévenu sur le moment. C'est le prix du hors-ligne, et je le

@@ -91,7 +91,21 @@ débogage. L'APK s'installe et fonctionne — c'est bon pour essayer. Mais il ne
 pourra jamais mettre à jour un APK signé avec la vraie clé, donc **il ne faut
 pas l'installer chez un commerçant qu'on reverra**.
 
-### Ce que j'ai vérifié, et qui est pire que je ne le croyais
+### Donner l'application à quelqu'un
+
+Le dépôt est privé, donc le lien d'une version publiée renvoie
+« introuvable » sur un téléphone sans compte GitHub. La page publique
+d'installation existe pour ça, et c'est elle qu'on transmet :
+
+```
+https://stephane332.github.io/Logiciel-vente-/installer.html
+```
+
+Elle est déposée par la case **demo** du workflow, avec les APK à côté. Le
+fichier se repasse ensuite de la main à la main — WhatsApp, Bluetooth, carte
+mémoire — sans que personne n'ait besoin d'un compte.
+
+## Ce que j'ai vérifié, et qui est pire que je ne le croyais
 
 J'ai extrait le certificat de l'APK de la version 0.6.1 :
 

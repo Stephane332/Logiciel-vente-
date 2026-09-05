@@ -96,7 +96,21 @@ Ne jamais annoncer une version sans l'avoir regardée :
 « introuvable ». C'est le cas normal sur un téléphone, et c'est là qu'on perd
 la personne.
 
-Trois routes, de la meilleure à la plus lourde :
+**La route normale est publique.** `gh-pages` est servi sans compte, lui.
+La case **demo** y dépose la démonstration, les APK, le manuel et une page
+d'installation. C'est cette adresse-là qu'on colle dans WhatsApp :
+
+```
+https://<propriétaire>.github.io/<dépôt>/installer.html
+```
+
+Elle donne le fichier, explique les trois gestes d'installation, mène à la
+démonstration pour qui n'a pas d'Android, et au manuel. Elle dit aussi que la
+version est signée en débogage tant qu'elle l'est — elle le lit sur la version
+publiée, elle ne le devine pas.
+
+Les trois routes ci-dessous restent, pour le jour où Pages n'est pas
+disponible :
 
 1. **Le fichier en main.** Actions → APK → *Run workflow* → cocher
    **livrer**. L'APK de la dernière version est déposé sur une branche

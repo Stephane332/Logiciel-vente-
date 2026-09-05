@@ -368,6 +368,49 @@ jobs:
           touch build/web/.nojekyll
           ls -lh build/web/index.html
 
+      # Ce qui manquait pour qu'on puisse simplement donner l'application.
+      #
+      # Le dépôt est privé : le lien d'une version publiée renvoie
+      # « introuvable » — pas « connecte-toi » — à qui l'ouvre sur un
+      # téléphone sans compte GitHub. C'est le cas normal quand on envoie
+      # l'adresse à un commerçant. Pages, lui, est servi publiquement : les
+      # APK y sont déposés à côté de la démonstration, et une page les
+      # présente.
+      #
+      # `x86_64` reste dehors : il ne sert qu'aux émulateurs, et il pèse
+      # trente mégaoctets que personne ne téléchargera depuis un téléphone.
+      - name: Joindre les fichiers d'installation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/web/telecharger
+          for QUOI in arm64-v8a armeabi-v7a universel; do
+            gh release download --repo "$GITHUB_REPOSITORY" \
+              --dir build/web/telecharger --pattern "*$QUOI.apk" \
+              --clobber || echo "Pas de fichier $QUOI dans la dernière version."
+          done
+          ls -lh build/web/telecharger/ || true
+
+          # La page dit la vérité sur la signature, et elle la lit sur la
+          # version publiée plutôt que de la deviner.
+          TITRE=$(gh release view --repo "$GITHUB_REPOSITORY" \
+            --json name --jq .name 2>/dev/null || true)
+          case "$TITRE" in
+            *"signature de débogage"*) SIGNATURE=--debogage ;;
+            *) SIGNATURE= ;;
+          esac
+          python3 outils/page-installation.py \
+            build/web/telecharger build/web/installer.html $SIGNATURE
+
+      # Le mode d'emploi, à la même adresse publique. Un commerçant qui
+      # hésite ouvre le manuel avant d'installer, et il n'a pas de compte
+      # GitHub pour aller le chercher dans le dépôt.
+      - name: Joindre le manuel et le guide
+        run: |
+          cp docs/manuel.html build/web/manuel.html
+          cp docs/guide-utilisation.html build/web/guide.html
+          ls -lh build/web/manuel.html build/web/guide.html
+
       - name: Déposer sur la branche gh-pages
         env:
           GH_TOKEN: ${{ github.token }}
@@ -397,7 +440,12 @@ jobs:
             echo ""
             echo "Ensuite, et à chaque exécution :"
             echo ""
-            echo "https://${PROPRIETAIRE,,}.github.io/${DEPOT}/"
+            echo "- Installer : https://${PROPRIETAIRE,,}.github.io/${DEPOT}/installer.html"
+            echo "- Essayer   : https://${PROPRIETAIRE,,}.github.io/${DEPOT}/"
+            echo "- Manuel    : https://${PROPRIETAIRE,,}.github.io/${DEPOT}/manuel.html"
+            echo ""
+            echo "C'est **installer.html** qu'on colle dans WhatsApp : elle"
+            echo "donne le fichier, mène à la démonstration et au manuel."
             echo ""
             echo "Sur un dépôt privé, Pages demande un plan payant. Si le"
             echo "réglage n'est pas disponible, la branche reste prête pour"

@@ -1,0 +1,44 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+*.g.dart
+*.freezed.dart
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/flutter_export_environment.sh
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Éditeurs
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Secrets et configuration locale
+.env
+*.local
+
+# La démonstration web est servie depuis la branche gh-pages, compilée par
+# le workflow. La garder aussi ici, c'était dix-huit mégaoctets de code
+# compilé périmé dans chaque clone.
+docs/app/

@@ -1,0 +1,101 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- L'appareil photo ne sert qu'au scanner de code-barres, et le scanner
+         n'est jamais obligatoire : la caisse marche entièrement sans lui.
+         `required="false"` est donc essentiel — sans lui, le Play Store et
+         certains installateurs écartent les téléphones sans caméra, qui sont
+         exactement ceux d'une partie de mes commerçants. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus"
+                  android:required="false" />
+
+    <application
+        android:label="Carnet"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!--
+        Depuis Android 11, une application ne voit plus les autres à moins de
+        les déclarer ici. Sans ces lignes, l'application ne peut pas savoir
+        qu'un composeur, une messagerie ou un navigateur existe : elle croit
+        qu'aucune application ne sait ouvrir le lien, et le bouton ne fait
+        rien. Silencieusement — c'est le pire cas de figure, parce qu'on ne
+        s'en aperçoit qu'en le tenant en main.
+
+        C'est tout l'encaissement mobile money qui en dépend : le lien de
+        paiement ouvre le composeur du client, déjà rempli. Et c'est aussi le
+        reçu et l'ardoise, qui partent par WhatsApp ou par SMS.
+    -->
+    <queries>
+        <!-- Le composeur, pour le code USSD de paiement marchand. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="tel"/>
+        </intent>
+
+        <!-- La messagerie, pour le reçu et l'ardoise en SMS. -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="sms"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="smsto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="sms"/>
+        </intent>
+
+        <!-- WhatsApp, atteint par un lien wa.me : c'est un lien web. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+
+        <!-- Le partage du fichier de sauvegarde, hors du téléphone. -->
+        <intent>
+            <action android:name="android.intent.action.SEND"/>
+            <data android:mimeType="*/*"/>
+        </intent>
+
+        <!-- Requis par le moteur Flutter, pour le menu de sélection de texte.
+             Voir https://developer.android.com/training/package-visibility -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

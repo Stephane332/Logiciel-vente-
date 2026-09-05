@@ -393,12 +393,21 @@ jobs:
 
           # La page dit la vérité sur la signature, et elle la lit sur la
           # version publiée plutôt que de la deviner.
-          TITRE=$(gh release view --repo "$GITHUB_REPOSITORY" \
-            --json name --jq .name 2>/dev/null || true)
-          case "$TITRE" in
-            *"signature de débogage"*) SIGNATURE=--debogage ;;
-            *) SIGNATURE= ;;
-          esac
+          # Le repli est l'avertissement, pas le silence. Si le titre ne se
+          # lit pas — réseau, jeton, version absente — la page prévient quand
+          # même. Se taire ferait dire à la page qu'une version est signée
+          # alors que rien ne l'a établi, et c'est cette phrase-là qui
+          # décide quelqu'un à installer chez un commerçant.
+          SIGNATURE=--debogage
+          if TITRE=$(gh release view --repo "$GITHUB_REPOSITORY" \
+               --json name --jq .name 2>/dev/null); then
+            case "$TITRE" in
+              *"signature de débogage"*) SIGNATURE=--debogage ;;
+              *) SIGNATURE= ;;
+            esac
+          else
+            echo "Titre de la version illisible : on avertit par défaut."
+          fi
           python3 outils/page-installation.py \
             build/web/telecharger build/web/installer.html $SIGNATURE
 
